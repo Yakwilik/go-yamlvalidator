@@ -1,0 +1,185 @@
+lint:
+  use:
+    # Minimal
+    - DIRECTORY_SAME_PACKAGE
+    - PACKAGE_DEFINED
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+
+    # Basic
+    - ENUM_FIRST_VALUE_ZERO
+    - ENUM_NO_ALLOW_ALIAS
+    - ENUM_PASCAL_CASE
+    - ENUM_VALUE_UPPER_SNAKE_CASE
+    - FIELD_LOWER_SNAKE_CASE
+    - IMPORT_NO_PUBLIC
+    - IMPORT_NO_WEAK
+    - IMPORT_USED
+    - MESSAGE_PASCAL_CASE
+    - ONEOF_LOWER_SNAKE_CASE
+    - PACKAGE_LOWER_SNAKE_CASE
+    - PACKAGE_SAME_CSHARP_NAMESPACE
+    - PACKAGE_SAME_GO_PACKAGE
+    - PACKAGE_SAME_JAVA_MULTIPLE_FILES
+    - PACKAGE_SAME_JAVA_PACKAGE
+    - PACKAGE_SAME_PHP_NAMESPACE
+    - PACKAGE_SAME_RUBY_PACKAGE
+    - PACKAGE_SAME_SWIFT_PREFIX
+    - RPC_PASCAL_CASE
+    - SERVICE_PASCAL_CASE
+
+    # Default
+    - ENUM_VALUE_PREFIX
+    - ENUM_ZERO_VALUE_SUFFIX
+    - FILE_LOWER_SNAKE_CASE
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - PACKAGE_VERSION_SUFFIX
+    - SERVICE_SUFFIX
+
+    # Comments
+    - COMMENT_ENUM
+    - COMMENT_ENUM_VALUE
+    - COMMENT_FIELD
+    - COMMENT_MESSAGE
+    - COMMENT_ONEOF
+    - COMMENT_RPC
+    - COMMENT_SERVICE
+
+    # Unary RPC
+    - RPC_NO_CLIENT_STREAMING
+    - RPC_NO_SERVER_STREAMING
+
+  enum_zero_value_suffix: NONE
+
+  service_suffix: API
+
+deps: [
+  "github.com/googleapis/googleapis@common-protos-1_3_1",
+  "github.com/google/gnostic@v0.7.0"
+]
+
+generate:
+  inputs:
+    - directory:
+        root: eco_contract
+        path: .
+    - directory:
+        path: "proto/common"
+        root: "test_managed"
+    - git_repo:
+        url: "github.com/google/gnostic@v0.7.0"
+        sub_directory: "openapiv3"
+#    - git_repo:
+#        url: "github.com/protocolbuffers/protobuf@v33.2"
+#        sub_directory: "src"
+#        root: "src"
+  # =============================================
+  # MANAGED MODE - тестирование всех опций
+  # =============================================
+  managed:
+    enabled: off
+    
+    # Override для разных языков
+    override:
+      # ===== Go =====
+      # Используем один префикс для всех файлов, чтобы можно было использовать module
+      - file_option: go_package_prefix
+        value: github.com/example/ec-code/gen/go
+      
+      # Внешние зависимости тоже используют тот же префикс
+      - file_option: go_package_prefix
+        module: github.com/googleapis/googleapis
+        value: github.com/example/ec-code/gen/go
+      
+      - file_option: go_package_prefix
+        module: github.com/google/gnostic
+        value: github.com/example/ec-code/gen/go
+      
+      # Well-known types тоже должны использовать тот же префикс для module
+      - file_option: go_package_prefix
+        path: google/protobuf/
+        value: github.com/example/ec-code/gen/go
+      
+      # ===== Java =====
+      - file_option: java_package_prefix
+        value: org.example.ec
+      
+      - file_option: java_multiple_files
+        value: true
+      
+      # ===== C# =====
+      - file_option: csharp_namespace_prefix
+        value: Example.Ec
+      
+      # ===== Ruby =====
+      - file_option: ruby_package_suffix
+        value: Client
+      
+      # ===== Objective-C =====
+      - file_option: objc_class_prefix
+        value: ECO
+      
+      # ===== Swift =====
+      - file_option: swift_prefix
+        value: ECO
+      
+      # ===== Optimization =====
+      - file_option: optimize_for
+        value: SPEED
+      
+      # ===== Field Options =====
+      # jstype для всех int64/uint64 полей
+      - field_option: jstype
+        value: JS_STRING
+
+  plugins:
+#    # Go генерация
+#    - name: go
+#      out: ./gen/go
+#      opts:
+#        module: github.com/example/ec-code/gen/go
+#      with_imports: true
+    # cpp генерация
+#    - command: ["docker", "run", "--rm", "-i", "protoc-gen-builtin", "cpp"]
+#      out: ./cpp-gen
+#      opts:
+##        module: github.com/example/ec-code/gen/go
+#      with_imports: true
+#
+    - name: python
+      out: ./gen/python
+    - name: csharp
+      out: ./gen/csharp
+    - name: ruby
+      out: ./gen/ruby
+    - name: cpp
+      out: ./gen/cpp
+    - name: java
+      out: ./gen/java
+    - name: kotlin
+      out: ./gen/kotlin
+    - name: objc
+      out: ./gen/objc
+    - name: php
+      out: ./gen/php
+
+    - name: grpc_python
+      out: ./gen-grpc/python
+    - name: grpc_csharp
+      out: ./gen-grpc/csharp
+    - name: grpc_ruby
+      out: ./gen-grpc/ruby
+    - name: grpc_cpp
+      out: ./gen-grpc/cpp
+    - name: grpc_java
+      out: ./gen-grpc/java
+    - name: grpc_objc
+      out: ./gen-grpc/objc
+    - name: grpc_php
+      out: ./gen-grpc/php
+
+breaking:
+  ignore: []
+  against_git_ref: ""
