@@ -496,7 +496,7 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 		if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
 			prefix := ""
 			if docIndex > 0 {
-				prefix = fmt.Sprintf("doc[%d].", docIndex)
+				prefix = fmt.Sprintf("doc[%d]", docIndex)
 			}
 			v.validateNode(root.Content[0], v.schema, prefix, ctx)
 		}

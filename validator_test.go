@@ -242,8 +242,8 @@ func TestSequenceValidation(t *testing.T) {
 	schema := &FieldSchema{
 		Type:       TypeSequence,
 		ItemSchema: &FieldSchema{Type: TypeString},
-		MinItems:   PtrInt(1),
-		MaxItems:   PtrInt(3),
+		MinItems:   Ptr[int](1),
+		MaxItems:   Ptr[int](3),
 	}
 
 	tests := []struct {
@@ -586,7 +586,7 @@ func TestRangeValidator(t *testing.T) {
 	schema := &FieldSchema{
 		Type: TypeInt,
 		Validators: []ValueValidator{
-			valv.RangeValidator{Min: PtrFloat(1), Max: PtrFloat(100)},
+			valv.RangeValidator{Min: Ptr[float64](1), Max: Ptr[float64](100)},
 		},
 	}
 
@@ -630,6 +630,53 @@ func TestRangeValidator(t *testing.T) {
 				t.Errorf("got %d errors, want %d", len(result.Collector.Errors()), tt.wantErrors)
 			}
 		})
+	}
+}
+
+func TestRangeValidatorYAMLNumbers(t *testing.T) {
+	t.Run("hex int", func(t *testing.T) {
+		schema := &FieldSchema{
+			Type: TypeInt,
+			Validators: []ValueValidator{
+				valv.RangeValidator{Min: Ptr[float64](0), Max: Ptr[float64](100)},
+			},
+		}
+		v := NewValidator(schema)
+		result := v.ValidateBytes([]byte("0x10"))
+		if len(result.Collector.Errors()) != 0 {
+			t.Fatalf("expected hex int accepted, got errors: %v", result.Collector.Errors())
+		}
+	})
+
+	t.Run("inf float", func(t *testing.T) {
+		schema := &FieldSchema{
+			Type: TypeFloat,
+			Validators: []ValueValidator{
+				valv.RangeValidator{},
+			},
+		}
+		v := NewValidator(schema)
+		result := v.ValidateBytes([]byte(".inf"))
+		if len(result.Collector.Errors()) != 0 {
+			t.Fatalf("expected .inf accepted, got errors: %v", result.Collector.Errors())
+		}
+	})
+}
+
+func TestLengthValidatorUnicode(t *testing.T) {
+	schema := &FieldSchema{
+		Type: TypeString,
+		Validators: []ValueValidator{
+			valv.LengthValidator{Max: Ptr[int](6)},
+		},
+	}
+
+	yaml := `"привет"` // 6 runes, 12 bytes
+
+	v := NewValidator(schema)
+	result := v.ValidateBytes([]byte(yaml))
+	if len(result.Collector.Errors()) != 0 {
+		t.Fatalf("expected unicode string accepted by LengthValidator, got %v", result.Collector.Errors())
 	}
 }
 
@@ -729,6 +776,28 @@ App: "nginx"
 	}
 }
 
+func TestLengthKeyValidatorUnicode(t *testing.T) {
+	schema := &FieldSchema{
+		Type:                 TypeMap,
+		AdditionalProperties: &FieldSchema{Type: TypeString},
+		KeyValidators: []KeyValidator{
+			keyv.LengthKeyValidator{Min: Ptr[int](2), Max: Ptr[int](3)},
+		},
+	}
+
+	yaml := `
+ключ: "value"
+`
+	v := NewValidator(schema)
+	result := v.ValidateBytes([]byte(yaml))
+	if len(result.Collector.Errors()) != 1 {
+		t.Fatalf("expected length error for unicode key, got %v", result.Collector.Errors())
+	}
+	if got := result.Collector.Errors()[0].Got; got != "4 characters" {
+		t.Fatalf("expected rune count in error, got %q", got)
+	}
+}
+
 func TestMultiDocument(t *testing.T) {
 	schema := &FieldSchema{
 		Type: TypeMap,
@@ -753,6 +822,30 @@ missing: "third"
 	}
 	if !strings.Contains(result.Collector.Errors()[0].Path, "doc[2]") {
 		t.Errorf("error should reference doc[2], got: %s", result.Collector.Errors()[0].Path)
+	}
+}
+
+func TestMultiDocumentPathFormatting(t *testing.T) {
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"name": {Type: TypeString, Required: true},
+		},
+	}
+
+	yaml := `
+name: "first"
+---
+{}
+`
+	v := NewValidator(schema)
+	result := v.ValidateBytes([]byte(yaml))
+
+	if len(result.Collector.Errors()) != 1 {
+		t.Fatalf("got %d errors, want 1", len(result.Collector.Errors()))
+	}
+	if got := result.Collector.Errors()[0].Path; got != "doc[1].name" {
+		t.Fatalf("expected path doc[1].name, got %s", got)
 	}
 }
 
@@ -930,5 +1023,56 @@ c: "not int"
 
 	if len(result.Collector.Errors()) != 1 {
 		t.Errorf("got %d errors, want 1 (stop on first)", len(result.Collector.Errors()))
+	}
+}
+
+func TestSortByPositionInterleaved(t *testing.T) {
+	collector := NewErrorCollector()
+	collector.Add(ValidationError{Level: LevelWarning, Line: 1, Column: 1, Message: "warn first"})
+	collector.Add(ValidationError{Level: LevelError, Line: 2, Column: 1, Message: "error second"})
+	result := ValidationResult{
+		Collector:   collector,
+		SourceLines: []string{"line1", "line2"},
+	}
+	out := result.FormatAll(true)
+	firstWarn := strings.Index(out, "warn first")
+	firstErr := strings.Index(out, "error second")
+	if firstWarn == -1 || firstErr == -1 || firstWarn > firstErr {
+		t.Fatalf("expected warning before error after position sort, got output: %s", out)
+	}
+}
+
+func TestMergeKeysSupported(t *testing.T) {
+	serverSchema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"timeout": {Type: TypeInt, Required: true},
+			"host":    {Type: TypeString, Required: true},
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+	}
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"defaults": {Type: TypeMap, UnknownKeyPolicy: UnknownKeyIgnore, AdditionalProperties: &FieldSchema{Type: TypeAny}},
+			"server":   serverSchema,
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+		AdditionalProperties: &FieldSchema{
+			Type: TypeAny,
+		},
+	}
+
+	yaml := `
+defaults: &defaults
+  timeout: 30
+server:
+  <<: *defaults
+  host: example.com
+`
+	v := NewValidator(schema)
+	result := v.ValidateBytes([]byte(yaml))
+	if len(result.Collector.Errors()) != 0 {
+		t.Fatalf("expected merge keys to be honored, got errors: %v", result.Collector.Errors())
 	}
 }

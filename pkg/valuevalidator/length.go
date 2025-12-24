@@ -2,6 +2,7 @@ package valuevalidator
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	v "github.com/Yakwilik/go-yamlvalidator"
 	"gopkg.in/yaml.v3"
@@ -18,7 +19,7 @@ func (vld LengthValidator) Validate(node *yaml.Node, path string, ctx *v.Validat
 	var length int
 	switch node.Kind {
 	case yaml.ScalarNode:
-		length = len(node.Value)
+		length = utf8.RuneCountInString(node.Value)
 	case yaml.SequenceNode:
 		length = len(node.Content)
 	case yaml.MappingNode:

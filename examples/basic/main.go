@@ -73,7 +73,7 @@ func main() {
 					"replicas": {
 						Type: v.TypeInt,
 						Validators: []v.ValueValidator{
-							valv.RangeValidator{Min: v.PtrFloat(0), Max: v.PtrFloat(1000)},
+							valv.RangeValidator{Min: v.Ptr[float64](0), Max: v.Ptr[float64](1000)},
 						},
 					},
 					"selector": {
@@ -103,7 +103,7 @@ func main() {
 									"containers": {
 										Type:     v.TypeSequence,
 										Required: true,
-										MinItems: v.PtrInt(1),
+										MinItems: v.Ptr[int](1),
 										ItemSchema: &v.FieldSchema{
 											Type: v.TypeMap,
 											AllowedKeys: map[string]*v.FieldSchema{
@@ -128,8 +128,8 @@ func main() {
 																Required: true,
 																Validators: []v.ValueValidator{
 																	valv.RangeValidator{
-																		Min: v.PtrFloat(1),
-																		Max: v.PtrFloat(65535),
+																		Min: v.Ptr[float64](1),
+																		Max: v.Ptr[float64](65535),
 																	},
 																},
 															},
