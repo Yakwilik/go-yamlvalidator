@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/yakwilikk/go-yamlvalidator"
-	keyv "github.com/yakwilikk/go-yamlvalidator/pkg/keyvalidator"
-	valv "github.com/yakwilikk/go-yamlvalidator/pkg/valuevalidator"
+	. "github.com/Yakwilik/go-yamlvalidator"
+	keyv "github.com/Yakwilik/go-yamlvalidator/pkg/keyvalidator"
+	valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 )
 
 func TestBasicTypeValidation(t *testing.T) {

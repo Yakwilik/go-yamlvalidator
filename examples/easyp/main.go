@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	v "github.com/yakwilikk/go-yamlvalidator"
-	"github.com/yakwilikk/go-yamlvalidator/pkg/valuevalidator"
+	v "github.com/Yakwilik/go-yamlvalidator"
+	"github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 )
 
 func main() {

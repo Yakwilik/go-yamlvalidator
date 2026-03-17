@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	v "github.com/yakwilikk/go-yamlvalidator"
+	v "github.com/Yakwilik/go-yamlvalidator"
 	"gopkg.in/yaml.v3"
 )
 

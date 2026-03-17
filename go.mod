@@ -1,4 +1,4 @@
-module github.com/yakwilikk/go-yamlvalidator
+module github.com/Yakwilik/go-yamlvalidator
 
 go 1.21
 

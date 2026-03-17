@@ -13,7 +13,7 @@ A flexible, production-ready YAML validation library for Go with support for:
 ## Installation
 
 ```bash
-go get github.com/yakwilikk/go-yamlvalidator
+go get github.com/Yakwilik/go-yamlvalidator
 ```
 
 ## Quick Start
@@ -25,8 +25,8 @@ import (
     "fmt"
     "regexp"
 
-    v "github.com/yakwilikk/go-yamlvalidator"
-    valv "github.com/yakwilikk/go-yamlvalidator/pkg/valuevalidator"
+    v "github.com/Yakwilik/go-yamlvalidator"
+    valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 )
 
 func main() {

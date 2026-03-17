@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	v "github.com/yakwilikk/go-yamlvalidator"
+	v "github.com/Yakwilik/go-yamlvalidator"
 )
 
 func main() {

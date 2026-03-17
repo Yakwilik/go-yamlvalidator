@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	v "github.com/yakwilikk/go-yamlvalidator"
+	v "github.com/Yakwilik/go-yamlvalidator"
 )
 
 func TestLoadSchemaFromFile_YAML(t *testing.T) {
