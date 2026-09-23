@@ -31,6 +31,18 @@ func (vld RangeValidator) Validate(node *yaml.Node, path string, ctx *v.Validati
 		return
 	}
 
+	if math.IsNaN(val) && (vld.Min != nil || vld.Max != nil) {
+		ctx.AddError(v.ValidationError{
+			Level:   v.LevelError,
+			Path:    path,
+			Line:    node.Line,
+			Column:  node.Column,
+			Message: "NaN cannot be checked against numeric bounds",
+			Got:     node.Value,
+		})
+		return
+	}
+
 	if vld.Min != nil && val < *vld.Min {
 		ctx.AddError(v.ValidationError{
 			Level:    v.LevelError,
@@ -71,7 +83,20 @@ func parseYAMLNumber(node *yaml.Node) (float64, error) {
 		return math.NaN(), nil
 	}
 
-	// Try standard float parsing
+	// Integer-tagged YAML scalars must be parsed as integers before float
+	// parsing. This preserves legacy forms accepted by yaml.v3, such as 0777.
+	if node.Tag == "!!int" {
+		if i, err := strconv.ParseInt(val, 0, 64); err == nil {
+			return float64(i), nil
+		}
+		if val != "" && val[0] != '-' {
+			if u, err := strconv.ParseUint(strings.TrimPrefix(val, "+"), 0, 64); err == nil {
+				return float64(u), nil
+			}
+		}
+	}
+
+	// Try standard float parsing.
 	if f, err := strconv.ParseFloat(val, 64); err == nil {
 		return f, nil
 	}

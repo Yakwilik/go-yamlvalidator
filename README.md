@@ -3,6 +3,7 @@
 A flexible, production-ready YAML validation library for Go with support for:
 
 - **Type checking** with YAML 1.2 (and optional YAML 1.1) compliance
+- **JSON Schema compilation** for the structural subset used by EasyP
 - **Custom validators** for values and keys
 - **Conditional logic** (AnyOf, ExactlyOneOf, MutuallyExclusive, Conditions)
 - **Detailed error reporting** with source context and precise positions
@@ -73,8 +74,9 @@ replicas: 50
 ```go
 type FieldSchema struct {
     // Basic properties
-    Type        NodeType    // Expected type (TypeString, TypeInt, etc.)
-    Required    bool        // Field must be present
+    Type         NodeType   // Expected type (TypeString, TypeInt, etc.)
+    AllowedTypes []NodeType // Accept any listed type; takes precedence over Type
+    Required     bool       // Field must be present
     Nullable    bool        // Allow null values
     Deprecated  string      // Deprecation message (empty = not deprecated)
     Default     interface{} // Default value (warning if missing)
@@ -98,6 +100,13 @@ type FieldSchema struct {
     ExactlyOneOf      []string          // Exactly one field must be present
     MutuallyExclusive []string          // At most one field can be present
     Conditions        []ConditionalRule // Conditional validation
+    OneOfRequired     [][]string        // Exactly one field group must be present
+    ForbiddenTogether [][]string        // A complete field group is forbidden
+    DependentRequired map[string][]string
+
+    // Schema composition
+    OneOfSchemas []*FieldSchema // Exactly one schema must match
+    AnyOfSchemas []*FieldSchema // At least one schema must match
 }
 ```
 
@@ -105,7 +114,7 @@ type FieldSchema struct {
 
 | Type | Description |
 |------|-------------|
-| `TypeAny` | Any type (no validation) |
+| `TypeAny` | Any type; bare maps/sequences are not recursively constrained |
 | `TypeNull` | Null values only |
 | `TypeString` | String values |
 | `TypeInt` | Integer values |
@@ -122,6 +131,33 @@ type FieldSchema struct {
 | `UnknownKeyError` | Unknown keys are errors |
 | `UnknownKeyWarn` | Unknown keys are warnings |
 | `UnknownKeyIgnore` | Unknown keys are ignored |
+
+## JSON Schema Compilation
+
+<code>CompileJSONSchema</code> compiles JSON Schema directly into <code>FieldSchema</code>. The compiler currently supports the structural JSON Schema subset used by EasyP: <code>type</code> (including arrays of types), <code>properties</code>, <code>required</code>, <code>additionalProperties</code>, <code>items</code>, <code>minItems</code>, <code>maxItems</code>, <code>oneOf</code>, <code>anyOf</code>, <code>not</code>, and <code>dependentRequired</code>. Boolean schemas are supported as well. Unknown schema keywords are rejected explicitly instead of being ignored.
+
+~~~go
+schemaJSON, err := os.ReadFile("easyp-config.schema.json")
+if err != nil {
+    return err
+}
+
+schema, err := v.CompileJSONSchema(schemaJSON)
+if err != nil {
+    return err
+}
+
+result := v.NewValidator(schema).ValidateBytes(yamlData)
+~~~
+
+JSON Schema normally treats <code>additionalProperties: false</code> as a validation error. Callers such as configuration editors can downgrade unknown keys to warnings while preserving the same canonical schema:
+
+~~~go
+policy := v.UnknownKeyWarn
+schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
+    AdditionalPropertiesFalsePolicy: &policy,
+})
+~~~
 
 ## Built-in Validators
 
@@ -209,7 +245,7 @@ result := validator.ValidateWithOptions(yaml, ValidationContext{
     StrictKeys:     true,  // Unknown keys are errors
     StopOnFirst:    false, // Continue after first error
     StrictTypes:    false, // Parse values for type inference
-    YAML11Booleans: false, // Don't treat YAML 1.1 boolean literals (yes/no/on/off/true/false/y/n) as booleans; when true, quoted forms are also treated as booleans
+    YAML11Booleans: false, // When true, plain YAML 1.1 literals such as yes/no/on/off are booleans; quoted scalars remain strings
 })
 ```
 
@@ -403,7 +439,7 @@ result := v.ValidateWithOptions(yamlData, ValidationContext{...})
 result.HasErrors()              // bool
 result.Collector.Errors()       // []ValidationError
 result.Collector.Warnings()     // []ValidationError
-result.Collector.All()          // []ValidationError (errors then warnings)
+result.Collector.All()          // []ValidationError in collection order
 result.SortByPosition()         // Sort by line/column
 result.FormatAll(sortByPos)     // Format with source context
 ```
@@ -424,4 +460,4 @@ type ValidationError struct {
 
 ## License
 
-MIT License
+Apache License 2.0

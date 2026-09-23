@@ -710,14 +710,14 @@ func TestYAML11Booleans(t *testing.T) {
 		}
 	})
 
-	t.Run("quoted literals", func(t *testing.T) {
+	t.Run("quoted literals stay strings", func(t *testing.T) {
 		values := []string{`"yes"`, `'No'`, `"ON"`, "'off'"}
 		for _, val := range values {
 			val := val
 			t.Run(val, func(t *testing.T) {
 				res := NewValidator(schema).ValidateWithOptions([]byte("value: "+val), ValidationContext{YAML11Booleans: true, StrictKeys: true})
-				if len(res.Collector.Errors()) != 0 {
-					t.Fatalf("expected no errors for quoted YAML 1.1 boolean %q when enabled, got %d: %v", val, len(res.Collector.Errors()), res.Collector.Errors())
+				if len(res.Collector.Errors()) != 1 {
+					t.Fatalf("expected quoted YAML 1.1 literal %q to remain a string, got %d errors: %v", val, len(res.Collector.Errors()), res.Collector.Errors())
 				}
 			})
 		}
@@ -1074,5 +1074,110 @@ server:
 	result := v.ValidateBytes([]byte(yaml))
 	if len(result.Collector.Errors()) != 0 {
 		t.Fatalf("expected merge keys to be honored, got errors: %v", result.Collector.Errors())
+	}
+}
+
+func TestTypeAnyDoesNotRecursivelyValidateBareMaps(t *testing.T) {
+	schema := &FieldSchema{Type: TypeAny}
+	res := NewValidator(schema).ValidateWithOptions([]byte("nested:\n  arbitrary: 42\n"), ValidationContext{StrictKeys: true})
+	if got := len(res.Collector.All()); got != 0 {
+		t.Fatalf("bare TypeAny must accept arbitrary nested values, got diagnostics: %v", res.Collector.All())
+	}
+}
+
+func TestDuplicateKeysAreRejected(t *testing.T) {
+	schema := &FieldSchema{
+		Type:                 TypeMap,
+		AdditionalProperties: &FieldSchema{Type: TypeAny},
+	}
+	res := NewValidator(schema).ValidateBytes([]byte("name: first\nname: second\n"))
+	if len(res.Collector.Errors()) != 1 {
+		t.Fatalf("expected one duplicate-key error, got %v", res.Collector.Errors())
+	}
+	if !strings.Contains(res.Collector.Errors()[0].Message, "duplicate key") {
+		t.Fatalf("expected duplicate-key diagnostic, got %v", res.Collector.Errors()[0])
+	}
+}
+
+func TestMergeSequenceEarlierMappingWins(t *testing.T) {
+	target := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"x": {Type: TypeString, Required: true, Validators: []ValueValidator{
+				valv.EnumValidator{Allowed: []string{"from-a"}},
+			}},
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+	}
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"a":      {Type: TypeMap, AdditionalProperties: &FieldSchema{Type: TypeAny}},
+			"b":      {Type: TypeMap, AdditionalProperties: &FieldSchema{Type: TypeAny}},
+			"target": target,
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+	}
+	yaml := "a: &a\n  x: from-a\nb: &b\n  x: from-b\ntarget:\n  <<: [*a, *b]\n"
+	res := NewValidator(schema).ValidateBytes([]byte(yaml))
+	if len(res.Collector.Errors()) != 0 {
+		t.Fatalf("earlier merge source must win, got %v", res.Collector.Errors())
+	}
+}
+
+func TestExplicitKeyOverridesMergeRegardlessOfPosition(t *testing.T) {
+	target := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"x": {Type: TypeString, Validators: []ValueValidator{
+				valv.EnumValidator{Allowed: []string{"explicit"}},
+			}},
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+	}
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"defaults": {Type: TypeMap, AdditionalProperties: &FieldSchema{Type: TypeAny}},
+			"target":   target,
+		},
+		UnknownKeyPolicy: UnknownKeyIgnore,
+	}
+	yaml := "defaults: &defaults\n  x: merged\ntarget:\n  x: explicit\n  <<: *defaults\n"
+	res := NewValidator(schema).ValidateBytes([]byte(yaml))
+	if len(res.Collector.Errors()) != 0 {
+		t.Fatalf("explicit key must override merge independent of order, got %v", res.Collector.Errors())
+	}
+}
+
+func TestSortByPositionPreservesInterleavedOrder(t *testing.T) {
+	collector := NewErrorCollector()
+	collector.Add(ValidationError{Level: LevelError, Line: 2, Column: 1, Message: "second"})
+	collector.Add(ValidationError{Level: LevelWarning, Line: 1, Column: 1, Message: "first"})
+	result := ValidationResult{Collector: collector}
+	result.SortByPosition()
+	all := result.Collector.All()
+	if len(all) != 2 || all[0].Message != "first" || all[1].Message != "second" {
+		t.Fatalf("unexpected sorted order: %v", all)
+	}
+}
+
+func TestRangeValidatorLegacyOctalUsesYAMLIntegerValue(t *testing.T) {
+	schema := &FieldSchema{Type: TypeInt, Validators: []ValueValidator{
+		valv.RangeValidator{Min: Ptr[float64](511), Max: Ptr[float64](511)},
+	}}
+	res := NewValidator(schema).ValidateBytes([]byte("0777"))
+	if len(res.Collector.Errors()) != 0 {
+		t.Fatalf("expected legacy octal 0777 to be range-checked as 511, got %v", res.Collector.Errors())
+	}
+}
+
+func TestRangeValidatorRejectsNaNWithBounds(t *testing.T) {
+	schema := &FieldSchema{Type: TypeFloat, Validators: []ValueValidator{
+		valv.RangeValidator{Min: Ptr[float64](0)},
+	}}
+	res := NewValidator(schema).ValidateBytes([]byte(".nan"))
+	if len(res.Collector.Errors()) != 1 {
+		t.Fatalf("expected bounded NaN to fail validation, got %v", res.Collector.Errors())
 	}
 }

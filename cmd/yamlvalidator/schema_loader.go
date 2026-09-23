@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,7 @@ type schemaNode struct {
 	Required          bool                   `yaml:"required" json:"required"`
 	Nullable          bool                   `yaml:"nullable" json:"nullable"`
 	Deprecated        string                 `yaml:"deprecated" json:"deprecated"`
+	Description       string                 `yaml:"description" json:"description"`
 	Default           interface{}            `yaml:"default" json:"default"`
 	AllowedKeys       map[string]*schemaNode `yaml:"allowedKeys" json:"allowedKeys"`
 	AdditionalProps   *schemaNode            `yaml:"additionalProperties" json:"additionalProperties"`
@@ -31,7 +33,6 @@ type schemaNode struct {
 	ExactlyOneOf      []string               `yaml:"exactlyOneOf" json:"exactlyOneOf"`
 	MutuallyExclusive []string               `yaml:"mutuallyExclusive" json:"mutuallyExclusive"`
 	Conditions        []conditionalSpec      `yaml:"conditions" json:"conditions"`
-	AdditionalRaw     map[string]interface{} `yaml:"-" json:"-"` // catch-all for debugging
 }
 
 type valueValidatorSpec struct {
@@ -73,7 +74,9 @@ func loadSchemaFromFile(path string) (*v.FieldSchema, error) {
 		return nil, fmt.Errorf("read schema: %w", err)
 	}
 	var root schemaNode
-	if err := yaml.Unmarshal(data, &root); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&root); err != nil {
 		return nil, fmt.Errorf("unmarshal schema: %w", err)
 	}
 	return convertSchemaNode(&root)
@@ -98,6 +101,7 @@ func convertSchemaNode(sn *schemaNode) (*v.FieldSchema, error) {
 		Required:         sn.Required,
 		Nullable:         sn.Nullable,
 		Deprecated:       sn.Deprecated,
+		Description:      sn.Description,
 		Default:          sn.Default,
 		UnknownKeyPolicy: ukp,
 	}

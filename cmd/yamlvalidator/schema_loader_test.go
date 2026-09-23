@@ -82,3 +82,35 @@ validators:
 		t.Fatalf("expected error for unknown validator")
 	}
 }
+
+func TestLoadSchemaFromFile_RejectsUnknownFields(t *testing.T) {
+	tmp := t.TempDir()
+	schemaPath := filepath.Join(tmp, "schema.yaml")
+	err := os.WriteFile(schemaPath, []byte(`type: sequence
+minItem: 1
+`), 0o644)
+	if err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
+	if _, err := loadSchemaFromFile(schemaPath); err == nil {
+		t.Fatalf("expected unknown schema field to be rejected")
+	}
+}
+
+func TestLoadSchemaFromFile_PreservesDescription(t *testing.T) {
+	tmp := t.TempDir()
+	schemaPath := filepath.Join(tmp, "schema.yaml")
+	err := os.WriteFile(schemaPath, []byte(`type: string
+description: application name
+`), 0o644)
+	if err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
+	schema, err := loadSchemaFromFile(schemaPath)
+	if err != nil {
+		t.Fatalf("load schema: %v", err)
+	}
+	if schema.Description != "application name" {
+		t.Fatalf("unexpected description: %q", schema.Description)
+	}
+}

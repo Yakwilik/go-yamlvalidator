@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+- Added JSON Schema compilation via `CompileJSONSchema` and `CompileJSONSchemaWithOptions`, including the structural/composition keywords used by EasyP.
+- Added first-class schema unions, dependent-required constraints, forbidden field groups, and multi-type schemas.
+- Fixed YAML merge precedence so explicit keys always win and earlier mappings in a merge sequence take precedence.
+- Added document-wide duplicate mapping-key detection.
+- Fixed bare `TypeAny` so arbitrary maps/sequences are not recursively treated as unknown fields.
+- YAML 1.1 compatibility booleans now apply only to plain scalars; quoted values remain strings.
+- Preserved diagnostic insertion order in `ErrorCollector.All` and `SortByPosition`.
+- Fixed range validation for legacy integer forms and bounded NaN values.
+- Made CLI schema loading reject unknown schema fields and preserve descriptions.
 - Added standalone CLI (`cmd/yamlvalidator`) that validates YAML using a schema described in YAML/JSON (serialized FieldSchema), with flags for strict keys, YAML 1.1 booleans, type strictness, and stop-on-first.
 - Added schema loader tests for YAML/JSON inputs and validation of validator names.
 - Refactored `examples/easyp` to share its schema via `examples/easyp/schema` instead of defining validators inline.

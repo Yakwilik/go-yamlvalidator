@@ -4,7 +4,6 @@
 package yamlvalidator
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -73,6 +72,7 @@ func (e ValidationError) Error() string {
 type ErrorCollector struct {
 	errors   []ValidationError
 	warnings []ValidationError
+	all      []ValidationError
 }
 
 // NewErrorCollector creates a new empty ErrorCollector.
@@ -82,6 +82,7 @@ func NewErrorCollector() *ErrorCollector {
 
 // Add adds a validation error to the collector.
 func (c *ErrorCollector) Add(err ValidationError) {
+	c.all = append(c.all, err)
 	if err.Level == LevelError {
 		c.errors = append(c.errors, err)
 	} else {
@@ -104,12 +105,9 @@ func (c *ErrorCollector) Warnings() []ValidationError {
 	return c.warnings
 }
 
-// All returns all errors followed by all warnings.
+// All returns all diagnostics in insertion order.
 func (c *ErrorCollector) All() []ValidationError {
-	result := make([]ValidationError, 0, len(c.errors)+len(c.warnings))
-	result = append(result, c.errors...)
-	result = append(result, c.warnings...)
-	return result
+	return append([]ValidationError(nil), c.all...)
 }
 
 // ============================================================================
@@ -282,6 +280,10 @@ type FieldSchema struct {
 	// Type is the expected node type.
 	Type NodeType
 
+	// AllowedTypes accepts any of the listed node types. When non-empty it
+	// takes precedence over Type and is useful for schema unions.
+	AllowedTypes []NodeType
+
 	// Required indicates the field must be present.
 	Required bool
 
@@ -369,6 +371,21 @@ type FieldSchema struct {
 
 	// Conditions define conditional validation rules.
 	Conditions []ConditionalRule
+
+	// OneOfSchemas requires exactly one child schema to validate successfully.
+	OneOfSchemas []*FieldSchema
+
+	// AnyOfSchemas requires at least one child schema to validate successfully.
+	AnyOfSchemas []*FieldSchema
+
+	// OneOfRequired requires exactly one field group to be fully present.
+	OneOfRequired [][]string
+
+	// ForbiddenTogether rejects groups whose fields are all present together.
+	ForbiddenTogether [][]string
+
+	// DependentRequired requires additional fields when a trigger field is present.
+	DependentRequired map[string][]string
 }
 
 // ============================================================================
@@ -498,7 +515,10 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 			if docIndex > 0 {
 				prefix = fmt.Sprintf("doc[%d]", docIndex)
 			}
-			v.validateNode(root.Content[0], v.schema, prefix, ctx)
+			v.checkDuplicateKeysRecursive(root.Content[0], prefix, ctx, make(map[*yaml.Node]bool))
+			if !ctx.IsStopped() {
+				v.validateNode(root.Content[0], v.schema, prefix, ctx)
+			}
 		}
 
 		docIndex++
@@ -553,17 +573,30 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 		})
 	}
 
+	// Schema composition is evaluated before the base schema constraints.
+	if len(schema.OneOfSchemas) > 0 && !v.validateSchemaAlternatives(node, schema.OneOfSchemas, path, ctx, true) {
+		return
+	}
+	if len(schema.AnyOfSchemas) > 0 && !v.validateSchemaAlternatives(node, schema.AnyOfSchemas, path, ctx, false) {
+		return
+	}
+
 	// Type check
 	if !v.checkTypeWithSchema(node, schema, path, ctx) {
 		return
 	}
 
-	// Structure validation
+	// Structure validation. A bare TypeAny does not recursively validate map/sequence
+	// contents unless structural constraints were explicitly configured.
 	switch node.Kind {
 	case yaml.MappingNode:
-		v.validateMapping(node, schema, path, ctx)
+		if schema.Type != TypeAny || hasMappingConstraints(schema) {
+			v.validateMapping(node, schema, path, ctx)
+		}
 	case yaml.SequenceNode:
-		v.validateSequence(node, schema, path, ctx)
+		if schema.Type != TypeAny || hasSequenceConstraints(schema) {
+			v.validateSequence(node, schema, path, ctx)
+		}
 	case yaml.ScalarNode:
 		// Scalars are validated via ValueValidators
 	}
@@ -577,14 +610,105 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 	}
 }
 
+func hasMappingConstraints(schema *FieldSchema) bool {
+	return schema.AllowedKeys != nil ||
+		schema.AdditionalProperties != nil ||
+		schema.UnknownKeyPolicy != UnknownKeyInherit ||
+		len(schema.KeyValidators) > 0 ||
+		len(schema.AnyOf) > 0 ||
+		len(schema.ExactlyOneOf) > 0 ||
+		len(schema.MutuallyExclusive) > 0 ||
+		len(schema.OneOfRequired) > 0 ||
+		len(schema.ForbiddenTogether) > 0 ||
+		len(schema.DependentRequired) > 0 ||
+		len(schema.Conditions) > 0
+}
+
+func hasSequenceConstraints(schema *FieldSchema) bool {
+	return schema.ItemSchema != nil || schema.MinItems != nil || schema.MaxItems != nil
+}
+
+func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*FieldSchema, path string,
+	ctx *ValidationContext, exactlyOne bool) bool {
+
+	matches := 0
+	var selected []ValidationError
+
+	for _, candidate := range schemas {
+		branchCtx := &ValidationContext{
+			StrictKeys:     ctx.StrictKeys,
+			StrictTypes:    ctx.StrictTypes,
+			YAML11Booleans: ctx.YAML11Booleans,
+			SourceLines:    ctx.SourceLines,
+			collector:      NewErrorCollector(),
+		}
+		v.validateNode(node, candidate, path, branchCtx)
+		if branchCtx.Collector().HasErrors() {
+			continue
+		}
+		matches++
+		if selected == nil {
+			selected = branchCtx.Collector().All()
+		}
+	}
+
+	valid := matches > 0
+	message := "value does not match any allowed schema"
+	if exactlyOne {
+		valid = matches == 1
+		if matches > 1 {
+			message = "value matches more than one mutually exclusive schema"
+		}
+	}
+	if !valid {
+		ctx.AddError(ValidationError{
+			Level:   LevelError,
+			Path:    cleanPath(path),
+			Line:    node.Line,
+			Column:  node.Column,
+			Message: message,
+		})
+		return false
+	}
+
+	for _, diagnostic := range selected {
+		ctx.AddError(diagnostic)
+	}
+	return true
+}
+
 func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, path string, ctx *ValidationContext) bool {
 	expected := schema.Type
+	actual := v.inferType(node, ctx)
+
+	if len(schema.AllowedTypes) > 0 {
+		if actual == TypeNull && schema.Nullable {
+			return true
+		}
+		for _, allowed := range schema.AllowedTypes {
+			if typeMatches(allowed, actual) {
+				return true
+			}
+		}
+		names := make([]string, 0, len(schema.AllowedTypes))
+		for _, allowed := range schema.AllowedTypes {
+			names = append(names, allowed.String())
+		}
+		ctx.AddError(ValidationError{
+			Level:    LevelError,
+			Path:     cleanPath(path),
+			Line:     node.Line,
+			Column:   node.Column,
+			Message:  "type mismatch",
+			Expected: fmt.Sprintf("one of %v", names),
+			Got:      v.describeNode(node),
+		})
+		return false
+	}
 
 	if expected == TypeAny {
 		return true
 	}
-
-	actual := v.inferType(node, ctx)
 
 	// Null handling
 	if actual == TypeNull {
@@ -606,12 +730,7 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 		return false
 	}
 
-	if actual == expected {
-		return true
-	}
-
-	// Float accepts int
-	if expected == TypeFloat && actual == TypeInt {
+	if typeMatches(expected, actual) {
 		return true
 	}
 
@@ -625,6 +744,10 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 		Got:      v.describeNode(node),
 	})
 	return false
+}
+
+func typeMatches(expected, actual NodeType) bool {
+	return expected == actual || (expected == TypeFloat && actual == TypeInt)
 }
 
 func (v *Validator) inferType(node *yaml.Node, ctx *ValidationContext) NodeType {
@@ -649,7 +772,9 @@ func (v *Validator) inferScalarType(node *yaml.Node, ctx *ValidationContext) Nod
 	// Step 1: By tags (yaml.v3 has already parsed)
 	switch node.Tag {
 	case "!!str":
-		if ctx.YAML11Booleans {
+		// YAML 1.1 compatibility applies only to plain scalars. Quoted and
+		// block scalars are explicitly strings and must remain strings.
+		if ctx.YAML11Booleans && node.Style == 0 {
 			lower := strings.ToLower(node.Value)
 			if lower == "y" || lower == "yes" || lower == "true" || lower == "on" ||
 				lower == "n" || lower == "no" || lower == "false" || lower == "off" {
@@ -776,8 +901,9 @@ func (v *Validator) describeNode(node *yaml.Node) string {
 		return fmt.Sprintf("sequence (len=%d)", len(node.Content))
 	case yaml.ScalarNode:
 		val := node.Value
-		if len(val) > 20 {
-			val = val[:20] + "..."
+		runes := []rune(val)
+		if len(runes) > 20 {
+			val = string(runes[:20]) + "..."
 		}
 		tag := strings.TrimPrefix(node.Tag, "!!")
 		if tag == "" {
@@ -850,6 +976,9 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 	v.checkAnyOf(node, schema, path, foundKeys, ctx)
 	v.checkExactlyOneOf(node, schema, path, foundKeys, keyNodes, ctx)
 	v.checkMutuallyExclusive(node, schema, path, foundKeys, keyNodes, ctx)
+	v.checkOneOfRequired(node, schema, path, foundKeys, ctx)
+	v.checkForbiddenTogether(node, schema, path, foundKeys, ctx)
+	v.checkDependentRequired(node, schema, path, foundKeys, keyNodes, ctx)
 	v.checkConditions(node, schema, path, foundKeys, keyNodes, ctx)
 }
 
@@ -859,24 +988,38 @@ type kvPair struct {
 }
 
 // expandMappingWithMerges expands YAML merge keys (<<) into concrete key/value pairs.
-// Later merges override earlier ones; explicit keys override merges.
+// Explicit keys always override merged keys. For a merge sequence [A, B], keys
+// from A take precedence over keys from B, matching the YAML merge-key spec.
 func expandMappingWithMerges(node *yaml.Node) []kvPair {
 	if node.Kind != yaml.MappingNode {
 		return nil
 	}
 
-	var pairs []kvPair
+	var merged []kvPair
+	var explicit []kvPair
 	for i := 0; i < len(node.Content); i += 2 {
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
 		if keyNode.Value == "<<" {
-			mergePairs := extractMergePairs(valueNode)
-			pairs = append(pairs, mergePairs...)
+			merged = appendUniquePairs(merged, extractMergePairs(valueNode))
 			continue
 		}
-		pairs = append(pairs, kvPair{key: keyNode, value: valueNode})
+		explicit = append(explicit, kvPair{key: keyNode, value: valueNode})
 	}
-	return dedupePairsKeepLast(pairs)
+
+	explicit = dedupePairsKeepLast(explicit)
+	explicitKeys := make(map[string]struct{}, len(explicit))
+	for _, kv := range explicit {
+		explicitKeys[kv.key.Value] = struct{}{}
+	}
+
+	out := make([]kvPair, 0, len(merged)+len(explicit))
+	for _, kv := range merged {
+		if _, overridden := explicitKeys[kv.key.Value]; !overridden {
+			out = append(out, kv)
+		}
+	}
+	return append(out, explicit...)
 }
 
 func extractMergePairs(val *yaml.Node) []kvPair {
@@ -886,26 +1029,34 @@ func extractMergePairs(val *yaml.Node) []kvPair {
 			return extractMergePairs(val.Alias)
 		}
 	case yaml.MappingNode:
-		return mappingToPairs(val)
+		return expandMappingWithMerges(val)
 	case yaml.SequenceNode:
 		var out []kvPair
 		for _, item := range val.Content {
-			out = append(out, extractMergePairs(item)...)
+			out = appendUniquePairs(out, extractMergePairs(item))
 		}
 		return out
 	}
 	return nil
 }
 
-func mappingToPairs(m *yaml.Node) []kvPair {
-	var out []kvPair
-	for i := 0; i < len(m.Content); i += 2 {
-		out = append(out, kvPair{key: m.Content[i], value: m.Content[i+1]})
+func appendUniquePairs(dst, src []kvPair) []kvPair {
+	seen := make(map[string]struct{}, len(dst)+len(src))
+	for _, kv := range dst {
+		seen[kv.key.Value] = struct{}{}
 	}
-	return out
+	for _, kv := range src {
+		if _, exists := seen[kv.key.Value]; exists {
+			continue
+		}
+		seen[kv.key.Value] = struct{}{}
+		dst = append(dst, kv)
+	}
+	return dst
 }
 
-// dedupePairsKeepLast keeps the last occurrence of each key to model merge override and explicit override.
+// dedupePairsKeepLast is used only after duplicate explicit keys have already
+// been reported. Keeping the last value lets validation continue deterministically.
 func dedupePairsKeepLast(pairs []kvPair) []kvPair {
 	seen := make(map[string]int)
 	for idx, kv := range pairs {
@@ -918,6 +1069,51 @@ func dedupePairsKeepLast(pairs []kvPair) []kvPair {
 		}
 	}
 	return out
+}
+
+func (v *Validator) checkDuplicateKeysRecursive(node *yaml.Node, path string, ctx *ValidationContext,
+	visited map[*yaml.Node]bool) {
+
+	if node == nil || ctx.IsStopped() || visited[node] {
+		return
+	}
+	visited[node] = true
+
+	if node.Kind == yaml.AliasNode {
+		return
+	}
+
+	switch node.Kind {
+	case yaml.MappingNode:
+		seen := make(map[string]*yaml.Node)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+			key := keyNode.Value
+			fieldPath := joinPath(path, key)
+			if keyNode.Kind == yaml.ScalarNode {
+				if first := seen[key]; first != nil {
+					ctx.AddError(ValidationError{
+						Level:   LevelError,
+						Path:    cleanPath(fieldPath),
+						Line:    keyNode.Line,
+						Column:  keyNode.Column,
+						Message: fmt.Sprintf("duplicate key %q; first defined at line %d:%d", key, first.Line, first.Column),
+					})
+					if ctx.IsStopped() {
+						return
+					}
+				} else {
+					seen[key] = keyNode
+				}
+			}
+			v.checkDuplicateKeysRecursive(valueNode, fieldPath, ctx, visited)
+		}
+	case yaml.SequenceNode:
+		for i, child := range node.Content {
+			v.checkDuplicateKeysRecursive(child, fmt.Sprintf("%s[%d]", path, i), ctx, visited)
+		}
+	}
 }
 
 func (v *Validator) resolveUnknownKeyLevel(policy UnknownKeyPolicy, ctx *ValidationContext) (ErrorLevel, bool) {
@@ -1067,6 +1263,92 @@ func (v *Validator) checkMutuallyExclusive(node *yaml.Node, schema *FieldSchema,
 	}
 }
 
+func (v *Validator) checkOneOfRequired(node *yaml.Node, schema *FieldSchema, path string,
+	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
+
+	if len(schema.OneOfRequired) == 0 {
+		return
+	}
+
+	matches := 0
+	for _, group := range schema.OneOfRequired {
+		allPresent := true
+		for _, key := range group {
+			if foundKeys[key] == nil {
+				allPresent = false
+				break
+			}
+		}
+		if allPresent {
+			matches++
+		}
+	}
+	if matches == 1 {
+		return
+	}
+
+	ctx.AddError(ValidationError{
+		Level:   LevelError,
+		Path:    cleanPath(path),
+		Line:    node.Line,
+		Column:  node.Column,
+		Message: fmt.Sprintf("exactly one required field group must match, got %d", matches),
+	})
+}
+
+func (v *Validator) checkForbiddenTogether(node *yaml.Node, schema *FieldSchema, path string,
+	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
+
+	for _, group := range schema.ForbiddenTogether {
+		allPresent := len(group) > 0
+		for _, key := range group {
+			if foundKeys[key] == nil {
+				allPresent = false
+				break
+			}
+		}
+		if !allPresent {
+			continue
+		}
+		ctx.AddError(ValidationError{
+			Level:   LevelError,
+			Path:    cleanPath(path),
+			Line:    node.Line,
+			Column:  node.Column,
+			Message: fmt.Sprintf("fields %v must not be present together", group),
+		})
+		if ctx.IsStopped() {
+			return
+		}
+	}
+}
+
+func (v *Validator) checkDependentRequired(node *yaml.Node, schema *FieldSchema, path string,
+	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
+
+	for trigger, required := range schema.DependentRequired {
+		if foundKeys[trigger] == nil {
+			continue
+		}
+		anchor := keyNodes[trigger]
+		for _, key := range required {
+			if foundKeys[key] != nil {
+				continue
+			}
+			ctx.AddError(ValidationError{
+				Level:   LevelError,
+				Path:    cleanPath(joinPath(path, key)),
+				Line:    anchor.Line,
+				Column:  anchor.Column,
+				Message: fmt.Sprintf("field %q is required when %q is present", key, trigger),
+			})
+			if ctx.IsStopped() {
+				return
+			}
+		}
+	}
+}
+
 func (v *Validator) checkConditions(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
 
@@ -1175,10 +1457,11 @@ func cleanPath(path string) string {
 }
 
 func splitLines(data []byte) []string {
-	var lines []string
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+	raw := bytes.Split(data, []byte("\n"))
+	lines := make([]string, len(raw))
+	for i, line := range raw {
+		line = bytes.TrimSuffix(line, []byte("\r"))
+		lines[i] = string(line)
 	}
 	return lines
 }
