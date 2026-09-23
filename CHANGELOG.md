@@ -1,7 +1,9 @@
 # Changelog
 
 ## Unreleased
-- Added JSON Schema compilation via `CompileJSONSchema` and `CompileJSONSchemaWithOptions`, including the structural/composition keywords used by EasyP.
+- Reworked `CompileJSONSchema`/`CompileJSONSchemaWithOptions` to use a full JSON Schema engine instead of translating a limited keyword subset. Supports draft-04, draft-06, draft-07, 2019-09, and 2020-12, including refs/dynamic refs, vocabularies, unevaluated keywords, conditional schemas, and all engine-supported constraints.
+- Added external schema resources/loaders, format/content/vocabulary assertion controls, custom compiler configuration, ECMAScript-compatible regex handling, and stricter standard format validators.
+- Added YAML-to-JSON data-model conversion with exact numeric handling and source-position mapping for JSON Schema diagnostics. Official core JSON-Schema-Test-Suite result: 4950/4950 passing.
 - Added first-class schema unions, dependent-required constraints, forbidden field groups, and multi-type schemas.
 - Fixed YAML merge precedence so explicit keys always win and earlier mappings in a merge sequence take precedence.
 - Added document-wide duplicate mapping-key detection.

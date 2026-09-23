@@ -3,7 +3,7 @@
 A flexible, production-ready YAML validation library for Go with support for:
 
 - **Type checking** with YAML 1.2 (and optional YAML 1.1) compliance
-- **JSON Schema compilation** for the structural subset used by EasyP
+- **Full JSON Schema validation** with draft-04, draft-06, draft-07, 2019-09, and 2020-12 support
 - **Custom validators** for values and keys
 - **Conditional logic** (AnyOf, ExactlyOneOf, MutuallyExclusive, Conditions)
 - **Detailed error reporting** with source context and precise positions
@@ -134,7 +134,19 @@ type FieldSchema struct {
 
 ## JSON Schema Compilation
 
-<code>CompileJSONSchema</code> compiles JSON Schema directly into <code>FieldSchema</code>. The compiler currently supports the structural JSON Schema subset used by EasyP: <code>type</code> (including arrays of types), <code>properties</code>, <code>required</code>, <code>additionalProperties</code>, <code>items</code>, <code>minItems</code>, <code>maxItems</code>, <code>oneOf</code>, <code>anyOf</code>, <code>not</code>, and <code>dependentRequired</code>. Boolean schemas are supported as well. Unknown schema keywords are rejected explicitly instead of being ignored.
+<code>CompileJSONSchema</code> compiles a standards-compliant JSON Schema and returns a <code>FieldSchema</code> adapter. Validation is delegated to a full JSON Schema engine; the YAML validator remains responsible for parsing YAML, preserving source positions, resolving YAML aliases/merge keys, converting the YAML value to the JSON data model, and mapping JSON Schema errors back to YAML diagnostics.
+
+Supported dialects:
+
+- JSON Schema draft-04
+- JSON Schema draft-06
+- JSON Schema draft-07
+- JSON Schema 2019-09
+- JSON Schema 2020-12
+
+An explicit <code>$schema</code> selects the dialect. Without <code>$schema</code>, draft 2020-12 is used by default and can be changed with <code>DefaultDraft</code>.
+
+All keywords implemented by the engine are available, including references and modern applicators such as <code>$ref</code>, <code>$dynamicRef</code>, <code>$defs</code>, <code>$anchor</code>, <code>allOf</code>, <code>anyOf</code>, <code>oneOf</code>, <code>if/then/else</code>, <code>dependentSchemas</code>, <code>unevaluatedProperties</code>, <code>unevaluatedItems</code>, <code>prefixItems</code>, <code>contains</code>, numeric/string/object/array constraints, boolean schemas, annotations, and vocabulary declarations. Unknown extension keywords follow JSON Schema semantics instead of being rejected merely because yamlvalidator does not know them.
 
 ~~~go
 schemaJSON, err := os.ReadFile("easyp-config.schema.json")
@@ -150,14 +162,80 @@ if err != nil {
 result := v.NewValidator(schema).ValidateBytes(yamlData)
 ~~~
 
-JSON Schema normally treats <code>additionalProperties: false</code> as a validation error. Callers such as configuration editors can downgrade unknown keys to warnings while preserving the same canonical schema:
+### Compilation options
 
 ~~~go
 policy := v.UnknownKeyWarn
 schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
+    SchemaURL:    "https://schemas.example.com/easyp.json",
+    DefaultDraft: v.JSONSchemaDraft2020,
+
+    AssertFormat:  true,
+    AssertContent: true,
+    AssertVocabs:  true,
+
+    Resources: map[string][]byte{
+        "https://schemas.example.com/common.json": commonSchema,
+    },
+
+    LoadURL: func(url string) ([]byte, error) {
+        return loadSchemaResource(url)
+    },
+
     AdditionalPropertiesFalsePolicy: &policy,
 })
 ~~~
+
+<code>Resources</code> preloads an external schema graph without I/O. <code>LoadURL</code> resolves references not already present in that graph. HTTP(S) fetching is deliberately not enabled implicitly.
+
+For advanced JSON Schema extensions, <code>ConfigureCompiler</code> exposes the underlying compiler before resources are added. It can be used to register custom vocabularies, formats, content encodings/media types, or other engine extensions.
+
+~~~go
+schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
+    ConfigureCompiler: func(c *jsonschema.Compiler) error {
+        c.RegisterFormat(&jsonschema.Format{
+            Name: "my-format",
+            Validate: validateMyFormat,
+        })
+        return nil
+    },
+})
+~~~
+
+### Format and content assertions
+
+For 2019-09 and 2020-12, <code>format</code> remains annotation-only unless the schema vocabulary requires assertions or <code>AssertFormat</code> is enabled. The validator supplies stricter implementations for email, hostname, IPv4, duration, URI, URI-reference, URI-template, idn-email, and idn-hostname, and uses an ECMAScript-compatible regexp engine for JSON Schema patterns and regex format validation.
+
+<code>AssertContent</code> enables <code>contentEncoding</code>, <code>contentMediaType</code>, and <code>contentSchema</code> assertions supported by the engine.
+
+### YAML to JSON data model
+
+JSON Schema validates the JSON data model. During validation yamlvalidator converts the YAML AST without losing source locations:
+
+- YAML mappings become JSON objects; mapping keys therefore must be strings.
+- YAML sequences become JSON arrays.
+- YAML integers and finite floating-point values are converted using exact textual numbers rather than <code>float64</code> round-tripping.
+- YAML hexadecimal, binary, octal, and legacy octal integers are normalized to their mathematical JSON integer value.
+- YAML aliases and merge keys are resolved before JSON Schema validation.
+- YAML <code>.nan</code> and <code>.inf</code> are rejected because JSON has no non-finite numeric values.
+- YAML custom-tagged scalar values are represented as their scalar string value.
+
+Diagnostics preserve the YAML path, line, column, JSON Schema keyword in <code>Code</code>, and originating schema location in <code>SchemaPath</code>.
+
+### Conformance
+
+The JSON Schema adapter has been run through the official JSON-Schema-Test-Suite using the public <code>CompileJSONSchema</code> and YAML validation path:
+
+- draft-04: 618/618 core tests
+- draft-06: 841/841 core tests
+- draft-07: 929/929 core tests
+- 2019-09: 1261/1261 core tests
+- 2020-12: 1301/1301 core tests
+- total: 4950/4950 core tests
+
+Additional official optional suites used during development include ECMAScript pattern semantics, email, hostname, duration, URI, URI-reference, URI-template, and format-regex validation.
+
+<code>AdditionalPropertiesFalsePolicy</code> is a yamlvalidator presentation option: it can downgrade or suppress a direct <code>additionalProperties: false</code> diagnostic for editor-style workflows. It does not rewrite JSON Schema combinator semantics.
 
 ## Built-in Validators
 
@@ -448,13 +526,15 @@ result.FormatAll(sortByPos)     // Format with source context
 
 ```go
 type ValidationError struct {
-    Level    ErrorLevel
-    Path     string    // e.g., "spec.containers[0].image"
-    Line     int       // 1-based (0 if unknown)
-    Column   int       // 1-based (0 if unknown)
-    Message  string
-    Got      string    // Actual value/type
-    Expected string    // Expected value/type
+    Level      ErrorLevel
+    Code       string // Machine-readable code, e.g. "required" or "minimum"
+    SchemaPath string // Originating JSON Schema location when available
+    Path       string // e.g., "spec.containers[0].image"
+    Line       int    // 1-based (0 if unknown)
+    Column     int    // 1-based (0 if unknown)
+    Message    string
+    Got        string // Actual value/type
+    Expected   string // Expected value/type
 }
 ```
 

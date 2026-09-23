@@ -39,13 +39,15 @@ func (l ErrorLevel) String() string {
 
 // ValidationError represents a single validation issue.
 type ValidationError struct {
-	Level    ErrorLevel
-	Path     string // Path to the problematic node, e.g., "spec.containers[0].image"
-	Line     int    // 1-based line number (0 if unknown)
-	Column   int    // 1-based column number (0 if unknown)
-	Message  string
-	Got      string // Actual value/type description
-	Expected string // Expected value/type description
+	Level      ErrorLevel
+	Code       string // Stable machine-readable diagnostic code when available.
+	SchemaPath string // Schema location that produced the diagnostic, when available.
+	Path       string // Path to the problematic node, e.g., "spec.containers[0].image"
+	Line       int    // 1-based line number (0 if unknown)
+	Column     int    // 1-based column number (0 if unknown)
+	Message    string
+	Got        string // Actual value/type description
+	Expected   string // Expected value/type description
 }
 
 func (e ValidationError) Error() string {
