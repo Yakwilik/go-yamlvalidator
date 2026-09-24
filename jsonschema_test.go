@@ -1,13 +1,14 @@
 package yamlvalidator_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	. "github.com/Yakwilik/go-yamlvalidator"
-	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestCompileJSONSchemaObjectConstraints(t *testing.T) {
@@ -443,27 +444,27 @@ func TestCompileJSONSchemaExternalRefs(t *testing.T) {
 		}
 	})
 
-	t.Run("custom URL loader", func(t *testing.T) {
+	t.Run("custom resolver", func(t *testing.T) {
 		loaded := false
 		schema, err := CompileJSONSchemaWithOptions([]byte(`{
 			"$ref": "https://schemas.example.test/value.json"
 		}`), JSONSchemaCompileOptions{
-			LoadURL: func(url string) ([]byte, error) {
+			Resolver: JSONSchemaResolverFunc(func(_ context.Context, url string) ([]byte, error) {
 				loaded = true
 				if url != "https://schemas.example.test/value.json" {
 					t.Fatalf("unexpected URL: %s", url)
 				}
 				return []byte(`{"type":"integer","minimum":10}`), nil
-			},
+			}),
 		})
 		if err != nil {
 			t.Fatalf("compile: %v", err)
 		}
 		if !loaded {
-			t.Fatalf("custom loader was not used")
+			t.Fatalf("custom resolver was not used")
 		}
 		if res := NewValidator(schema).ValidateBytes([]byte("10")); res.HasErrors() {
-			t.Fatalf("valid loaded schema rejected: %v", res.Collector.Errors())
+			t.Fatalf("valid resolved schema rejected: %v", res.Collector.Errors())
 		}
 	})
 }
@@ -608,43 +609,6 @@ func TestCompileJSONSchemaECMAScriptRegex(t *testing.T) {
 	_, err = CompileJSONSchema([]byte(`{"type":"string","pattern":"(?i)abc"}`))
 	if err == nil {
 		t.Fatalf("global .NET-style inline flags must not be accepted as ECMAScript regex syntax")
-	}
-}
-
-func TestCompileJSONSchemaConfigureCompiler(t *testing.T) {
-	configured := false
-	schema, err := CompileJSONSchemaWithOptions([]byte(`{
-		"$schema": "https://json-schema.org/draft/2020-12/schema",
-		"type": "string",
-		"format": "even-length"
-	}`), JSONSchemaCompileOptions{
-		AssertFormat: true,
-		ConfigureCompiler: func(compiler *jsonschema.Compiler) error {
-			configured = true
-			compiler.RegisterFormat(&jsonschema.Format{
-				Name: "even-length",
-				Validate: func(value any) error {
-					text, ok := value.(string)
-					if ok && len(text)%2 != 0 {
-						return fmt.Errorf("length must be even")
-					}
-					return nil
-				},
-			})
-			return nil
-		},
-	})
-	if err != nil {
-		t.Fatalf("compile: %v", err)
-	}
-	if !configured {
-		t.Fatalf("ConfigureCompiler callback was not called")
-	}
-	if res := NewValidator(schema).ValidateBytes([]byte(`"ab"`)); res.HasErrors() {
-		t.Fatalf("custom format rejected valid value: %v", res.Collector.Errors())
-	}
-	if res := NewValidator(schema).ValidateBytes([]byte(`"abc"`)); !containsDiagnosticCode(res, "format") {
-		t.Fatalf("custom format did not produce format diagnostic: %v", res.Collector.Errors())
 	}
 }
 
@@ -828,5 +792,50 @@ func TestJSONSchemaRootDocPropertyPathIsUnambiguous(t *testing.T) {
 	}
 	if found == nil || found.Path != `["doc"][0]` {
 		t.Fatalf("unexpected JSON Schema doc-property path: %+v", found)
+	}
+}
+
+func TestCompiledJSONSchemaConcurrentReuse(t *testing.T) {
+	schema, err := CompileJSONSchema([]byte(`{
+		"type":"object",
+		"properties":{
+			"name":{"type":"string","pattern":"^[a-z]+$"},
+			"count":{"type":"integer","minimum":1}
+		},
+		"required":["name","count"],
+		"additionalProperties":false
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	validator, err := CompileFieldSchema(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const workers = 24
+	const iterations = 100
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				result := validator.ValidateBytes([]byte(`name: service
+count: 2
+`))
+				if result.HasErrors() {
+					errCh <- fmt.Errorf("concurrent JSON Schema validation failed: %v", result.Collector.Errors())
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Fatal(err)
 	}
 }

@@ -29,10 +29,6 @@ const (
 	JSONSchemaDraft2020 JSONSchemaDraft = "2020-12"
 )
 
-// JSONSchemaLoadFunc loads an external JSON Schema resource by absolute URL.
-// The returned bytes must contain a JSON document.
-type JSONSchemaLoadFunc func(url string) ([]byte, error)
-
 // JSONSchemaCompileOptions controls JSON Schema compilation and validation.
 type JSONSchemaCompileOptions struct {
 	// SchemaURL is the retrieval URL of the root schema. It is used as the base
@@ -61,6 +57,12 @@ type JSONSchemaCompileOptions struct {
 	// Formats registers first-class functional custom formats.
 	Formats []JSONSchemaFormat
 
+	// ContentEncodings registers custom contentEncoding decoders.
+	ContentEncodings []JSONSchemaContentEncoding
+
+	// ContentMediaTypes registers custom contentMediaType validators.
+	ContentMediaTypes []JSONSchemaContentMediaType
+
 	// Keywords registers functional custom keywords in an internal vocabulary.
 	// They are activated for this compilation automatically.
 	Keywords []JSONSchemaKeyword
@@ -73,19 +75,10 @@ type JSONSchemaCompileOptions struct {
 	// This is the preferred way to compile a closed schema graph without I/O.
 	Resources map[string][]byte
 
-	// Resolver resolves unresolved external references. If nil, the underlying
-	// engine retains its default file:// loader; HTTP(S) loading is never enabled
-	// implicitly. Resolver takes precedence over the deprecated LoadURL field.
+	// Resolver resolves unresolved external references. If nil, compilation is
+	// closed-world: only the root schema, Resources, and built-in metaschemas are
+	// available. No filesystem or network I/O is performed implicitly.
 	Resolver JSONSchemaResolver
-
-	// LoadURL loads unresolved external references.
-	// Deprecated: use Resolver. It is retained for source compatibility.
-	LoadURL JSONSchemaLoadFunc
-
-	// ConfigureCompiler is an advanced escape hatch exposing the underlying
-	// compiler before resources are added. It can register custom vocabularies,
-	// formats, content encodings/media types, or override other engine settings.
-	ConfigureCompiler func(*jsonschema.Compiler) error
 
 	// AdditionalPropertiesFalsePolicy optionally downgrades direct
 	// additionalProperties:false diagnostics. This is a presentation policy and
@@ -130,10 +123,6 @@ func CompileJSONSchemaContextWithOptions(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if opts.Resolver != nil && opts.LoadURL != nil {
-		return nil, fmt.Errorf("JSON Schema Resolver and deprecated LoadURL must not both be set")
-	}
-
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("decode JSON Schema: %w", err)
@@ -162,34 +151,24 @@ func CompileJSONSchemaContextWithOptions(
 	}
 
 	resolver := opts.Resolver
-	if resolver == nil && opts.LoadURL != nil {
-		resolver = JSONSchemaResolverFunc(func(ctx context.Context, resourceURL string) ([]byte, error) {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			return opts.LoadURL(resourceURL)
-		})
+	if resolver == nil {
+		resolver = jsonSchemaNoExternalResolver{}
 	}
-	if resolver != nil {
-		compiler.UseLoader(jsonSchemaResolverLoader{
-			ctx:      ctx,
-			resolver: resolver,
-		})
-	}
+	compiler.UseLoader(jsonSchemaResolverLoader{
+		ctx:      ctx,
+		resolver: resolver,
+	})
 
 	registerExtendedJSONSchemaFormats(compiler)
-	if err := registerFunctionalJSONSchemaExtensions(
-		compiler,
-		opts.Formats,
-		opts.Keywords,
-		opts.Vocabularies,
-	); err != nil {
+	if err := registerFunctionalFormats(compiler, opts.Formats); err != nil {
 		return nil, err
 	}
-	if opts.ConfigureCompiler != nil {
-		if err := opts.ConfigureCompiler(compiler); err != nil {
-			return nil, fmt.Errorf("configure JSON Schema compiler: %w", err)
-		}
+	if err := registerJSONSchemaContentExtensions(
+		compiler,
+		opts.ContentEncodings,
+		opts.ContentMediaTypes,
+	); err != nil {
+		return nil, err
 	}
 
 	resourceURLs := make([]string, 0, len(opts.Resources))
@@ -208,6 +187,14 @@ func CompileJSONSchemaContextWithOptions(
 		if err := compiler.AddResource(resourceURL, resource); err != nil {
 			return nil, fmt.Errorf("add JSON Schema resource %q: %w", resourceURL, err)
 		}
+	}
+
+	if err := registerFunctionalJSONSchemaExtensions(
+		compiler,
+		opts.Keywords,
+		opts.Vocabularies,
+	); err != nil {
+		return nil, err
 	}
 
 	rootURL := opts.SchemaURL

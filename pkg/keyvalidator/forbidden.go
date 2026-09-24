@@ -13,6 +13,20 @@ type ForbiddenKeyValidator struct {
 	Message   string // Custom error message (optional)
 }
 
+func (vld ForbiddenKeyValidator) ValidateDefinition() error {
+	if len(vld.Forbidden) == 0 {
+		return fmt.Errorf("forbidden key list must not be empty")
+	}
+	seen := make(map[string]bool, len(vld.Forbidden))
+	for _, forbidden := range vld.Forbidden {
+		if seen[forbidden] {
+			return fmt.Errorf("duplicate forbidden key %q", forbidden)
+		}
+		seen[forbidden] = true
+	}
+	return nil
+}
+
 // ValidateKey implements KeyValidator.
 func (vld ForbiddenKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string, ctx *v.ValidationContext) {
 	for _, forbidden := range vld.Forbidden {

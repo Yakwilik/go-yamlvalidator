@@ -57,19 +57,3 @@ func (validator OneOfTypeValidator) CloneValueValidator() v.ValueValidator {
 func (validator NonEmptyValidator) CloneValueValidator() v.ValueValidator {
 	return validator
 }
-
-func (validator DirectoryValidator) CloneValueValidator() v.ValueValidator {
-	return validator
-}
-
-func (validator PluginSourceValidator) CloneValueValidator() v.ValueValidator {
-	return validator
-}
-
-func (validator ManagedDisableValidator) CloneValueValidator() v.ValueValidator {
-	return validator
-}
-
-func (validator ManagedOverrideValidator) CloneValueValidator() v.ValueValidator {
-	return validator
-}

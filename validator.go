@@ -153,9 +153,7 @@ type ValidationContext struct {
 	// MaxDiagnostics stops validation after this many errors/warnings. Zero means unlimited.
 	MaxDiagnostics int
 
-	// SourceLines contains the original YAML lines for error formatting.
-	SourceLines []string
-
+	sourceLines  []string
 	collector    *ErrorCollector
 	stopped      bool
 	limitReached bool
@@ -692,7 +690,7 @@ func (v *Validator) validateDataContext(
 		return result, ctx.contextErr
 	}
 
-	ctx.SourceLines = splitLines(data)
+	ctx.sourceLines = splitLines(data)
 	v.validateWithContext(&contextReader{ctx: runCtx, reader: bytes.NewReader(data)}, ctx)
 	ctx.checkCanceled()
 	result := validationResultFromContext(ctx)
@@ -737,7 +735,7 @@ func (reader *contextReader) Read(buffer []byte) (int, error) {
 func validationResultFromContext(ctx *ValidationContext) *ValidationResult {
 	return &ValidationResult{
 		Collector:   ctx.Collector(),
-		SourceLines: ctx.SourceLines,
+		SourceLines: ctx.sourceLines,
 		Truncated:   ctx.limitReached,
 		Canceled:    ctx.contextErr != nil,
 		ContextErr:  ctx.contextErr,
@@ -813,9 +811,13 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 	}
 }
 
-// InferTypeForPublic exposes internal type inference for external validators.
-func (v *Validator) InferTypeForPublic(node *yaml.Node, ctx *ValidationContext) NodeType {
-	return v.inferType(node, ctx)
+// InferNodeType applies the same YAML type inference used by FieldSchema validation.
+// A nil context uses default type-inference settings.
+func InferNodeType(node *yaml.Node, ctx *ValidationContext) NodeType {
+	if ctx == nil {
+		ctx = &ValidationContext{}
+	}
+	return (&Validator{}).inferType(node, ctx)
 }
 
 // ============================================================================
@@ -944,7 +946,7 @@ func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*Field
 			StrictTypes:    ctx.StrictTypes,
 			YAML11Booleans: ctx.YAML11Booleans,
 			MaxDepth:       ctx.MaxDepth,
-			SourceLines:    ctx.SourceLines,
+			sourceLines:    ctx.sourceLines,
 			collector:      NewErrorCollector(),
 			depth:          ctx.depth - 1,
 			runContext:     ctx.runContext,

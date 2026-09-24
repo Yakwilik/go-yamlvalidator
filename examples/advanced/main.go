@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 
 	v "github.com/Yakwilik/go-yamlvalidator"
 	"github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
@@ -24,12 +25,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "compile schema: %v\n", err)
 		os.Exit(1)
 	}
-	ctx := v.ValidationContext{
-		StrictKeys:     true,
-		YAML11Booleans: true,
-	}
-	result := validator.ValidateWithOptions(data, ctx)
 
+	result := validator.ValidateWithOptions(data, v.ValidationContext{
+		StrictKeys: true,
+	})
 	if len(result.Collector.All()) == 0 {
 		fmt.Println("config is valid")
 		return
@@ -42,137 +41,132 @@ func main() {
 }
 
 func buildSchema() *v.FieldSchema {
-	stringSeq := &v.FieldSchema{Type: v.TypeSequence, ItemSchema: &v.FieldSchema{Type: v.TypeString}}
-	stringMap := &v.FieldSchema{Type: v.TypeMap, AdditionalProperties: &v.FieldSchema{Type: v.TypeString}}
+	stringMap := &v.FieldSchema{
+		Type:                 v.TypeMap,
+		AdditionalProperties: &v.FieldSchema{Type: v.TypeString},
+	}
 
-	lintSchema := &v.FieldSchema{
+	service := &v.FieldSchema{
+		Type:     v.TypeMap,
+		Required: true,
+		AllowedKeys: map[string]*v.FieldSchema{
+			"name": {
+				Type:     v.TypeString,
+				Required: true,
+				Validators: []v.ValueValidator{
+					valuevalidator.RegexValidator{
+						Pattern: regexp.MustCompile(`^[a-z][a-z0-9-]*$`),
+					},
+				},
+			},
+			"environment": {
+				Type:     v.TypeString,
+				Required: true,
+				Validators: []v.ValueValidator{
+					valuevalidator.EnumValidator{
+						Allowed: []string{"development", "staging", "production"},
+					},
+				},
+			},
+			"replicas": {
+				Type:     v.TypeInt,
+				Required: true,
+				Validators: []v.ValueValidator{
+					valuevalidator.RangeValidator{
+						Min: v.Ptr[float64](1),
+						Max: v.Ptr[float64](100),
+					},
+				},
+			},
+			"endpoint": {
+				Type:     v.TypeString,
+				Required: true,
+				Validators: []v.ValueValidator{
+					valuevalidator.URLValidator{
+						RequireScheme:  true,
+						AllowedSchemes: []string{"http", "https"},
+					},
+				},
+			},
+			"labels": stringMap,
+		},
+		UnknownKeyPolicy: v.UnknownKeyError,
+	}
+
+	auth := &v.FieldSchema{
+		Type:     v.TypeMap,
+		Required: true,
+		AllowedKeys: map[string]*v.FieldSchema{
+			"token":    {Type: v.TypeString},
+			"username": {Type: v.TypeString},
+			"password": {Type: v.TypeString},
+		},
+		OneOfRequired: [][]string{
+			{"token"},
+			{"username", "password"},
+		},
+		ForbiddenTogether: [][]string{
+			{"token", "username"},
+			{"token", "password"},
+		},
+		DependentRequired: map[string][]string{
+			"username": {"password"},
+			"password": {"username"},
+		},
+		UnknownKeyPolicy: v.UnknownKeyError,
+	}
+
+	worker := &v.FieldSchema{
 		Type: v.TypeMap,
 		AllowedKeys: map[string]*v.FieldSchema{
-			"use":                    stringSeq,
-			"enum_zero_value_suffix": {Type: v.TypeString},
-			"service_suffix":         {Type: v.TypeString},
-			"ignore":                 stringSeq,
-			"except":                 stringSeq,
-			"allow_comment_ignores":  {Type: v.TypeBool},
-			"ignore_only": {
-				Type:                 v.TypeMap,
-				AdditionalProperties: stringSeq,
+			"name": {Type: v.TypeString, Required: true},
+			"concurrency": {
+				Type:     v.TypeInt,
+				Required: true,
+				Validators: []v.ValueValidator{
+					valuevalidator.RangeValidator{
+						Min: v.Ptr[float64](1),
+						Max: v.Ptr[float64](64),
+					},
+				},
 			},
 		},
-		UnknownKeyPolicy: v.UnknownKeyWarn,
+		UnknownKeyPolicy: v.UnknownKeyError,
 	}
 
-	depsSchema := stringSeq
-
-	inputDirSchema := &v.FieldSchema{
-		Type: v.TypeAny, // string or map
-		AllowedKeys: map[string]*v.FieldSchema{
-			"path": {Type: v.TypeString},
-			"root": {Type: v.TypeString},
-		},
-		UnknownKeyPolicy: v.UnknownKeyWarn,
-		Validators:       []v.ValueValidator{valuevalidator.DirectoryValidator{}},
-	}
-	inputGitSchema := &v.FieldSchema{
+	notifications := &v.FieldSchema{
 		Type: v.TypeMap,
 		AllowedKeys: map[string]*v.FieldSchema{
-			"url":           {Type: v.TypeString, Required: true},
-			"sub_directory": {Type: v.TypeString},
-			"out":           {Type: v.TypeString},
-			"root":          {Type: v.TypeString},
+			"enabled": {Type: v.TypeBool, Required: true},
+			"webhook": {
+				Type: v.TypeString,
+				Validators: []v.ValueValidator{
+					valuevalidator.URLValidator{
+						RequireScheme:  true,
+						AllowedSchemes: []string{"https"},
+					},
+				},
+			},
 		},
-		UnknownKeyPolicy: v.UnknownKeyWarn,
-	}
-	inputSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"directory": inputDirSchema,
-			"git_repo":  inputGitSchema,
+		Conditions: []v.ConditionalRule{
+			{
+				ConditionField: "enabled",
+				ConditionValue: "true",
+				ThenRequired:   []string{"webhook"},
+			},
 		},
-		AnyOf:             [][]string{{"directory"}, {"git_repo"}},
-		MutuallyExclusive: []string{"directory", "git_repo"},
-		UnknownKeyPolicy:  v.UnknownKeyWarn,
+		UnknownKeyPolicy: v.UnknownKeyError,
 	}
-
-	pluginSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"name":         {Type: v.TypeString},
-			"remote":       {Type: v.TypeString},
-			"path":         {Type: v.TypeString},
-			"command":      {Type: v.TypeSequence, ItemSchema: &v.FieldSchema{Type: v.TypeString}},
-			"out":          {Type: v.TypeString},
-			"opts":         stringMap,
-			"with_imports": {Type: v.TypeBool},
-		},
-		AnyOf:             [][]string{{"name"}, {"remote"}, {"path"}, {"command"}},
-		MutuallyExclusive: []string{"name", "remote", "path", "command"},
-		UnknownKeyPolicy:  v.UnknownKeyWarn,
-		Validators:        []v.ValueValidator{valuevalidator.PluginSourceValidator{}},
-	}
-
-	managedDisableSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"module":       {Type: v.TypeString},
-			"path":         {Type: v.TypeString},
-			"file_option":  {Type: v.TypeString},
-			"field_option": {Type: v.TypeString},
-			"field":        {Type: v.TypeString},
-		},
-		AnyOf:             [][]string{{"module"}, {"path"}, {"file_option"}, {"field_option"}, {"field"}},
-		MutuallyExclusive: []string{"file_option", "field_option"},
-		UnknownKeyPolicy:  v.UnknownKeyWarn,
-		Validators:        []v.ValueValidator{valuevalidator.ManagedDisableValidator{}},
-	}
-
-	managedOverrideSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"file_option":  {Type: v.TypeString},
-			"field_option": {Type: v.TypeString},
-			"value":        {Type: v.TypeAny, Required: true},
-			"module":       {Type: v.TypeString},
-			"path":         {Type: v.TypeString},
-			"field":        {Type: v.TypeString},
-		},
-		AnyOf:             [][]string{{"file_option"}, {"field_option"}},
-		MutuallyExclusive: []string{"file_option", "field_option"},
-		UnknownKeyPolicy:  v.UnknownKeyWarn,
-		Validators:        []v.ValueValidator{valuevalidator.ManagedOverrideValidator{}},
-	}
-
-	managedSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"enabled":  {Type: v.TypeBool},
-			"disable":  {Type: v.TypeSequence, ItemSchema: managedDisableSchema},
-			"override": {Type: v.TypeSequence, ItemSchema: managedOverrideSchema},
-		},
-		UnknownKeyPolicy: v.UnknownKeyWarn,
-	}
-
-	generateSchema := &v.FieldSchema{
-		Type: v.TypeMap,
-		AllowedKeys: map[string]*v.FieldSchema{
-			"inputs":  {Type: v.TypeSequence, ItemSchema: inputSchema, Required: true, MinItems: v.Ptr[int](1)},
-			"plugins": {Type: v.TypeSequence, ItemSchema: pluginSchema, Required: true, MinItems: v.Ptr[int](1)},
-			"managed": managedSchema,
-		},
-		UnknownKeyPolicy: v.UnknownKeyWarn,
-	}
-
-	breakingSchema := &v.FieldSchema{Type: v.TypeMap, UnknownKeyPolicy: v.UnknownKeyIgnore}
 
 	return &v.FieldSchema{
-		Type: v.TypeMap,
+		Type:     v.TypeMap,
+		Required: true,
 		AllowedKeys: map[string]*v.FieldSchema{
-			"lint":     lintSchema,
-			"deps":     depsSchema,
-			"generate": generateSchema,
-			"breaking": breakingSchema,
+			"service":       service,
+			"auth":          auth,
+			"workers":       {Type: v.TypeSequence, ItemSchema: worker, MinItems: v.Ptr(1)},
+			"notifications": notifications,
 		},
-		Required:         true,
-		UnknownKeyPolicy: v.UnknownKeyWarn,
+		UnknownKeyPolicy: v.UnknownKeyError,
 	}
 }

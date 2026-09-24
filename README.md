@@ -207,22 +207,28 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
 })
 ~~~
 
-<code>Resources</code> preloads a closed schema graph without I/O. <code>Resolver</code> handles unresolved references and receives the compilation context. Built-in resolver helpers include <code>JSONSchemaResourceMap</code>, <code>JSONSchemaResolverChain</code>, <code>JSONSchemaCachingResolver</code>, and the root-constrained <code>JSONSchemaFileResolver</code>. <code>LoadURL</code> remains available for source compatibility but is deprecated.
+<code>Resources</code> preloads a closed schema graph without I/O. Compilation is closed-world by default: unresolved external references do not read the filesystem or network. Set <code>Resolver</code> explicitly to resolve them. Built-in resolver helpers include <code>JSONSchemaResourceMap</code>, <code>JSONSchemaResolverChain</code>, <code>JSONSchemaCachingResolver</code>, and the root-constrained <code>JSONSchemaFileResolver</code>.
 
 For cancellable resolution/compilation use <code>CompileJSONSchemaContext</code> or <code>CompileJSONSchemaContextWithOptions</code>. Cancellation is checked around library-controlled work and is propagated into resolvers; the underlying JSON Schema engine does not expose an interrupt hook in the middle of one synchronous compile/validate call. HTTP(S) fetching is deliberately not enabled implicitly.
 
 <code>RegexpTimeout</code> limits one ECMAScript regexp match. The default value <code>0</code> preserves unlimited matching for full compatibility; set a positive duration when validating against untrusted schemas.
 
-For advanced JSON Schema extensions, <code>ConfigureCompiler</code> exposes the underlying compiler before resources are added. It can be used to register custom vocabularies, formats, content encodings/media types, or other engine extensions.
+Custom formats, content encodings, content media types, and vocabularies are registered through yamlvalidator-owned types, so callers do not need to import the underlying JSON Schema engine:
 
 ~~~go
 schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
-    ConfigureCompiler: func(c *jsonschema.Compiler) error {
-        c.RegisterFormat(&jsonschema.Format{
-            Name: "my-format",
-            Validate: validateMyFormat,
-        })
-        return nil
+    AssertContent: true,
+    ContentEncodings: []v.JSONSchemaContentEncoding{
+        {
+            Name:   "my-encoding",
+            Decode: decodeMyEncoding,
+        },
+    },
+    ContentMediaTypes: []v.JSONSchemaContentMediaType{
+        {
+            Name:     "application/x-example",
+            Validate: validateExampleMediaType,
+        },
     },
 })
 ~~~
@@ -319,7 +325,7 @@ Subschema location helpers cover an exact property, all property values, an exac
 
 `JSONSchemaKeywordValidationContext` supports multiple diagnostics through `AddError` / `AddErrorAt` and integrates with `unevaluatedProperties` / `unevaluatedItems` through `MarkPropertyEvaluated` / `MarkItemEvaluated`. Relative issue paths are mapped back to the corresponding YAML line and column, and the keyword name becomes the diagnostic `Code`.
 
-For a named set of keywords use `JSONSchemaVocabulary{URL, Keywords}` through `JSONSchemaCompileOptions.Vocabularies`. First-class functional vocabularies are activated for that compilation automatically. `ConfigureCompiler` remains the low-level escape hatch for custom dialect/meta-schema behavior or engine-specific APIs that are not covered by the high-level extension layer.
+For a named set of keywords use `JSONSchemaVocabulary{URL, Keywords}` through `JSONSchemaCompileOptions.Vocabularies`. First-class functional vocabularies are activated for that compilation automatically. Set `JSONSchemaVocabulary.Schema` when the vocabulary should validate the shape of its own keyword declarations before compiling the instance schema.
 
 Custom keyword validators operate on the JSON data model (`map[string]any`, `[]any`, `json.Number`, strings, booleans, null), not on `yaml.Node`. Treat the supplied instance as read-only; compiled schemas may be reused concurrently, so captured validator state must be concurrency-safe. YAML-specific validation that needs tags/styles/comments should continue to use native `ValueValidator` / `KeyValidator`.
 
@@ -602,6 +608,8 @@ func (v MyKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string,
 ```
 
 Custom validators may be invoked concurrently when the same compiled validator is reused by multiple goroutines. Keep validator state immutable or synchronize it explicitly. Built-in validators snapshot their configuration during `CompileFieldSchema`; a configurable custom validator can opt into the same behavior by implementing `ValueValidatorCloner` or `KeyValidatorCloner`. For cancellable I/O or other blocking work, propagate `ctx.Context()`.
+
+When a custom validator reports an error for a child node, use `AppendPropertyPath` and `AppendIndexPath` instead of concatenating strings manually. They preserve unambiguous paths for property names containing dots, brackets, or numeric-looking names.
 
 ## Best Practices
 

@@ -31,8 +31,7 @@ func (vld OneOfTypeValidator) ValidateDefinition() error {
 
 // Validate implements ValueValidator.
 func (vld OneOfTypeValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
-	validator := &v.Validator{}                       // reuse inferType
-	actual := validator.InferTypeForPublic(node, ctx) // helper we will expose
+	actual := v.InferNodeType(node, ctx)
 
 	for _, t := range vld.Types {
 		if actual == t || (t == v.TypeFloat && actual == v.TypeInt) {
@@ -47,12 +46,16 @@ func (vld OneOfTypeValidator) Validate(node *yaml.Node, path string, ctx *v.Vali
 
 	ctx.AddError(v.ValidationError{
 		Level:    v.LevelError,
-		Code:     "type",
+		Code:     "type_mismatch",
 		Path:     path,
 		Line:     node.Line,
 		Column:   node.Column,
 		Message:  "type not allowed",
 		Got:      actual.String(),
 		Expected: fmt.Sprintf("one of %v", typeNames),
+		Details: v.TypeMismatchDetails{
+			Expected: append([]string(nil), typeNames...),
+			Actual:   actual.String(),
+		},
 	})
 }

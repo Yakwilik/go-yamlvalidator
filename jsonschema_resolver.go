@@ -42,6 +42,7 @@ func (f JSONSchemaResolverFunc) Resolve(ctx context.Context, url string) ([]byte
 }
 
 // JSONSchemaResourceMap is an in-memory resolver keyed by absolute retrieval URL.
+// Treat the map as immutable while it is in use; resolved byte slices are copied.
 type JSONSchemaResourceMap map[string][]byte
 
 // Resolve implements JSONSchemaResolver.
@@ -58,7 +59,8 @@ func (m JSONSchemaResourceMap) Resolve(ctx context.Context, resourceURL string) 
 }
 
 // JSONSchemaResolverChain tries resolvers in order. Only
-// ErrJSONSchemaResourceNotFound advances to the next resolver.
+// ErrJSONSchemaResourceNotFound advances to the next resolver. Treat the slice
+// as immutable while it is in use.
 type JSONSchemaResolverChain []JSONSchemaResolver
 
 // Resolve implements JSONSchemaResolver.
@@ -87,7 +89,7 @@ func (chain JSONSchemaResolverChain) Resolve(ctx context.Context, resourceURL st
 // JSONSchemaCachingResolver caches successful resolutions.
 // Returned byte slices are defensive copies.
 type JSONSchemaCachingResolver struct {
-	Resolver JSONSchemaResolver
+	resolver JSONSchemaResolver
 
 	mu    sync.RWMutex
 	cache map[string][]byte
@@ -96,7 +98,7 @@ type JSONSchemaCachingResolver struct {
 // NewJSONSchemaCachingResolver wraps resolver with a concurrency-safe cache.
 func NewJSONSchemaCachingResolver(resolver JSONSchemaResolver) *JSONSchemaCachingResolver {
 	return &JSONSchemaCachingResolver{
-		Resolver: resolver,
+		resolver: resolver,
 		cache:    make(map[string][]byte),
 	}
 }
@@ -110,7 +112,7 @@ func (resolver *JSONSchemaCachingResolver) Resolve(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if resolver == nil || resolver.Resolver == nil {
+	if resolver == nil || resolver.resolver == nil {
 		return nil, fmt.Errorf("JSON Schema caching resolver has no underlying resolver")
 	}
 
@@ -121,7 +123,7 @@ func (resolver *JSONSchemaCachingResolver) Resolve(
 		return append([]byte(nil), cached...), nil
 	}
 
-	data, err := resolver.Resolver.Resolve(ctx, resourceURL)
+	data, err := resolver.resolver.Resolve(ctx, resourceURL)
 	if err != nil {
 		return nil, err
 	}
@@ -236,4 +238,17 @@ func jsonSchemaResolverContext(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return ctx
+}
+
+type jsonSchemaNoExternalResolver struct{}
+
+func (jsonSchemaNoExternalResolver) Resolve(
+	ctx context.Context,
+	resourceURL string,
+) ([]byte, error) {
+	ctx = jsonSchemaResolverContext(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("%w: %s", ErrJSONSchemaResourceNotFound, resourceURL)
 }

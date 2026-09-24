@@ -1527,3 +1527,53 @@ func TestValidateContextPropagatesThroughSchemaAlternatives(t *testing.T) {
 		t.Fatalf("cancellation must not be reported as one_of_schema: %v", result.Collector.All())
 	}
 }
+
+func TestInferNodeTypePublicAPI(t *testing.T) {
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(`value: 123
+`), &node); err != nil {
+		t.Fatal(err)
+	}
+	value := node.Content[0].Content[1]
+	if got := InferNodeType(value, nil); got != TypeInt {
+		t.Fatalf("InferNodeType=%s, want integer", got)
+	}
+
+	var boolNode yaml.Node
+	if err := yaml.Unmarshal([]byte(`value: yes
+`), &boolNode); err != nil {
+		t.Fatal(err)
+	}
+	value = boolNode.Content[0].Content[1]
+	if got := InferNodeType(value, &ValidationContext{YAML11Booleans: true}); got != TypeBool {
+		t.Fatalf("YAML 1.1 InferNodeType=%s, want boolean", got)
+	}
+}
+
+func TestOneOfTypeValidatorUsesNativeTypeMismatchDiagnostic(t *testing.T) {
+	validator, err := CompileFieldSchema(&FieldSchema{
+		Type: TypeAny,
+		Validators: []ValueValidator{
+			valv.OneOfTypeValidator{Types: []NodeType{TypeString, TypeBool}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := validator.ValidateBytes([]byte("123"))
+	errors := result.Collector.Errors()
+	if len(errors) != 1 {
+		t.Fatalf("expected one error, got %v", errors)
+	}
+	if errors[0].Code != "type_mismatch" {
+		t.Fatalf("unexpected code: %q", errors[0].Code)
+	}
+	details, ok := errors[0].Details.(TypeMismatchDetails)
+	if !ok {
+		t.Fatalf("missing TypeMismatchDetails: %#v", errors[0].Details)
+	}
+	if details.Actual != "integer" || len(details.Expected) != 2 {
+		t.Fatalf("unexpected details: %#v", details)
+	}
+}

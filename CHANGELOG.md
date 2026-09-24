@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Проведён pre-v1 API cleanup: удалены временные `LoadURL`/`JSONSchemaLoadFunc` и engine-specific `ConfigureCompiler`, поэтому public API больше не зависит от конкретной реализации JSON Schema engine.
+- Добавлены first-class `JSONSchemaContentEncoding` и `JSONSchemaContentMediaType`; `JSONSchemaVocabulary.Schema` позволяет валидировать определения custom keywords без low-level compiler hook.
+- JSON Schema compilation теперь closed-world по умолчанию: external `$ref` не читает filesystem/network без явно переданного `Resolver`; CLI автоматически использует root-constrained file resolver для директории schema-файла.
+- Удалены прикладные `DirectoryValidator`, `PluginSourceValidator`, `ManagedDisableValidator` и `ManagedOverrideValidator`; `examples/advanced` переписан как generic configuration example.
+- `InferTypeForPublic` заменён на package-level `InferNodeType` с нейтральным публичным контрактом.
+- Случайно экспортированный `JSONSchemaKeywordIssue` и runtime-only `ValidationContext.SourceLines` убраны из public surface; underlying resolver у `JSONSchemaCachingResolver` теперь immutable после constructor.
+- Добавлены `AppendPropertyPath` и `AppendIndexPath` для корректных child paths в custom native validators.
+- Built-in validator definitions усилены: пустые/duplicate enum и forbidden-key конфигурации отклоняются при compile; `OneOfTypeValidator` унифицирован с native `type_mismatch` diagnostics и `TypeMismatchDetails`.
+
 ## v0.5.0 — 2026-09-24
 
 - Добавлен composable JSON Schema resolver API: context-aware `JSONSchemaResolver`, in-memory/chain/cache/rooted-file implementations и `CompileJSONSchemaContext*`; legacy `LoadURL` сохранён как deprecated compatibility path.

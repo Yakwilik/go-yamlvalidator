@@ -13,6 +13,20 @@ type EnumValidator struct {
 	Message string // Custom error message (optional)
 }
 
+func (vld EnumValidator) ValidateDefinition() error {
+	if len(vld.Allowed) == 0 {
+		return fmt.Errorf("enum must contain at least one allowed value")
+	}
+	seen := make(map[string]bool, len(vld.Allowed))
+	for _, allowed := range vld.Allowed {
+		if seen[allowed] {
+			return fmt.Errorf("duplicate enum value %q", allowed)
+		}
+		seen[allowed] = true
+	}
+	return nil
+}
+
 // Validate implements ValueValidator.
 func (vld EnumValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	for _, allowed := range vld.Allowed {

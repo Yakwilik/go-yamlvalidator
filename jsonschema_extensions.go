@@ -1,6 +1,7 @@
 package yamlvalidator
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 
@@ -15,9 +16,7 @@ type JSONSchemaFormat struct {
 	Validate func(value any) error
 }
 
-// JSONSchemaKeywordIssue is a diagnostic produced by a custom JSON Schema
-// keyword. Path is relative to the instance value to which the keyword applies.
-type JSONSchemaKeywordIssue struct {
+type jsonSchemaKeywordIssue struct {
 	Path    []string
 	Message string
 }
@@ -25,7 +24,7 @@ type JSONSchemaKeywordIssue struct {
 // JSONSchemaKeywordValidationContext collects custom keyword diagnostics and
 // evaluation annotations during one keyword validation call.
 type JSONSchemaKeywordValidationContext struct {
-	issues              []JSONSchemaKeywordIssue
+	issues              []jsonSchemaKeywordIssue
 	evaluatedProperties []string
 	evaluatedItems      []int
 	engine              *jsonschema.ValidatorContext
@@ -142,7 +141,7 @@ func (ctx *JSONSchemaKeywordValidationContext) AddError(message string) {
 
 // AddErrorAt reports an error at a path relative to the current instance value.
 func (ctx *JSONSchemaKeywordValidationContext) AddErrorAt(path []string, message string) {
-	ctx.issues = append(ctx.issues, JSONSchemaKeywordIssue{
+	ctx.issues = append(ctx.issues, jsonSchemaKeywordIssue{
 		Path:    append([]string(nil), path...),
 		Message: message,
 	})
@@ -201,10 +200,15 @@ type JSONSchemaKeyword struct {
 
 // JSONSchemaVocabulary groups custom keywords under a vocabulary URL.
 // Vocabularies registered through JSONSchemaCompileOptions are activated for
-// that compilation. For declaration-only/advanced vocabulary semantics use
-// ConfigureCompiler.
+// that compilation.
 type JSONSchemaVocabulary struct {
-	URL      string
+	URL string
+
+	// Schema optionally validates the custom keyword declarations introduced by
+	// this vocabulary. It must be a self-contained JSON Schema (standard
+	// metaschema references are supported).
+	Schema []byte
+
 	Keywords []JSONSchemaKeyword
 }
 
@@ -256,14 +260,9 @@ func (e *functionalKeywordError) LocalizedString(*message.Printer) string {
 
 func registerFunctionalJSONSchemaExtensions(
 	compiler *jsonschema.Compiler,
-	formats []JSONSchemaFormat,
 	keywords []JSONSchemaKeyword,
 	vocabularies []JSONSchemaVocabulary,
 ) error {
-	if err := registerFunctionalFormats(compiler, formats); err != nil {
-		return err
-	}
-
 	all := make([]JSONSchemaVocabulary, 0, len(vocabularies)+1)
 	if len(keywords) > 0 {
 		all = append(all, JSONSchemaVocabulary{
@@ -282,11 +281,14 @@ func registerFunctionalJSONSchemaExtensions(
 		if err := validateVocabularyDefinition(vocabulary, seenURLs, seenKeywords); err != nil {
 			return err
 		}
-		compiler.RegisterVocabulary(buildFunctionalVocabulary(vocabulary))
+		vocabularySchema, err := compileVocabularySchema(compiler, vocabulary)
+		if err != nil {
+			return err
+		}
+		compiler.RegisterVocabulary(buildFunctionalVocabulary(vocabulary, vocabularySchema))
 	}
 
-	// First-class functional vocabularies are intended to be active immediately.
-	// Users who need dialect-controlled activation can use ConfigureCompiler.
+	// First-class functional vocabularies are active for this compilation.
 	compiler.AssertVocabs()
 	return nil
 }
@@ -390,9 +392,46 @@ func validateVocabularyDefinition(
 	return nil
 }
 
-func buildFunctionalVocabulary(vocabulary JSONSchemaVocabulary) *jsonschema.Vocabulary {
+func compileVocabularySchema(
+	compiler *jsonschema.Compiler,
+	vocabulary JSONSchemaVocabulary,
+) (*jsonschema.Schema, error) {
+	if len(vocabulary.Schema) == 0 {
+		return nil, nil
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(vocabulary.Schema))
+	if err != nil {
+		return nil, fmt.Errorf(
+			"decode JSON Schema vocabulary schema %q: %w",
+			vocabulary.URL,
+			err,
+		)
+	}
+	if err := compiler.AddResource(vocabulary.URL, doc); err != nil {
+		return nil, fmt.Errorf(
+			"add JSON Schema vocabulary schema %q: %w",
+			vocabulary.URL,
+			err,
+		)
+	}
+	schema, err := compiler.Compile(vocabulary.URL)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"compile JSON Schema vocabulary schema %q: %w",
+			vocabulary.URL,
+			err,
+		)
+	}
+	return schema, nil
+}
+
+func buildFunctionalVocabulary(
+	vocabulary JSONSchemaVocabulary,
+	vocabularySchema *jsonschema.Schema,
+) *jsonschema.Vocabulary {
 	return &jsonschema.Vocabulary{
 		URL:        vocabulary.URL,
+		Schema:     vocabularySchema,
 		Subschemas: buildFunctionalSubschemaPaths(vocabulary),
 		Compile: func(engineCtx *jsonschema.CompilerContext, obj map[string]any) (jsonschema.SchemaExt, error) {
 			compiled := make([]compiledFunctionalKeyword, 0, len(vocabulary.Keywords))

@@ -244,3 +244,18 @@ func cloneDiagnostics(source []ValidationError) []ValidationError {
 	}
 	return result
 }
+
+// AppendPropertyPath appends a mapping property to a stable display path.
+// Ambiguous property names are quoted automatically.
+func AppendPropertyPath(base, property string) string {
+	return cleanPath(joinPath(base, property))
+}
+
+// AppendIndexPath appends a non-negative sequence index to a stable display
+// path. It returns an error for negative indexes.
+func AppendIndexPath(base string, index int) (string, error) {
+	if index < 0 {
+		return "", fmt.Errorf("path index must be non-negative")
+	}
+	return fmt.Sprintf("%s[%d]", cleanPath(base), index), nil
+}

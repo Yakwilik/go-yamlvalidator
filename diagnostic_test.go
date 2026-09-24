@@ -177,3 +177,24 @@ func TestRootDocPropertyIsNotConfusedWithDocumentPrefix(t *testing.T) {
 		t.Fatalf("unexpected tokens: got %#v want %#v", diagnostic.PathTokens, want)
 	}
 }
+
+func TestAppendPathHelpers(t *testing.T) {
+	path := AppendPropertyPath("root", "a.b")
+	if path != `root["a.b"]` {
+		t.Fatalf("unexpected property path: %q", path)
+	}
+	path = AppendPropertyPath(path, "0")
+	if path != `root["a.b"]["0"]` {
+		t.Fatalf("unexpected numeric property path: %q", path)
+	}
+	indexed, err := AppendIndexPath(path, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if indexed != `root["a.b"]["0"][2]` {
+		t.Fatalf("unexpected index path: %q", indexed)
+	}
+	if _, err := AppendIndexPath("", -1); err == nil {
+		t.Fatal("negative path index must fail")
+	}
+}

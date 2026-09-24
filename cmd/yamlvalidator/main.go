@@ -107,6 +107,10 @@ func loadValidator(path, format string, opts jsonSchemaCLIOptions) (*v.Validator
 			return nil, fmt.Errorf("resolve schema path: %w", err)
 		}
 		schemaURL := (&url.URL{Scheme: "file", Path: filepath.ToSlash(absolute)}).String()
+		resolver, err := v.NewJSONSchemaFileResolver(filepath.Dir(absolute))
+		if err != nil {
+			return nil, fmt.Errorf("create schema file resolver: %w", err)
+		}
 		schema, err := v.CompileJSONSchemaWithOptions(data, v.JSONSchemaCompileOptions{
 			SchemaURL:     schemaURL,
 			DefaultDraft:  opts.DefaultDraft,
@@ -114,6 +118,7 @@ func loadValidator(path, format string, opts jsonSchemaCLIOptions) (*v.Validator
 			AssertContent: opts.AssertContent,
 			AssertVocabs:  opts.AssertVocabs,
 			RegexpTimeout: opts.RegexpTimeout,
+			Resolver:      resolver,
 		})
 		if err != nil {
 			return nil, err

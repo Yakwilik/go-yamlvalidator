@@ -62,6 +62,24 @@ func TestCompileFieldSchemaRejectsInvalidDefinitions(t *testing.T) {
 			part:   "invalid allowed URL scheme",
 		},
 		{
+			name:   "empty enum definition",
+			schema: &FieldSchema{Type: TypeString, Validators: []ValueValidator{valv.EnumValidator{}}},
+			part:   "enum must contain at least one allowed value",
+		},
+		{
+			name:   "duplicate enum definition",
+			schema: &FieldSchema{Type: TypeString, Validators: []ValueValidator{valv.EnumValidator{Allowed: []string{"x", "x"}}}},
+			part:   `duplicate enum value "x"`,
+		},
+		{
+			name: "empty forbidden key definition",
+			schema: &FieldSchema{
+				Type:          TypeMap,
+				KeyValidators: []KeyValidator{keyv.ForbiddenKeyValidator{}},
+			},
+			part: "forbidden key list must not be empty",
+		},
+		{
 			name:   "inverted length",
 			schema: &FieldSchema{Type: TypeString, Validators: []ValueValidator{valv.LengthValidator{Min: Ptr(3), Max: Ptr(2)}}},
 			part:   "minimum length must not exceed maximum length",

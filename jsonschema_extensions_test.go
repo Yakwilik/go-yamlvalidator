@@ -449,3 +449,103 @@ func TestCompileJSONSchemaRejectsInvalidSubschemaPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestCompileJSONSchemaVocabularySchemaValidatesKeywordDefinitions(t *testing.T) {
+	vocabulary := JSONSchemaVocabulary{
+		URL: "https://example.test/vocab/typed-keyword",
+		Schema: []byte(`{
+			"$schema":"https://json-schema.org/draft/2020-12/schema",
+			"properties":{
+				"x-forbid":{"type":"string"}
+			}
+		}`),
+		Keywords: []JSONSchemaKeyword{{
+			Name: "x-forbid",
+			Validate: func(keywordValue, instance any, ctx *JSONSchemaKeywordValidationContext) {
+				if instance == keywordValue {
+					ctx.AddError("forbidden value")
+				}
+			},
+		}},
+	}
+
+	if _, err := CompileJSONSchemaWithOptions(
+		[]byte(`{"x-forbid":"bad"}`),
+		JSONSchemaCompileOptions{Vocabularies: []JSONSchemaVocabulary{vocabulary}},
+	); err != nil {
+		t.Fatalf("valid vocabulary keyword definition rejected: %v", err)
+	}
+
+	_, err := CompileJSONSchemaWithOptions(
+		[]byte(`{"x-forbid":123}`),
+		JSONSchemaCompileOptions{Vocabularies: []JSONSchemaVocabulary{vocabulary}},
+	)
+	if err == nil {
+		t.Fatal("vocabulary schema must reject invalid keyword definition")
+	}
+}
+
+func TestCompileJSONSchemaRejectsMalformedVocabularySchema(t *testing.T) {
+	_, err := CompileJSONSchemaWithOptions(
+		[]byte(`true`),
+		JSONSchemaCompileOptions{
+			Vocabularies: []JSONSchemaVocabulary{{
+				URL:    "https://example.test/vocab/bad-schema",
+				Schema: []byte(`{"type":`),
+				Keywords: []JSONSchemaKeyword{{
+					Name:     "x-rule",
+					Validate: func(any, any, *JSONSchemaKeywordValidationContext) {},
+				}},
+			}},
+		},
+	)
+	if err == nil || !strings.Contains(err.Error(), "decode JSON Schema vocabulary schema") {
+		t.Fatalf("expected malformed vocabulary schema error, got %v", err)
+	}
+}
+
+func TestJSONSchemaVocabularySchemaCanUsePreloadedResource(t *testing.T) {
+	vocabulary := JSONSchemaVocabulary{
+		URL: "https://example.test/vocab/with-ref",
+		Schema: []byte(`{
+			"$schema":"https://json-schema.org/draft/2020-12/schema",
+			"properties":{
+				"x-name":{"$ref":"https://example.test/meta/common.json#/$defs/name"}
+			}
+		}`),
+		Keywords: []JSONSchemaKeyword{{
+			Name:     "x-name",
+			Validate: func(any, any, *JSONSchemaKeywordValidationContext) {},
+		}},
+	}
+
+	_, err := CompileJSONSchemaWithOptions(
+		[]byte(`{"x-name":"ok"}`),
+		JSONSchemaCompileOptions{
+			Resources: map[string][]byte{
+				"https://example.test/meta/common.json": []byte(`{
+					"$defs":{"name":{"type":"string","minLength":2}}
+				}`),
+			},
+			Vocabularies: []JSONSchemaVocabulary{vocabulary},
+		},
+	)
+	if err != nil {
+		t.Fatalf("vocabulary schema could not resolve preloaded resource: %v", err)
+	}
+
+	_, err = CompileJSONSchemaWithOptions(
+		[]byte(`{"x-name":"x"}`),
+		JSONSchemaCompileOptions{
+			Resources: map[string][]byte{
+				"https://example.test/meta/common.json": []byte(`{
+					"$defs":{"name":{"type":"string","minLength":2}}
+				}`),
+			},
+			Vocabularies: []JSONSchemaVocabulary{vocabulary},
+		},
+	)
+	if err == nil {
+		t.Fatal("vocabulary schema must enforce referenced keyword definition")
+	}
+}

@@ -137,21 +137,6 @@ func TestCompileJSONSchemaContextCancelsResolver(t *testing.T) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }
-func TestCompileJSONSchemaRejectsResolverAndLoadURLTogether(t *testing.T) {
-	_, err := CompileJSONSchemaWithOptions(
-		[]byte(`true`),
-		JSONSchemaCompileOptions{
-			Resolver: JSONSchemaResourceMap{},
-			LoadURL: func(string) ([]byte, error) {
-				return nil, nil
-			},
-		},
-	)
-	if err == nil || !strings.Contains(err.Error(), "must not both be set") {
-		t.Fatalf("expected resolver/loadURL conflict, got %v", err)
-	}
-}
-
 func TestJSONSchemaResolverObservesCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -205,5 +190,25 @@ func TestCompileJSONSchemaContextAlreadyExpired(t *testing.T) {
 	_, err := CompileJSONSchemaContext(ctx, []byte(`true`))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected deadline exceeded, got %v", err)
+	}
+}
+
+func TestCompileJSONSchemaDoesNotReadFilesWithoutResolver(t *testing.T) {
+	root := t.TempDir()
+	childPath := filepath.Join(root, "child.json")
+	if err := os.WriteFile(childPath, []byte(`{"type":"integer"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rootURL := (&url.URL{Scheme: "file", Path: filepath.Join(root, "root.json")}).String()
+
+	_, err := CompileJSONSchemaWithOptions(
+		[]byte(`{"$ref":"child.json"}`),
+		JSONSchemaCompileOptions{SchemaURL: rootURL},
+	)
+	if err == nil {
+		t.Fatal("external file reference must require an explicit resolver")
+	}
+	if !strings.Contains(err.Error(), ErrJSONSchemaResourceNotFound.Error()) {
+		t.Fatalf("unexpected closed-world resolution error: %v", err)
 	}
 }
