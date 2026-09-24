@@ -9,9 +9,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Yakwilik/go-yamlvalidator/internal/thirdparty/xnet/idna"
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 	uritemplate "github.com/yosida95/uritemplate/v3"
-	"golang.org/x/net/idna"
 )
 
 var jsonSchemaIDNAProfile = idna.Lookup

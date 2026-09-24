@@ -13,7 +13,7 @@ A flexible, production-ready YAML validation library for Go with support for:
 
 ## Installation
 
-Requires Go 1.25 or newer. The minimum version is driven by security-fixed IDNA dependencies used by JSON Schema format validation.
+Requires Go 1.24 or newer. CI verifies the minimum supported Go 1.24 line and the current stable Go release. Security-fixed IDNA/Unicode code is kept in an internal third-party snapshot so full `idn-hostname`/`idn-email` support does not force consumers onto Go 1.25.
 
 ```bash
 go get github.com/Yakwilik/go-yamlvalidator

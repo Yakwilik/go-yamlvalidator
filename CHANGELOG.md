@@ -2,12 +2,14 @@
 
 ## Unreleased
 
+- Минимальная поддерживаемая версия Go снижена до 1.24 и проверяется в CI; совместимость подтверждена полной сборкой и тестами EasyP `feature/v1.0-pilot` без изменения его `go 1.24.0`.
 - Добавлены first-class functional JSON Schema extensions: custom `format`, custom keywords и named vocabularies без прямой зависимости вызывающего кода от внутреннего JSON Schema engine API.
 - Custom keyword diagnostics поддерживают relative YAML paths и `unevaluatedProperties`/`unevaluatedItems` через evaluated-property/item markers.
 
 - Переведён <code>CompileJSONSchema</code>/<code>CompileJSONSchemaWithOptions</code> на полноценный JSON Schema engine вместо частичного преобразования keywords в <code>FieldSchema</code>.
 - Поддерживаются draft-04, draft-06, draft-07, 2019-09 и 2020-12, включая references/dynamic references, vocabularies, unevaluated keywords, conditional schemas и остальные constraints движка.
 - Добавлены external resources/loaders, управление format/content/vocabulary assertions, <code>ConfigureCompiler</code> и timeout для ECMAScript regexp.
+- Patched IDNA/Unicode normalization code из upstream `x/net v0.55.0` и `x/text v0.39.0` встроен во внутренний namespace библиотеки: security fixes для IDN formats сохраняются без повышения minimum Go выше 1.24.
 - Добавлен ECMAScript-совместимый regexp engine и усиленные стандартные format validators.
 - Добавлен точный YAML → JSON data-model bridge без <code>float64</code>-round-trip для чисел, с сохранением YAML source positions в JSON Schema diagnostics.
 - Официальный JSON-Schema-Test-Suite теперь запускается как conformance-test в CI: 4950/4950 обязательных core cases и все применимые optional cases, кроме host-language-specific draft-04 <code>zeroTerminatedFloats</code>.
