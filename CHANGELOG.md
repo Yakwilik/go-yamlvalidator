@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 — 2026-09-24
 
 - Проведён pre-v1 API cleanup: удалены временные `LoadURL`/`JSONSchemaLoadFunc` и engine-specific `ConfigureCompiler`, поэтому public API больше не зависит от конкретной реализации JSON Schema engine.
 - Добавлены first-class `JSONSchemaContentEncoding` и `JSONSchemaContentMediaType`; `JSONSchemaVocabulary.Schema` позволяет валидировать определения custom keywords без low-level compiler hook.
