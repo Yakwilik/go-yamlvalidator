@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.5.0 — 2026-09-24
 
 - Добавлен composable JSON Schema resolver API: context-aware `JSONSchemaResolver`, in-memory/chain/cache/rooted-file implementations и `CompileJSONSchemaContext*`; legacy `LoadURL` сохранён как deprecated compatibility path.
 - Functional custom JSON Schema keywords теперь могут объявлять и компилировать nested subschemas через `CompileWithContext`, `JSONSchemaSubschemaPath`, `Subschema`/`Reference` и `ValidateSubschema` без прямой зависимости от engine API.
