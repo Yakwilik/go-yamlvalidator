@@ -36,4 +36,8 @@ result := validator.ValidateWithOptions(data, yamlvalidator.ValidationContext{
 })
 ~~~
 
+`CompileFieldSchema` создаёт snapshot native schema graph, поэтому последующие изменения исходных maps/slices/nested schemas не меняют compiled validator. Один compiled validator можно использовать из нескольких goroutines при условии, что custom validators concurrency-safe.
+
+Для cancellation/deadline используйте `ValidateContext` / `ValidateContextWithOptions`. Внутри custom validator текущий `context.Context` доступен через `ctx.Context()`. Cancellation cooperative и не может прервать уже выполняющийся `yaml.Decoder.Decode` или внутренний вызов JSON Schema engine.
+
 <code>Default</code> не изменяет YAML и не подставляет значение автоматически. Если optional field отсутствует, validator выдаёт warning с предлагаемым default.

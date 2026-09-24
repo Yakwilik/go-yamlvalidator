@@ -165,12 +165,18 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 		return nil, fmt.Errorf("compile JSON Schema: %w", err)
 	}
 
+	var additionalPropertiesPolicy *UnknownKeyPolicy
+	if opts.AdditionalPropertiesFalsePolicy != nil {
+		policy := *opts.AdditionalPropertiesFalsePolicy
+		additionalPropertiesPolicy = &policy
+	}
+
 	return &FieldSchema{
 		Type: TypeAny,
 		Validators: []ValueValidator{
 			&compiledJSONSchemaValidator{
 				schema:                          compiled,
-				additionalPropertiesFalsePolicy: opts.AdditionalPropertiesFalsePolicy,
+				additionalPropertiesFalsePolicy: additionalPropertiesPolicy,
 			},
 		},
 	}, nil
@@ -282,13 +288,22 @@ type compiledJSONSchemaValidator struct {
 }
 
 func (v *compiledJSONSchemaValidator) Validate(node *yaml.Node, path string, ctx *ValidationContext) {
+	if ctx.IsStopped() {
+		return
+	}
 	instance, index, conversionErr := yamlNodeToJSONSchemaInstance(node, path, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	if conversionErr != nil {
 		ctx.AddError(*conversionErr)
 		return
 	}
 
 	err := v.schema.Validate(instance)
+	if ctx.IsStopped() {
+		return
+	}
 	if err == nil {
 		return
 	}
@@ -331,6 +346,7 @@ func (v *compiledJSONSchemaValidator) addValidationError(err *jsonschema.Validat
 			Line:       nodeLine(node),
 			Column:     nodeColumn(node),
 			Message:    message,
+			Details:    jsonSchemaErrorDetails(err),
 		})
 	}
 
@@ -354,6 +370,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("required property %q is missing", missing),
+				Details:    RequiredDetails{Field: missing},
 			})
 		}
 		return true
@@ -368,6 +385,10 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("property %q is required when %q is present", missing, k.Prop),
+				Details: DependencyDetails{
+					Field:   missing,
+					Trigger: k.Prop,
+				},
 			})
 		}
 		return true
@@ -382,6 +403,10 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("property %q is required when %q is present", missing, k.Prop),
+				Details: DependencyDetails{
+					Field:   missing,
+					Trigger: k.Prop,
+				},
 			})
 		}
 		return true
@@ -403,6 +428,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Line:       nodeLine(node),
 				Column:     nodeColumn(node),
 				Message:    fmt.Sprintf("additional property %q is not allowed", property),
+				Details:    UnknownKeyDetails{Key: property},
 			})
 		}
 		return true
@@ -449,6 +475,30 @@ func jsonSchemaErrorMessage(err *jsonschema.ValidationError, keyword string) str
 		return output.Error.String()
 	}
 	return fmt.Sprintf("JSON Schema %s validation failed", keyword)
+}
+
+func jsonSchemaErrorDetails(err *jsonschema.ValidationError) any {
+	switch k := err.ErrorKind.(type) {
+	case *kind.Type:
+		return TypeMismatchDetails{
+			Expected: append([]string(nil), k.Want...),
+			Actual:   k.Got,
+		}
+	case *kind.MinItems:
+		return ItemCountDetails{Actual: k.Got, Bound: k.Want}
+	case *kind.MaxItems:
+		return ItemCountDetails{Actual: k.Got, Bound: k.Want}
+	case *kind.Minimum:
+		return NumericRangeDetails{Value: k.Got.RatString(), Bound: k.Want.RatString()}
+	case *kind.Maximum:
+		return NumericRangeDetails{Value: k.Got.RatString(), Bound: k.Want.RatString()}
+	case *kind.ExclusiveMinimum:
+		return NumericRangeDetails{Value: k.Got.RatString(), Bound: k.Want.RatString()}
+	case *kind.ExclusiveMaximum:
+		return NumericRangeDetails{Value: k.Got.RatString(), Bound: k.Want.RatString()}
+	default:
+		return nil
+	}
 }
 
 func jsonSchemaErrorInstanceLocation(err *jsonschema.ValidationError) []string {
@@ -520,7 +570,7 @@ func (i *yamlJSONInstanceIndex) displayPath(base string, segments []string) stri
 		}
 		if parent != nil && parent.Kind == yaml.SequenceNode {
 			path += "[" + segment + "]"
-		} else if isSimplePathSegment(segment) {
+		} else if isSimplePathSegment(segment) && !(path == "" && segment == "doc") {
 			if path != "" {
 				path += "."
 			}
@@ -543,6 +593,9 @@ func yamlNodeToJSONSchemaInstance(node *yaml.Node, basePath string, ctx *Validat
 func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, ctx *ValidationContext,
 	index *yamlJSONInstanceIndex, visiting map[*yaml.Node]bool, depth int) (any, *ValidationError) {
 
+	if ctx != nil && ctx.IsStopped() {
+		return nil, nil
+	}
 	if node == nil {
 		return nil, nil
 	}
@@ -668,59 +721,6 @@ func yaml11Boolean(value string) (bool, bool) {
 	}
 }
 
-func normalizeYAMLInteger(value string) (string, error) {
-	s := strings.ReplaceAll(value, "_", "")
-	if s == "" {
-		return "", fmt.Errorf("invalid YAML integer")
-	}
-
-	sign := ""
-	if s[0] == '+' || s[0] == '-' {
-		sign = s[:1]
-		s = s[1:]
-	}
-	if s == "" {
-		return "", fmt.Errorf("invalid YAML integer")
-	}
-
-	base := 10
-	digits := s
-	switch {
-	case strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X"):
-		base, digits = 16, s[2:]
-	case strings.HasPrefix(s, "0o") || strings.HasPrefix(s, "0O"):
-		base, digits = 8, s[2:]
-	case strings.HasPrefix(s, "0b") || strings.HasPrefix(s, "0B"):
-		base, digits = 2, s[2:]
-	case len(s) > 1 && s[0] == '0' && isOctalDigits(s[1:]):
-		base, digits = 8, s[1:]
-	}
-	if digits == "" {
-		return "", fmt.Errorf("invalid YAML integer")
-	}
-
-	integer, ok := new(big.Int).SetString(digits, base)
-	if !ok {
-		return "", fmt.Errorf("invalid YAML integer %q", value)
-	}
-	if sign == "-" {
-		integer.Neg(integer)
-	}
-	return integer.String(), nil
-}
-
-func isOctalDigits(value string) bool {
-	if value == "" {
-		return false
-	}
-	for _, ch := range value {
-		if ch < '0' || ch > '7' {
-			return false
-		}
-	}
-	return true
-}
-
 func jsonConversionError(node *yaml.Node, basePath string, location []string, message string) *ValidationError {
 	return &ValidationError{
 		Level:   LevelError,
@@ -770,7 +770,7 @@ func joinJSONSchemaInstancePath(base string, segments []string) string {
 			path += "[" + segment + "]"
 			continue
 		}
-		if isSimplePathSegment(segment) {
+		if isSimplePathSegment(segment) && !(path == "" && segment == "doc") {
 			if path != "" {
 				path += "."
 			}

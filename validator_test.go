@@ -1,6 +1,8 @@
 package yamlvalidator_test
 
 import (
+	"context"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -8,6 +10,7 @@ import (
 	. "github.com/Yakwilik/go-yamlvalidator"
 	keyv "github.com/Yakwilik/go-yamlvalidator/pkg/keyvalidator"
 	valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
+	"gopkg.in/yaml.v3"
 )
 
 func TestBasicTypeValidation(t *testing.T) {
@@ -1331,5 +1334,196 @@ func TestInvalidYAMLMergeValueIsRejected(t *testing.T) {
 				t.Fatalf("expected invalid_merge error, got %v", res.Collector.Errors())
 			}
 		})
+	}
+}
+
+type cancelingValueValidator struct {
+	cancel context.CancelFunc
+	calls  *int
+}
+
+func (validator cancelingValueValidator) Validate(
+	node *yaml.Node,
+	path string,
+	ctx *ValidationContext,
+) {
+	*validator.calls++
+	validator.cancel()
+	// This diagnostic must be suppressed because cancellation has already won.
+	ctx.AddError(ValidationError{
+		Level:   LevelError,
+		Code:    "late_after_cancel",
+		Path:    path,
+		Line:    node.Line,
+		Column:  node.Column,
+		Message: "must not be recorded",
+	})
+}
+
+func TestValidateContextAlreadyCanceled(t *testing.T) {
+	runCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := NewValidator(&FieldSchema{Type: TypeAny}).ValidateContext(
+		runCtx,
+		[]byte("value"),
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if !result.Canceled || !errors.Is(result.ContextErr, context.Canceled) {
+		t.Fatalf("cancellation not reflected in result: %+v", result)
+	}
+	if len(result.Collector.All()) != 0 {
+		t.Fatalf("cancellation should not be a validation diagnostic: %v", result.Collector.All())
+	}
+}
+
+func TestValidateContextStopsDuringCustomValidation(t *testing.T) {
+	runCtx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	schema := &FieldSchema{
+		Type: TypeSequence,
+		ItemSchema: &FieldSchema{
+			Type: TypeInt,
+			Validators: []ValueValidator{
+				cancelingValueValidator{cancel: cancel, calls: &calls},
+			},
+		},
+	}
+
+	result, err := NewValidator(schema).ValidateContext(runCtx, []byte("[1, 2, 3]\n"))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("validation continued after cancellation: calls=%d", calls)
+	}
+	if !result.Canceled {
+		t.Fatal("result must report cancellation")
+	}
+	if len(result.Collector.All()) != 0 {
+		t.Fatalf("late diagnostics after cancellation were recorded: %v", result.Collector.All())
+	}
+}
+
+func TestRangeValidatorExactIntegerBeyondFloat64Precision(t *testing.T) {
+	maximum := valv.MustExactNumber("9007199254740992")
+	schema := &FieldSchema{
+		Type: TypeInt,
+		Validators: []ValueValidator{
+			valv.RangeValidator{MaxExact: maximum},
+		},
+	}
+
+	validator, err := CompileFieldSchema(schema)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	if result := validator.ValidateBytes([]byte("9007199254740992")); result.HasErrors() {
+		t.Fatalf("exact boundary rejected: %v", result.Collector.Errors())
+	}
+	result := validator.ValidateBytes([]byte("9007199254740993"))
+	if !result.HasErrors() || result.Collector.Errors()[0].Code != "maximum" {
+		t.Fatalf("value above exact boundary accepted: %v", result.Collector.Errors())
+	}
+}
+
+func TestRangeValidatorLegacyFloatBoundUsesExactInput(t *testing.T) {
+	maximum := float64(9007199254740992)
+	schema := &FieldSchema{
+		Type: TypeInt,
+		Validators: []ValueValidator{
+			valv.RangeValidator{Max: &maximum},
+		},
+	}
+
+	result := NewValidator(schema).ValidateBytes([]byte("9007199254740993"))
+	if !result.HasErrors() || result.Collector.Errors()[0].Code != "maximum" {
+		t.Fatalf("legacy float bound lost exact YAML integer: %v", result.Collector.Errors())
+	}
+}
+
+func TestRangeValidatorExactScientificDecimal(t *testing.T) {
+	minimum := valv.MustExactNumber("1.0000000000000000001e-20")
+	schema := &FieldSchema{
+		Type: TypeFloat,
+		Validators: []ValueValidator{
+			valv.RangeValidator{MinExact: minimum},
+		},
+	}
+
+	if result := NewValidator(schema).ValidateBytes(
+		[]byte("0.000000000000000000010000000000000000001"),
+	); result.HasErrors() {
+		t.Fatalf("exact decimal boundary rejected: %v", result.Collector.Errors())
+	}
+
+	result := NewValidator(schema).ValidateBytes([]byte("1e-21"))
+	if !result.HasErrors() || result.Collector.Errors()[0].Code != "minimum" {
+		t.Fatalf("value below exact decimal boundary accepted: %v", result.Collector.Errors())
+	}
+}
+
+func TestRangeValidatorRejectsMixedLegacyAndExactBound(t *testing.T) {
+	minimum := float64(1)
+	schema := &FieldSchema{
+		Type: TypeInt,
+		Validators: []ValueValidator{
+			valv.RangeValidator{
+				Min:      &minimum,
+				MinExact: valv.MustExactNumber("1"),
+			},
+		},
+	}
+	_, err := CompileFieldSchema(schema)
+	if err == nil || !strings.Contains(err.Error(), "both Min and MinExact") {
+		t.Fatalf("expected conflicting minimum definition error, got %v", err)
+	}
+}
+
+func TestRangeValidatorLegacyDecimalBoundDoesNotRoundInput(t *testing.T) {
+	maximum := float64(0.1)
+	schema := &FieldSchema{
+		Type: TypeFloat,
+		Validators: []ValueValidator{
+			valv.RangeValidator{Max: &maximum},
+		},
+	}
+
+	if result := NewValidator(schema).ValidateBytes([]byte("0.1")); result.HasErrors() {
+		t.Fatalf("decimal boundary rejected: %v", result.Collector.Errors())
+	}
+	result := NewValidator(schema).ValidateBytes([]byte("0.10000000000000001"))
+	if !containsDiagnosticCode(result, "maximum") {
+		t.Fatalf("higher exact decimal rounded into bound: %v", result.Collector.Errors())
+	}
+}
+
+func TestValidateContextPropagatesThroughSchemaAlternatives(t *testing.T) {
+	runCtx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	schema := &FieldSchema{
+		Type: TypeAny,
+		OneOfSchemas: []*FieldSchema{
+			{
+				Type: TypeString,
+				Validators: []ValueValidator{
+					cancelingValueValidator{cancel: cancel, calls: &calls},
+				},
+			},
+			{Type: TypeInt},
+		},
+	}
+
+	result, err := NewValidator(schema).ValidateContext(runCtx, []byte("value"))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if calls != 1 || !result.Canceled {
+		t.Fatalf("cancellation did not propagate from schema branch: calls=%d result=%+v", calls, result)
+	}
+	if containsDiagnosticCode(result, "one_of_schema") {
+		t.Fatalf("cancellation must not be reported as one_of_schema: %v", result.Collector.All())
 	}
 }

@@ -5,6 +5,7 @@ package yamlvalidator
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,14 +42,16 @@ func (l ErrorLevel) String() string {
 // ValidationError represents a single validation issue.
 type ValidationError struct {
 	Level      ErrorLevel
-	Code       string // Stable machine-readable diagnostic code when available.
-	SchemaPath string // Schema location that produced the diagnostic, when available.
-	Path       string // Path to the problematic node, e.g., "spec.containers[0].image"
-	Line       int    // 1-based line number (0 if unknown)
-	Column     int    // 1-based column number (0 if unknown)
+	Code       string      // Stable machine-readable diagnostic code when available.
+	SchemaPath string      // Schema location that produced the diagnostic, when available.
+	Path       string      // Stable display path, e.g. "spec.containers[0].image".
+	PathTokens []PathToken // Typed path components for programmatic consumers.
+	Line       int         // 1-based line number (0 if unknown)
+	Column     int         // 1-based column number (0 if unknown)
 	Message    string
 	Got        string // Actual value/type description
 	Expected   string // Expected value/type description
+	Details    any    // Optional typed machine-readable diagnostic details.
 }
 
 func (e ValidationError) Error() string {
@@ -85,6 +88,7 @@ func NewErrorCollector() *ErrorCollector {
 
 // Add adds a validation error to the collector.
 func (c *ErrorCollector) Add(err ValidationError) {
+	normalizeDiagnosticPath(&err)
 	c.all = append(c.all, err)
 	if err.Level == LevelError {
 		c.errors = append(c.errors, err)
@@ -98,19 +102,19 @@ func (c *ErrorCollector) HasErrors() bool {
 	return len(c.errors) > 0
 }
 
-// Errors returns all errors.
+// Errors returns a defensive copy of all errors.
 func (c *ErrorCollector) Errors() []ValidationError {
-	return c.errors
+	return cloneDiagnostics(c.errors)
 }
 
-// Warnings returns all warnings.
+// Warnings returns a defensive copy of all warnings.
 func (c *ErrorCollector) Warnings() []ValidationError {
-	return c.warnings
+	return cloneDiagnostics(c.warnings)
 }
 
-// All returns all diagnostics in insertion order.
+// All returns a defensive copy of all diagnostics in insertion order.
 func (c *ErrorCollector) All() []ValidationError {
-	return append([]ValidationError(nil), c.all...)
+	return cloneDiagnostics(c.all)
 }
 
 // ============================================================================
@@ -156,6 +160,8 @@ type ValidationContext struct {
 	stopped      bool
 	limitReached bool
 	depth        int
+	runContext   context.Context
+	contextErr   error
 }
 
 // NewValidationContext creates a new ValidationContext with default settings.
@@ -165,9 +171,24 @@ func NewValidationContext() *ValidationContext {
 	}
 }
 
+// Context returns the context associated with the current validation run.
+// Custom validators should use it for cancellation/deadline-aware work.
+func (ctx *ValidationContext) Context() context.Context {
+	if ctx.runContext == nil {
+		return context.Background()
+	}
+	return ctx.runContext
+}
+
+// ContextErr reports context cancellation/deadline failure for this run.
+func (ctx *ValidationContext) ContextErr() error {
+	ctx.checkCanceled()
+	return ctx.contextErr
+}
+
 // AddError adds an error to the context's collector.
 func (ctx *ValidationContext) AddError(err ValidationError) {
-	if ctx.stopped {
+	if ctx.checkCanceled() || ctx.stopped {
 		return
 	}
 	if ctx.MaxDiagnostics > 0 && len(ctx.collector.all) >= ctx.MaxDiagnostics {
@@ -185,9 +206,28 @@ func (ctx *ValidationContext) AddError(err ValidationError) {
 	}
 }
 
-// IsStopped returns true if validation has been stopped.
+func (ctx *ValidationContext) checkCanceled() bool {
+	if ctx.contextErr != nil {
+		ctx.stopped = true
+		return true
+	}
+	if ctx.runContext == nil {
+		return false
+	}
+	select {
+	case <-ctx.runContext.Done():
+		ctx.contextErr = ctx.runContext.Err()
+		ctx.stopped = true
+		return true
+	default:
+		return false
+	}
+}
+
+// IsStopped returns true if validation has been stopped by validation policy
+// or by context cancellation/deadline.
 func (ctx *ValidationContext) IsStopped() bool {
-	return ctx.stopped
+	return ctx.checkCanceled() || ctx.stopped
 }
 
 // Collector returns the error collector.
@@ -271,14 +311,28 @@ const (
 // Validators Interfaces
 // ============================================================================
 
-// ValueValidator validates a node's value.
+// ValueValidator validates a node's value. Validator instances may be reused
+// concurrently; custom implementations that keep mutable state must therefore
+// provide their own synchronization.
 type ValueValidator interface {
 	Validate(node *yaml.Node, path string, ctx *ValidationContext)
 }
 
-// KeyValidator validates key names in mappings.
+// ValueValidatorCloner can be implemented by stateful/configurable custom
+// validators so CompileFieldSchema can snapshot their configuration.
+type ValueValidatorCloner interface {
+	CloneValueValidator() ValueValidator
+}
+
+// KeyValidator validates key names in mappings. The same concurrency contract
+// as ValueValidator applies to stateful implementations.
 type KeyValidator interface {
 	ValidateKey(key string, keyNode *yaml.Node, path string, ctx *ValidationContext)
+}
+
+// KeyValidatorCloner is the key-validator counterpart of ValueValidatorCloner.
+type KeyValidatorCloner interface {
+	CloneKeyValidator() KeyValidator
 }
 
 // ============================================================================
@@ -427,6 +481,11 @@ type ValidationResult struct {
 	SourceLines []string
 	// Truncated reports that validation stopped because MaxDiagnostics was reached.
 	Truncated bool
+	// Canceled reports that validation stopped because its context was canceled
+	// or its deadline expired. Context-aware methods also return ContextErr.
+	Canceled bool
+	// ContextErr is context.Canceled or context.DeadlineExceeded when Canceled is true.
+	ContextErr error
 }
 
 // HasErrors returns true if there are any errors.
@@ -495,7 +554,9 @@ type Validator struct {
 	schema *FieldSchema
 }
 
-// NewValidator creates a new Validator with the given schema.
+// NewValidator creates a Validator that references the supplied schema directly.
+// Callers must not mutate that schema concurrently with validation. Prefer
+// CompileFieldSchema when an immutable, concurrency-safe schema snapshot is desired.
 func NewValidator(schema *FieldSchema) *Validator {
 	return &Validator{schema: schema}
 }
@@ -503,20 +564,53 @@ func NewValidator(schema *FieldSchema) *Validator {
 // ValidateBytes validates YAML data and returns the result.
 // Supports multi-document YAML (separated by ---).
 func (v *Validator) ValidateBytes(data []byte) *ValidationResult {
-	return v.validateData(data, ValidationContext{})
+	result, _ := v.validateDataContext(context.Background(), data, ValidationContext{})
+	return result
 }
 
 // ValidateWithOptions validates YAML data with custom options.
 func (v *Validator) ValidateWithOptions(data []byte, opts ValidationContext) *ValidationResult {
-	return v.validateData(data, opts)
+	result, _ := v.validateDataContext(context.Background(), data, opts)
+	return result
 }
 
-func (v *Validator) validateData(data []byte, opts ValidationContext) *ValidationResult {
+// ValidateContext validates YAML data with cancellation/deadline support.
+// Validation diagnostics remain in the returned result; the error is reserved
+// for context cancellation/deadline.
+func (v *Validator) ValidateContext(runCtx context.Context, data []byte) (*ValidationResult, error) {
+	return v.validateDataContext(runCtx, data, ValidationContext{})
+}
+
+// ValidateContextWithOptions is the context-aware form of ValidateWithOptions.
+func (v *Validator) ValidateContextWithOptions(
+	runCtx context.Context,
+	data []byte,
+	opts ValidationContext,
+) (*ValidationResult, error) {
+	return v.validateDataContext(runCtx, data, opts)
+}
+
+func (v *Validator) validateDataContext(
+	runCtx context.Context,
+	data []byte,
+	opts ValidationContext,
+) (*ValidationResult, error) {
+	if runCtx == nil {
+		runCtx = context.Background()
+	}
+
 	ctx := &opts
 	ctx.collector = NewErrorCollector()
 	ctx.stopped = false
 	ctx.limitReached = false
 	ctx.depth = 0
+	ctx.runContext = runCtx
+	ctx.contextErr = nil
+
+	if ctx.checkCanceled() {
+		result := validationResultFromContext(ctx)
+		return result, ctx.contextErr
+	}
 
 	if ctx.MaxBytes > 0 && len(data) > ctx.MaxBytes {
 		ctx.AddError(ValidationError{
@@ -526,15 +620,38 @@ func (v *Validator) validateData(data []byte, opts ValidationContext) *Validatio
 			Got:      fmt.Sprintf("%d bytes", len(data)),
 			Expected: fmt.Sprintf("<= %d bytes", ctx.MaxBytes),
 		})
-		return &ValidationResult{Collector: ctx.Collector(), Truncated: ctx.limitReached}
+		result := validationResultFromContext(ctx)
+		return result, ctx.contextErr
 	}
 
 	ctx.SourceLines = splitLines(data)
-	v.validateWithContext(bytes.NewReader(data), ctx)
+	v.validateWithContext(&contextReader{ctx: runCtx, reader: bytes.NewReader(data)}, ctx)
+	ctx.checkCanceled()
+	result := validationResultFromContext(ctx)
+	return result, ctx.contextErr
+}
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (reader *contextReader) Read(buffer []byte) (int, error) {
+	select {
+	case <-reader.ctx.Done():
+		return 0, reader.ctx.Err()
+	default:
+		return reader.reader.Read(buffer)
+	}
+}
+
+func validationResultFromContext(ctx *ValidationContext) *ValidationResult {
 	return &ValidationResult{
 		Collector:   ctx.Collector(),
 		SourceLines: ctx.SourceLines,
 		Truncated:   ctx.limitReached,
+		Canceled:    ctx.contextErr != nil,
+		ContextErr:  ctx.contextErr,
 	}
 }
 
@@ -543,12 +660,20 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 	docIndex := 0
 
 	for {
+		if ctx.IsStopped() {
+			return
+		}
 		var root yaml.Node
 		err := decoder.Decode(&root)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			if runErr := ctx.Context().Err(); runErr != nil {
+				ctx.contextErr = runErr
+				ctx.stopped = true
+				return
+			}
 			ctx.AddError(parseYAMLError(err, docIndex))
 			return
 		}
@@ -733,8 +858,14 @@ func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*Field
 			SourceLines:    ctx.SourceLines,
 			collector:      NewErrorCollector(),
 			depth:          ctx.depth - 1,
+			runContext:     ctx.runContext,
 		}
 		v.validateNode(node, candidate, path, branchCtx)
+		if err := branchCtx.ContextErr(); err != nil {
+			ctx.contextErr = err
+			ctx.stopped = true
+			return false
+		}
 		if branchCtx.Collector().HasErrors() {
 			continue
 		}
@@ -800,6 +931,10 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 			Message:  "type mismatch",
 			Expected: fmt.Sprintf("one of %v", names),
 			Got:      v.describeNode(node),
+			Details: TypeMismatchDetails{
+				Expected: append([]string(nil), names...),
+				Actual:   actual.String(),
+			},
 		})
 		return false
 	}
@@ -825,6 +960,10 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 			Message:  "unexpected null value",
 			Expected: expected.String(),
 			Got:      "null",
+			Details: TypeMismatchDetails{
+				Expected: []string{expected.String()},
+				Actual:   TypeNull.String(),
+			},
 		})
 		return false
 	}
@@ -842,6 +981,10 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 		Message:  "type mismatch",
 		Expected: expected.String(),
 		Got:      v.describeNode(node),
+		Details: TypeMismatchDetails{
+			Expected: []string{expected.String()},
+			Actual:   actual.String(),
+		},
 	})
 	return false
 }
@@ -885,6 +1028,12 @@ func (v *Validator) inferScalarType(node *yaml.Node, ctx *ValidationContext) Nod
 	case "!!int":
 		return TypeInt
 	case "!!float":
+		// yaml.v3 resolves integer literals outside its machine-sized integer
+		// range as !!float. Preserve mathematical integer semantics by checking
+		// the original scalar text with arbitrary precision.
+		if yamlScalarLooksInteger(node.Value) {
+			return TypeInt
+		}
 		return TypeFloat
 	case "!!bool":
 		return TypeBool
@@ -1039,8 +1188,11 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 		keyNodes[key] = keyNode
 
 		// Key validators (for all keys)
-		for _, kv := range schema.KeyValidators {
-			kv.ValidateKey(key, keyNode, cleanPath(fieldPath), ctx)
+		for _, validator := range schema.KeyValidators {
+			if ctx.IsStopped() {
+				return
+			}
+			validator.ValidateKey(key, keyNode, cleanPath(fieldPath), ctx)
 		}
 
 		// Known key?
@@ -1060,7 +1212,8 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 		level, report := v.resolveUnknownKeyLevel(schema.UnknownKeyPolicy, ctx)
 		if report {
 			message := fmt.Sprintf("unknown key %q", key)
-			if suggestion := suggestKnownKey(key, schema.AllowedKeys); suggestion != "" {
+			suggestion := suggestKnownKey(key, schema.AllowedKeys)
+			if suggestion != "" {
 				message += fmt.Sprintf("; did you mean %q?", suggestion)
 			}
 			ctx.AddError(ValidationError{
@@ -1071,19 +1224,47 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 				Column:  keyNode.Column,
 				Message: message,
 				Got:     v.describeNode(valueNode),
+				Details: UnknownKeyDetails{
+					Key:        key,
+					Suggestion: suggestion,
+				},
 			})
 		}
 	}
 
-	// Check required fields, defaults, and inter-field logic
+	// Check required fields, defaults, and inter-field logic.
 	v.checkRequiredFields(node, schema, path, foundKeys, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkDefaults(node, schema, path, foundKeys, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkAnyOf(node, schema, path, foundKeys, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkExactlyOneOf(node, schema, path, foundKeys, keyNodes, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkMutuallyExclusive(node, schema, path, foundKeys, keyNodes, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkOneOfRequired(node, schema, path, foundKeys, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkForbiddenTogether(node, schema, path, foundKeys, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkDependentRequired(node, schema, path, foundKeys, keyNodes, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 	v.checkConditions(node, schema, path, foundKeys, keyNodes, ctx)
 }
 
@@ -1360,6 +1541,9 @@ func (v *Validator) checkRequiredFields(node *yaml.Node, schema *FieldSchema, pa
 	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
 
 	for key, fieldSchema := range schema.AllowedKeys {
+		if ctx.IsStopped() {
+			return
+		}
 		if fieldSchema.Required && foundKeys[key] == nil {
 			ctx.AddError(ValidationError{
 				Level:   LevelError,
@@ -1368,6 +1552,7 @@ func (v *Validator) checkRequiredFields(node *yaml.Node, schema *FieldSchema, pa
 				Line:    node.Line,
 				Column:  node.Column,
 				Message: fmt.Sprintf("required field %q is missing", key),
+				Details: RequiredDetails{Field: key},
 			})
 		}
 	}
@@ -1377,6 +1562,9 @@ func (v *Validator) checkDefaults(node *yaml.Node, schema *FieldSchema, path str
 	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
 
 	for key, fieldSchema := range schema.AllowedKeys {
+		if ctx.IsStopped() {
+			return
+		}
 		if fieldSchema.Default != nil && foundKeys[key] == nil && !fieldSchema.Required {
 			ctx.AddError(ValidationError{
 				Level:   LevelWarning,
@@ -1393,11 +1581,17 @@ func (v *Validator) checkDefaults(node *yaml.Node, schema *FieldSchema, path str
 func (v *Validator) checkAnyOf(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	if len(schema.AnyOf) == 0 {
 		return
 	}
 
 	for _, group := range schema.AnyOf {
+		if ctx.IsStopped() {
+			return
+		}
 		allPresent := true
 		for _, key := range group {
 			if foundKeys[key] == nil {
@@ -1433,6 +1627,9 @@ func (v *Validator) checkAnyOf(node *yaml.Node, schema *FieldSchema, path string
 func (v *Validator) checkExactlyOneOf(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	if len(schema.ExactlyOneOf) == 0 {
 		return
 	}
@@ -1468,6 +1665,9 @@ func (v *Validator) checkExactlyOneOf(node *yaml.Node, schema *FieldSchema, path
 func (v *Validator) checkMutuallyExclusive(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	if len(schema.MutuallyExclusive) == 0 {
 		return
 	}
@@ -1494,6 +1694,9 @@ func (v *Validator) checkMutuallyExclusive(node *yaml.Node, schema *FieldSchema,
 func (v *Validator) checkOneOfRequired(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	if len(schema.OneOfRequired) == 0 {
 		return
 	}
@@ -1528,7 +1731,13 @@ func (v *Validator) checkOneOfRequired(node *yaml.Node, schema *FieldSchema, pat
 func (v *Validator) checkForbiddenTogether(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	for _, group := range schema.ForbiddenTogether {
+		if ctx.IsStopped() {
+			return
+		}
 		allPresent := len(group) > 0
 		for _, key := range group {
 			if foundKeys[key] == nil {
@@ -1556,7 +1765,13 @@ func (v *Validator) checkForbiddenTogether(node *yaml.Node, schema *FieldSchema,
 func (v *Validator) checkDependentRequired(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	for trigger, required := range schema.DependentRequired {
+		if ctx.IsStopped() {
+			return
+		}
 		if foundKeys[trigger] == nil {
 			continue
 		}
@@ -1572,6 +1787,10 @@ func (v *Validator) checkDependentRequired(node *yaml.Node, schema *FieldSchema,
 				Line:    anchor.Line,
 				Column:  anchor.Column,
 				Message: fmt.Sprintf("field %q is required when %q is present", key, trigger),
+				Details: DependencyDetails{
+					Field:   key,
+					Trigger: trigger,
+				},
 			})
 			if ctx.IsStopped() {
 				return
@@ -1583,7 +1802,13 @@ func (v *Validator) checkDependentRequired(node *yaml.Node, schema *FieldSchema,
 func (v *Validator) checkConditions(node *yaml.Node, schema *FieldSchema, path string,
 	foundKeys map[string]*yaml.Node, keyNodes map[string]*yaml.Node, ctx *ValidationContext) {
 
+	if ctx.IsStopped() {
+		return
+	}
 	for _, rule := range schema.Conditions {
+		if ctx.IsStopped() {
+			return
+		}
 		condNode := foundKeys[rule.ConditionField]
 		if condNode == nil {
 			continue
@@ -1647,6 +1872,10 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 			Message:  "too few items",
 			Expected: fmt.Sprintf("at least %d", *schema.MinItems),
 			Got:      fmt.Sprintf("%d", length),
+			Details: ItemCountDetails{
+				Actual: length,
+				Bound:  *schema.MinItems,
+			},
 		})
 	}
 
@@ -1660,6 +1889,10 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 			Message:  "too many items",
 			Expected: fmt.Sprintf("at most %d", *schema.MaxItems),
 			Got:      fmt.Sprintf("%d", length),
+			Details: ItemCountDetails{
+				Actual: length,
+				Bound:  *schema.MaxItems,
+			},
 		})
 	}
 
@@ -1681,7 +1914,7 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 // ============================================================================
 
 func joinPath(base, key string) string {
-	if isSimplePathSegment(key) {
+	if isSimplePathSegment(key) && !(base == "" && key == "doc") {
 		if base == "" {
 			return key
 		}

@@ -22,7 +22,7 @@ validator, err := yamlvalidator.CompileFieldSchema(schema)
 
 - <code>EnumValidator{Allowed: []string{"v1", "v2"}}</code>
 - <code>RegexValidator{Pattern: re, Message: "..."}</code>
-- <code>RangeValidator{Min: yamlvalidator.Ptr(1.0), Max: yamlvalidator.Ptr(10.0)}</code>
+- <code>RangeValidator{Min: yamlvalidator.Ptr(1.0), Max: yamlvalidator.Ptr(10.0)}</code> — YAML value сравнивается без `float64` round-trip; для exact bounds произвольной величины доступны <code>MinExact</code>/<code>MaxExact</code> и <code>MustExactNumber("...")</code>
 - <code>NonEmptyValidator{}</code>
 - <code>LengthValidator{Min: yamlvalidator.Ptr(1), Max: yamlvalidator.Ptr(63)}</code>
 - <code>URLValidator{RequireScheme: true, AllowedSchemes: []string{"http", "https"}}</code>
@@ -51,3 +51,5 @@ func (MyValidator) Validate(node *yaml.Node, path string, ctx *yamlvalidator.Val
 ~~~
 
 Если кастомный validator имеет собственную configuration validation, он может реализовать <code>DefinitionValidator</code> через метод <code>ValidateDefinition() error</code>.
+
+Compiled validator можно использовать конкурентно, поэтому mutable state внутри custom validator должен быть синхронизирован самим validator. Для cancellable/blocking work используйте <code>ctx.Context()</code>.

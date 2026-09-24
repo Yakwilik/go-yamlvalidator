@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Добавлена cooperative cancellation/deadline support через `ValidateContext` и `ValidateContextWithOptions`; custom validators получают `context.Context` через `ValidationContext.Context()`.
+- `CompileFieldSchema` теперь создаёт snapshot native schema graph и конфигурации built-in validators; для configurable custom validators добавлены `ValueValidatorCloner` / `KeyValidatorCloner`. Compiled validator безопасен для concurrent validation при concurrency-safe custom validator state.
+- `RangeValidator` сравнивает YAML numbers без `float64` round-trip; добавлены `ExactNumber`, `ParseExactNumber`, `MustExactNumber`, `MinExact` и `MaxExact` для точных границ произвольной величины.
+- Native type inference сохраняет integer semantics для целых YAML literals за пределами machine-sized integer range.
+- `ValidationError` получил `PathTokens` и `Details`; основные native/JSON Schema diagnostics возвращают typed details для required/type/range/item-count/dependency/unknown-key ошибок.
+- `ErrorCollector.Errors`, `Warnings` и `All` возвращают defensive copies.
+- Добавлены fuzz targets и adversarial tests для native YAML, JSON Schema bridge/compilation, path parsing, exact numbers, depth/diagnostic limits, aliases и больших integers.
+
 ## v0.3.1 — 2026-09-24
 
 - Исправлена формулировка minimum Go version: v0.3.0 требует Go 1.24+, без утверждения о её «понижении» относительно предыдущего release.

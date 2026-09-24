@@ -18,7 +18,13 @@ func CompileFieldSchema(schema *FieldSchema) (*Validator, error) {
 	if err := ValidateFieldSchema(schema); err != nil {
 		return nil, err
 	}
-	return NewValidator(schema), nil
+	// Compile takes an immutable snapshot of the FieldSchema graph so callers
+	// may safely reuse or mutate the source schema after compilation. Built-in
+	// validators and custom validators implementing the cloner interfaces are
+	// snapshotted too; other custom validators retain their interface value and
+	// must manage their own mutable state/concurrency.
+	snapshot := cloneFieldSchema(schema, make(map[*FieldSchema]*FieldSchema))
+	return NewValidator(snapshot), nil
 }
 
 // ValidateFieldSchema checks FieldSchema invariants, including nested schemas,
@@ -240,4 +246,146 @@ func validateFieldList(path string, fields []string, allowed map[string]*FieldSc
 		}
 	}
 	return nil
+}
+
+func cloneFieldSchema(schema *FieldSchema, memo map[*FieldSchema]*FieldSchema) *FieldSchema {
+	if schema == nil {
+		return nil
+	}
+	if cloned := memo[schema]; cloned != nil {
+		return cloned
+	}
+
+	cloned := *schema
+	memo[schema] = &cloned
+
+	cloned.AllowedTypes = append([]NodeType(nil), schema.AllowedTypes...)
+	cloned.Validators = cloneValueValidators(schema.Validators)
+	cloned.KeyValidators = cloneKeyValidators(schema.KeyValidators)
+	cloned.ExactlyOneOf = append([]string(nil), schema.ExactlyOneOf...)
+	cloned.MutuallyExclusive = append([]string(nil), schema.MutuallyExclusive...)
+	cloned.AnyOf = cloneStringGroups(schema.AnyOf)
+	cloned.OneOfRequired = cloneStringGroups(schema.OneOfRequired)
+	cloned.ForbiddenTogether = cloneStringGroups(schema.ForbiddenTogether)
+
+	if schema.MinItems != nil {
+		value := *schema.MinItems
+		cloned.MinItems = &value
+	}
+	if schema.MaxItems != nil {
+		value := *schema.MaxItems
+		cloned.MaxItems = &value
+	}
+
+	cloned.AllowedKeys = cloneSchemaMap(schema.AllowedKeys, memo)
+	cloned.AdditionalProperties = cloneFieldSchema(schema.AdditionalProperties, memo)
+	cloned.ItemSchema = cloneFieldSchema(schema.ItemSchema, memo)
+
+	cloned.OneOfSchemas = make([]*FieldSchema, len(schema.OneOfSchemas))
+	for i, child := range schema.OneOfSchemas {
+		cloned.OneOfSchemas[i] = cloneFieldSchema(child, memo)
+	}
+	cloned.AnyOfSchemas = make([]*FieldSchema, len(schema.AnyOfSchemas))
+	for i, child := range schema.AnyOfSchemas {
+		cloned.AnyOfSchemas[i] = cloneFieldSchema(child, memo)
+	}
+
+	cloned.Conditions = make([]ConditionalRule, len(schema.Conditions))
+	for i, condition := range schema.Conditions {
+		cloned.Conditions[i] = condition
+		cloned.Conditions[i].ThenRequired = append([]string(nil), condition.ThenRequired...)
+		cloned.Conditions[i].ThenForbidden = append([]string(nil), condition.ThenForbidden...)
+	}
+
+	if schema.DependentRequired != nil {
+		cloned.DependentRequired = make(map[string][]string, len(schema.DependentRequired))
+		for trigger, required := range schema.DependentRequired {
+			cloned.DependentRequired[trigger] = append([]string(nil), required...)
+		}
+	}
+
+	cloned.Default = cloneSchemaDefault(schema.Default)
+	return &cloned
+}
+
+func cloneSchemaMap(source map[string]*FieldSchema, memo map[*FieldSchema]*FieldSchema) map[string]*FieldSchema {
+	if source == nil {
+		return nil
+	}
+	result := make(map[string]*FieldSchema, len(source))
+	for key, child := range source {
+		result[key] = cloneFieldSchema(child, memo)
+	}
+	return result
+}
+
+func cloneStringGroups(groups [][]string) [][]string {
+	if groups == nil {
+		return nil
+	}
+	result := make([][]string, len(groups))
+	for i, group := range groups {
+		result[i] = append([]string(nil), group...)
+	}
+	return result
+}
+
+func cloneSchemaDefault(value any) any {
+	switch typed := value.(type) {
+	case nil:
+		return nil
+	case []any:
+		result := make([]any, len(typed))
+		for i, item := range typed {
+			result[i] = cloneSchemaDefault(item)
+		}
+		return result
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, item := range typed {
+			result[key] = cloneSchemaDefault(item)
+		}
+		return result
+	case map[any]any:
+		result := make(map[any]any, len(typed))
+		for key, item := range typed {
+			result[key] = cloneSchemaDefault(item)
+		}
+		return result
+	default:
+		// Scalar values and opaque application-defined defaults are copied by
+		// value. Callers that store mutable opaque values in Default remain
+		// responsible for their own synchronization.
+		return value
+	}
+}
+
+func cloneValueValidators(source []ValueValidator) []ValueValidator {
+	if source == nil {
+		return nil
+	}
+	result := make([]ValueValidator, len(source))
+	for i, validator := range source {
+		if cloner, ok := validator.(ValueValidatorCloner); ok {
+			result[i] = cloner.CloneValueValidator()
+		} else {
+			result[i] = validator
+		}
+	}
+	return result
+}
+
+func cloneKeyValidators(source []KeyValidator) []KeyValidator {
+	if source == nil {
+		return nil
+	}
+	result := make([]KeyValidator, len(source))
+	for i, validator := range source {
+		if cloner, ok := validator.(KeyValidatorCloner); ok {
+			result[i] = cloner.CloneKeyValidator()
+		} else {
+			result[i] = validator
+		}
+	}
+	return result
 }

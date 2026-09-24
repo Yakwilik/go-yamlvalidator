@@ -124,7 +124,9 @@ if err != nil {
 }
 ~~~
 
-<code>NewValidator</code> remains available for backwards compatibility when the schema is already trusted.
+`CompileFieldSchema` also snapshots the `FieldSchema` graph (maps, slices, nested schemas, item limits, conditions, and ordinary JSON/YAML container defaults). Later mutations of the source schema therefore do not change the compiled validator. Opaque application-defined objects stored in `Default`, plus custom `ValueValidator` / `KeyValidator` instances, are copied by value and remain the caller's concurrency responsibility. A compiled validator can otherwise be reused concurrently.
+
+`NewValidator` remains available for backwards compatibility when the schema is already trusted; unlike `CompileFieldSchema`, it retains the supplied schema pointer directly.
 
 ### Node Types
 
@@ -334,8 +336,13 @@ RegexValidator{
     Message: "must be lowercase letters",
 }
 
-// Numeric range
+// Numeric range. YAML input is compared exactly (no float64 round-trip).
 RangeValidator{Min: v.Ptr[float64](1), Max: v.Ptr[float64](100)}
+
+// Exact bounds for values that cannot be represented safely as float64.
+RangeValidator{
+    MinExact: MustExactNumber("9007199254740993"),
+}
 
 // Non-empty check
 NonEmptyValidator{}
@@ -417,6 +424,22 @@ if result.Truncated {
     // MaxDiagnostics was reached.
 }
 ```
+
+For cancellation/deadlines use the context-aware API:
+
+```go
+runCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+defer cancel()
+
+result, err := validator.ValidateContextWithOptions(runCtx, yaml, ValidationContext{
+    MaxDepth: 100,
+})
+if errors.Is(err, context.DeadlineExceeded) {
+    // result may contain diagnostics collected before cancellation.
+}
+```
+
+Cancellation is cooperative. Native traversal and custom validators can observe it through `ValidationContext.Context()`. A custom validator performing blocking work should select on or pass that context to the operation. Cancellation is checked around YAML traversal/conversion and JSON Schema validation, but it cannot interrupt an already-running `yaml.Decoder.Decode` call or an in-progress validation call inside the underlying JSON Schema engine.
 
 ## CLI
 
@@ -540,6 +563,8 @@ func (v MyKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string,
 }
 ```
 
+Custom validators may be invoked concurrently when the same compiled validator is reused by multiple goroutines. Keep validator state immutable or synchronize it explicitly. Built-in validators snapshot their configuration during `CompileFieldSchema`; a configurable custom validator can opt into the same behavior by implementing `ValueValidatorCloner` or `KeyValidatorCloner`. For cancellable I/O or other blocking work, propagate `ctx.Context()`.
+
 ## Best Practices
 
 ### 1. Use `AdditionalProperties` for arbitrary keys
@@ -596,6 +621,10 @@ result := v.ValidateBytes(yamlData)
 
 // Validate with options
 result := v.ValidateWithOptions(yamlData, ValidationContext{...})
+
+// Context-aware validation
+result, err := v.ValidateContext(ctx, yamlData)
+result, err := v.ValidateContextWithOptions(ctx, yamlData, ValidationContext{...})
 ```
 
 ### ValidationResult
@@ -608,6 +637,8 @@ result.Collector.All()          // []ValidationError in collection order
 result.SortByPosition()         // Sort by line/column
 result.FormatAll(sortByPos)     // Format with source context
 result.Truncated                // true if MaxDiagnostics stopped validation
+result.Canceled                 // true if context canceled/deadline expired
+result.ContextErr               // context.Canceled / context.DeadlineExceeded
 ```
 
 ### ValidationError
@@ -615,16 +646,22 @@ result.Truncated                // true if MaxDiagnostics stopped validation
 ```go
 type ValidationError struct {
     Level      ErrorLevel
-    Code       string // Machine-readable code, e.g. "required" or "minimum"
-    SchemaPath string // Originating JSON Schema location when available
-    Path       string // e.g., "spec.containers[0].image"
-    Line       int    // 1-based (0 if unknown)
-    Column     int    // 1-based (0 if unknown)
+    Code       string      // Machine-readable code, e.g. "required" or "minimum"
+    SchemaPath string      // Originating JSON Schema location when available
+    Path       string      // Stable display path, e.g. "spec.containers[0].image"
+    PathTokens []PathToken // Typed property/index/document components
+    Line       int         // 1-based (0 if unknown)
+    Column     int         // 1-based (0 if unknown)
     Message    string
-    Got        string // Actual value/type
-    Expected   string // Expected value/type
+    Got        string
+    Expected   string
+    Details    any         // Optional typed machine-readable details
 }
 ```
+
+`Details` is populated where a diagnostic has useful structured data. Current detail types include `RequiredDetails`, `UnknownKeyDetails`, `TypeMismatchDetails`, `NumericRangeDetails`, `ItemCountDetails`, and `DependencyDetails`. `PathTokens` avoids parsing the human-readable `Path`; the leading `doc[N]` syntax is reserved for multi-document YAML and is represented by `PathTokenDocument`.
+
+The collector accessors return defensive copies, so callers may sort or modify returned diagnostics without mutating the stored validation result.
 
 ## License
 

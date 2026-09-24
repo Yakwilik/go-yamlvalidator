@@ -744,3 +744,89 @@ func TestCompileJSONSchemaRejectsNegativeRegexpTimeout(t *testing.T) {
 		t.Fatalf("expected regexp timeout error, got %v", err)
 	}
 }
+
+func TestJSONSchemaStructuredDiagnosticDetails(t *testing.T) {
+	schema, err := CompileJSONSchema([]byte(`{
+		"type":"array",
+		"items":{"type":"integer"},
+		"maxItems":1
+	}`))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	result := NewValidator(schema).ValidateBytes([]byte("[nope, 2]"))
+	var typeDetails *TypeMismatchDetails
+	var countDetails *ItemCountDetails
+	for _, diagnostic := range result.Collector.Errors() {
+		switch diagnostic.Code {
+		case "type":
+			details, ok := diagnostic.Details.(TypeMismatchDetails)
+			if !ok {
+				t.Fatalf("unexpected type details: %#v", diagnostic.Details)
+			}
+			copy := details
+			typeDetails = &copy
+		case "maxItems":
+			details, ok := diagnostic.Details.(ItemCountDetails)
+			if !ok {
+				t.Fatalf("unexpected maxItems details: %#v", diagnostic.Details)
+			}
+			copy := details
+			countDetails = &copy
+		}
+	}
+
+	if typeDetails == nil {
+		t.Fatalf("type details missing: %v", result.Collector.Errors())
+	}
+	if len(typeDetails.Expected) != 1 || typeDetails.Expected[0] != "integer" ||
+		typeDetails.Actual != "string" {
+		t.Fatalf("unexpected type details: %+v", *typeDetails)
+	}
+	if countDetails == nil || countDetails.Actual != 2 || countDetails.Bound != 1 {
+		t.Fatalf("unexpected maxItems details: %+v", countDetails)
+	}
+}
+
+func TestCompileJSONSchemaSnapshotsPresentationPolicy(t *testing.T) {
+	policy := UnknownKeyWarn
+	schema, err := CompileJSONSchemaWithOptions([]byte(`{
+		"type":"object",
+		"properties":{"name":{"type":"string"}},
+		"additionalProperties":false
+	}`), JSONSchemaCompileOptions{
+		AdditionalPropertiesFalsePolicy: &policy,
+	})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	policy = UnknownKeyIgnore
+	result := NewValidator(schema).ValidateBytes([]byte("name: app\nextra: true\n"))
+	if len(result.Collector.Warnings()) != 1 || len(result.Collector.Errors()) != 0 {
+		t.Fatalf("compiled presentation policy changed after source mutation: %v", result.Collector.All())
+	}
+}
+
+func TestJSONSchemaRootDocPropertyPathIsUnambiguous(t *testing.T) {
+	schema, err := CompileJSONSchema([]byte(`{
+		"type":"object",
+		"properties":{"doc":{"type":"array","items":{"type":"integer"}}}
+	}`))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	result := NewValidator(schema).ValidateBytes([]byte("doc: [nope]"))
+	var found *ValidationError
+	for _, diagnostic := range result.Collector.Errors() {
+		if diagnostic.Code == "type" {
+			copy := diagnostic
+			found = &copy
+			break
+		}
+	}
+	if found == nil || found.Path != `["doc"][0]` {
+		t.Fatalf("unexpected JSON Schema doc-property path: %+v", found)
+	}
+}
