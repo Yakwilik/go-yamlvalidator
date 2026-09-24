@@ -57,6 +57,17 @@ type JSONSchemaCompileOptions struct {
 	// regexp engine's unlimited default. Use a positive duration for untrusted schemas.
 	RegexpTimeout time.Duration
 
+	// Formats registers first-class functional custom formats.
+	Formats []JSONSchemaFormat
+
+	// Keywords registers functional custom keywords in an internal vocabulary.
+	// They are activated for this compilation automatically.
+	Keywords []JSONSchemaKeyword
+
+	// Vocabularies registers named functional custom vocabularies. They are
+	// activated for this compilation automatically.
+	Vocabularies []JSONSchemaVocabulary
+
 	// Resources preloads external resources addressed by their retrieval URLs.
 	// This is the preferred way to compile a closed schema graph without I/O.
 	Resources map[string][]byte
@@ -113,6 +124,14 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 		compiler.UseLoader(jsonSchemaLoaderFunc(opts.LoadURL))
 	}
 	registerExtendedJSONSchemaFormats(compiler)
+	if err := registerFunctionalJSONSchemaExtensions(
+		compiler,
+		opts.Formats,
+		opts.Keywords,
+		opts.Vocabularies,
+	); err != nil {
+		return nil, err
+	}
 	if opts.ConfigureCompiler != nil {
 		if err := opts.ConfigureCompiler(compiler); err != nil {
 			return nil, fmt.Errorf("configure JSON Schema compiler: %w", err)
@@ -302,12 +321,13 @@ func (v *compiledJSONSchemaValidator) addValidationError(err *jsonschema.Validat
 			return
 		}
 		message := jsonSchemaErrorMessage(err, keyword)
-		node := index.valueNode(err.InstanceLocation)
+		location := jsonSchemaErrorInstanceLocation(err)
+		node := index.closestValueNode(location)
 		ctx.AddError(ValidationError{
 			Level:      v.levelForKeyword(keyword),
 			Code:       keyword,
 			SchemaPath: jsonSchemaErrorSchemaPath(err),
-			Path:       index.displayPath(basePath, err.InstanceLocation),
+			Path:       index.displayPath(basePath, location),
 			Line:       nodeLine(node),
 			Column:     nodeColumn(node),
 			Message:    message,
@@ -431,6 +451,14 @@ func jsonSchemaErrorMessage(err *jsonschema.ValidationError, keyword string) str
 	return fmt.Sprintf("JSON Schema %s validation failed", keyword)
 }
 
+func jsonSchemaErrorInstanceLocation(err *jsonschema.ValidationError) []string {
+	location := append([]string(nil), err.InstanceLocation...)
+	if functional, ok := err.ErrorKind.(*functionalKeywordError); ok {
+		location = append(location, functional.relativePath...)
+	}
+	return location
+}
+
 func jsonSchemaErrorSchemaPath(err *jsonschema.ValidationError) string {
 	if err.SchemaURL == "" {
 		return ""
@@ -467,6 +495,15 @@ func newYAMLJSONInstanceIndex() *yamlJSONInstanceIndex {
 
 func (i *yamlJSONInstanceIndex) valueNode(path []string) *yaml.Node {
 	return i.values[jsonPointer(path)]
+}
+
+func (i *yamlJSONInstanceIndex) closestValueNode(path []string) *yaml.Node {
+	for end := len(path); end >= 0; end-- {
+		if node := i.valueNode(path[:end]); node != nil {
+			return node
+		}
+	}
+	return nil
 }
 
 func (i *yamlJSONInstanceIndex) keyNode(path []string) *yaml.Node {

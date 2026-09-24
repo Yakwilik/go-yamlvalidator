@@ -221,6 +221,68 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
 })
 ~~~
 
+### Functional JSON Schema extensions
+
+For common extension cases, yamlvalidator exposes its own API so callers do not need to depend directly on the underlying JSON Schema engine.
+
+A custom format is useful for scalar validation and can also validate mapping keys through `propertyNames`:
+
+```go
+schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
+    AssertFormat: true,
+    Formats: []v.JSONSchemaFormat{
+        {
+            Name: "module-name",
+            Validate: func(value any) error {
+                name, ok := value.(string)
+                if ok && !validModuleName(name) {
+                    return fmt.Errorf("invalid module name")
+                }
+                return nil
+            },
+        },
+    },
+})
+```
+
+The schema can then use `{"format":"module-name"}` or `{"propertyNames":{"format":"module-name"}}`.
+
+For arbitrary business logic, register a functional custom keyword. The simplest form is literally a validation function receiving the keyword value from the schema and the current instance value:
+
+```go
+keyword := v.JSONSchemaKeyword{
+    Name: "x-require-property",
+    Validate: func(raw, instance any, ctx *v.JSONSchemaKeywordValidationContext) {
+        property, ok := raw.(string)
+        if !ok {
+            ctx.AddError("x-require-property expects a string")
+            return
+        }
+        object, ok := instance.(map[string]any)
+        if !ok {
+            return
+        }
+
+        ctx.MarkPropertyEvaluated(property)
+        if _, ok := object[property]; !ok {
+            ctx.AddErrorAt([]string{property}, "required by x-require-property")
+        }
+    },
+}
+
+schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
+    Keywords: []v.JSONSchemaKeyword{keyword},
+})
+```
+
+If keyword configuration needs parsing or validation, use `Compile` instead of `Validate`; it receives the keyword value once at schema compilation time and returns a `JSONSchemaKeywordValidateFunc` for subsequent instance validation.
+
+`JSONSchemaKeywordValidationContext` supports multiple diagnostics through `AddError` / `AddErrorAt` and integrates with `unevaluatedProperties` / `unevaluatedItems` through `MarkPropertyEvaluated` / `MarkItemEvaluated`. Relative issue paths are mapped back to the corresponding YAML line and column, and the keyword name becomes the diagnostic `Code`.
+
+For a named set of keywords use `JSONSchemaVocabulary{URL, Keywords}` through `JSONSchemaCompileOptions.Vocabularies`. First-class functional vocabularies are activated for that compilation automatically. For advanced keywords which introduce subschemas, custom dialect/meta-schema behavior, or direct engine APIs, use `ConfigureCompiler` and `RegisterVocabulary`.
+
+Custom keyword validators operate on the JSON data model (`map[string]any`, `[]any`, `json.Number`, strings, booleans, null), not on `yaml.Node`. Treat the supplied instance as read-only; compiled schemas may be reused concurrently, so captured validator state must be concurrency-safe. YAML-specific validation that needs tags/styles/comments should continue to use native `ValueValidator` / `KeyValidator`.
+
 ### Format and content assertions
 
 For 2019-09 and 2020-12, <code>format</code> remains annotation-only unless the schema vocabulary requires assertions or <code>AssertFormat</code> is enabled. The validator supplies stricter implementations for email, hostname, IPv4, duration, URI, URI-reference, URI-template, idn-email, and idn-hostname, and uses an ECMAScript-compatible regexp engine for JSON Schema patterns and regex format validation.

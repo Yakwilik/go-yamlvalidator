@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Добавлены first-class functional JSON Schema extensions: custom `format`, custom keywords и named vocabularies без прямой зависимости вызывающего кода от внутреннего JSON Schema engine API.
+- Custom keyword diagnostics поддерживают relative YAML paths и `unevaluatedProperties`/`unevaluatedItems` через evaluated-property/item markers.
+
 - Переведён <code>CompileJSONSchema</code>/<code>CompileJSONSchemaWithOptions</code> на полноценный JSON Schema engine вместо частичного преобразования keywords в <code>FieldSchema</code>.
 - Поддерживаются draft-04, draft-06, draft-07, 2019-09 и 2020-12, включая references/dynamic references, vocabularies, unevaluated keywords, conditional schemas и остальные constraints движка.
 - Добавлены external resources/loaders, управление format/content/vocabulary assertions, <code>ConfigureCompiler</code> и timeout для ECMAScript regexp.
