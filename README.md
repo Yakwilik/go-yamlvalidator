@@ -197,15 +197,19 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
         "https://schemas.example.com/common.json": commonSchema,
     },
 
-    LoadURL: func(url string) ([]byte, error) {
-        return loadSchemaResource(url)
-    },
+    Resolver: v.NewJSONSchemaCachingResolver(
+        v.JSONSchemaResolverFunc(func(ctx context.Context, url string) ([]byte, error) {
+            return loadSchemaResource(ctx, url)
+        }),
+    ),
 
     AdditionalPropertiesFalsePolicy: &policy,
 })
 ~~~
 
-<code>Resources</code> preloads an external schema graph without I/O. <code>LoadURL</code> resolves references not already present in that graph. HTTP(S) fetching is deliberately not enabled implicitly.
+<code>Resources</code> preloads a closed schema graph without I/O. <code>Resolver</code> handles unresolved references and receives the compilation context. Built-in resolver helpers include <code>JSONSchemaResourceMap</code>, <code>JSONSchemaResolverChain</code>, <code>JSONSchemaCachingResolver</code>, and the root-constrained <code>JSONSchemaFileResolver</code>. <code>LoadURL</code> remains available for source compatibility but is deprecated.
+
+For cancellable resolution/compilation use <code>CompileJSONSchemaContext</code> or <code>CompileJSONSchemaContextWithOptions</code>. Cancellation is checked around library-controlled work and is propagated into resolvers; the underlying JSON Schema engine does not expose an interrupt hook in the middle of one synchronous compile/validate call. HTTP(S) fetching is deliberately not enabled implicitly.
 
 <code>RegexpTimeout</code> limits one ECMAScript regexp match. The default value <code>0</code> preserves unlimited matching for full compatibility; set a positive duration when validating against untrusted schemas.
 
@@ -279,9 +283,43 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
 
 If keyword configuration needs parsing or validation, use `Compile` instead of `Validate`; it receives the keyword value once at schema compilation time and returns a `JSONSchemaKeywordValidateFunc` for subsequent instance validation.
 
+
+Keywords that contain nested schemas can use `CompileWithContext` instead of importing the underlying engine. Declare where nested schemas may occur, compile exact branches with `Subschema` or `Reference`, then validate them through `ValidateSubschema`:
+
+```go
+keyword := v.JSONSchemaKeyword{
+    Name: "x-dispatch",
+    Subschemas: []v.JSONSchemaSubschemaPath{
+        {v.JSONSchemaSubschemaAllProperties()},
+    },
+    CompileWithContext: func(
+        ctx *v.JSONSchemaKeywordCompileContext,
+        raw any,
+    ) (v.JSONSchemaKeywordValidateFunc, error) {
+        config := raw.(map[string]any)
+        branches := make(map[string]*v.JSONSchemaSubschema, len(config))
+        for name := range config {
+            branches[name] = ctx.Subschema(name)
+        }
+
+        return func(instance any, validation *v.JSONSchemaKeywordValidationContext) {
+            object, _ := instance.(map[string]any)
+            kind, _ := object["kind"].(string)
+            if branch := branches[kind]; branch != nil {
+                validation.ValidateSubschema(branch, instance, nil)
+            } else {
+                validation.AddErrorAt([]string{"kind"}, "unknown kind")
+            }
+        }, nil
+    },
+}
+```
+
+Subschema location helpers cover an exact property, all property values, an exact array item, or all array items. Nested schemas keep normal JSON Schema reference semantics, including `$ref`.
+
 `JSONSchemaKeywordValidationContext` supports multiple diagnostics through `AddError` / `AddErrorAt` and integrates with `unevaluatedProperties` / `unevaluatedItems` through `MarkPropertyEvaluated` / `MarkItemEvaluated`. Relative issue paths are mapped back to the corresponding YAML line and column, and the keyword name becomes the diagnostic `Code`.
 
-For a named set of keywords use `JSONSchemaVocabulary{URL, Keywords}` through `JSONSchemaCompileOptions.Vocabularies`. First-class functional vocabularies are activated for that compilation automatically. For advanced keywords which introduce subschemas, custom dialect/meta-schema behavior, or direct engine APIs, use `ConfigureCompiler` and `RegisterVocabulary`.
+For a named set of keywords use `JSONSchemaVocabulary{URL, Keywords}` through `JSONSchemaCompileOptions.Vocabularies`. First-class functional vocabularies are activated for that compilation automatically. `ConfigureCompiler` remains the low-level escape hatch for custom dialect/meta-schema behavior or engine-specific APIs that are not covered by the high-level extension layer.
 
 Custom keyword validators operate on the JSON data model (`map[string]any`, `[]any`, `json.Number`, strings, booleans, null), not on `yaml.Node`. Treat the supplied instance as read-only; compiled schemas may be reused concurrently, so captured validator state must be concurrency-safe. YAML-specific validation that needs tags/styles/comments should continue to use native `ValueValidator` / `KeyValidator`.
 
@@ -625,6 +663,12 @@ result := v.ValidateWithOptions(yamlData, ValidationContext{...})
 // Context-aware validation
 result, err := v.ValidateContext(ctx, yamlData)
 result, err := v.ValidateContextWithOptions(ctx, yamlData, ValidationContext{...})
+
+// Reader-based validation. MaxBytes reads at most MaxBytes+1 bytes.
+result, err := v.ValidateReader(reader)
+result, err := v.ValidateReaderWithOptions(reader, ValidationContext{...})
+result, err := v.ValidateReaderContext(ctx, reader)
+result, err := v.ValidateReaderContextWithOptions(ctx, reader, ValidationContext{...})
 ```
 
 ### ValidationResult
@@ -662,6 +706,16 @@ type ValidationError struct {
 `Details` is populated where a diagnostic has useful structured data. Current detail types include `RequiredDetails`, `UnknownKeyDetails`, `TypeMismatchDetails`, `NumericRangeDetails`, `ItemCountDetails`, and `DependencyDetails`. `PathTokens` avoids parsing the human-readable `Path`; the leading `doc[N]` syntax is reserved for multi-document YAML and is represented by `PathTokenDocument`.
 
 The collector accessors return defensive copies, so callers may sort or modify returned diagnostics without mutating the stored validation result.
+
+## Benchmarks
+
+The repository includes allocation-aware benchmarks for native schema compilation, native small/large validation, JSON Schema compilation, and JSON Schema small/large validation:
+
+```bash
+go test -run '^$' -bench='Benchmark(Native|JSONSchema)' -benchmem .
+```
+
+Benchmarks are intended for before/after regression work rather than fixed CI timing thresholds. Large-document validation avoids per-source-line string allocations by sharing one backing source string.
 
 ## License
 

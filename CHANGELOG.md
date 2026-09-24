@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Добавлен composable JSON Schema resolver API: context-aware `JSONSchemaResolver`, in-memory/chain/cache/rooted-file implementations и `CompileJSONSchemaContext*`; legacy `LoadURL` сохранён как deprecated compatibility path.
+- Functional custom JSON Schema keywords теперь могут объявлять и компилировать nested subschemas через `CompileWithContext`, `JSONSchemaSubschemaPath`, `Subschema`/`Reference` и `ValidateSubschema` без прямой зависимости от engine API.
+- Добавлены `ValidateReader*` API с I/O errors отдельно от validation diagnostics, context cancellation и bounded reading до `MaxBytes+1`.
+- Добавлен benchmark suite для native/JSON Schema compile и small/large validation; source-line indexing оптимизирован до общего backing string, что устраняет по одной string allocation на строку YAML.
+
 ## v0.4.0 — 2026-09-24
 
 - Добавлена cooperative cancellation/deadline support через `ValidateContext` и `ValidateContextWithOptions`; custom validators получают `context.Context` через `ValidationContext.Context()`.

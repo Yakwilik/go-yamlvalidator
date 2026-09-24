@@ -574,6 +574,87 @@ func (v *Validator) ValidateWithOptions(data []byte, opts ValidationContext) *Va
 	return result
 }
 
+// ValidateReader validates YAML read from reader. Validation failures are
+// returned in ValidationResult; the error is reserved for input I/O failures.
+func (v *Validator) ValidateReader(reader io.Reader) (*ValidationResult, error) {
+	return v.ValidateReaderContextWithOptions(
+		context.Background(),
+		reader,
+		ValidationContext{},
+	)
+}
+
+// ValidateReaderWithOptions is the reader-based form of ValidateWithOptions.
+func (v *Validator) ValidateReaderWithOptions(
+	reader io.Reader,
+	opts ValidationContext,
+) (*ValidationResult, error) {
+	return v.ValidateReaderContextWithOptions(context.Background(), reader, opts)
+}
+
+// ValidateReaderContext validates YAML from reader with cancellation/deadline support.
+func (v *Validator) ValidateReaderContext(
+	runCtx context.Context,
+	reader io.Reader,
+) (*ValidationResult, error) {
+	return v.ValidateReaderContextWithOptions(runCtx, reader, ValidationContext{})
+}
+
+// ValidateReaderContextWithOptions reads at most MaxBytes+1 bytes when a byte
+// limit is configured, so oversized streams are rejected without unbounded
+// buffering. Validation still preserves source lines for normal diagnostics.
+func (v *Validator) ValidateReaderContextWithOptions(
+	runCtx context.Context,
+	reader io.Reader,
+	opts ValidationContext,
+) (*ValidationResult, error) {
+	if reader == nil {
+		return nil, fmt.Errorf("YAML input reader is nil")
+	}
+	if runCtx == nil {
+		runCtx = context.Background()
+	}
+	if err := runCtx.Err(); err != nil {
+		return canceledReaderResult(nil, err), err
+	}
+
+	input := io.Reader(&contextReader{ctx: runCtx, reader: reader})
+	if opts.MaxBytes > 0 {
+		limit := int64(opts.MaxBytes)
+		if limit < int64(^uint64(0)>>1) {
+			limit++
+		}
+		input = io.LimitReader(input, limit)
+	}
+
+	data, err := io.ReadAll(input)
+	if err != nil {
+		if contextErr := runCtx.Err(); contextErr != nil {
+			return canceledReaderResult(data, contextErr), contextErr
+		}
+		return nil, fmt.Errorf("read YAML input: %w", err)
+	}
+	if opts.MaxBytes > 0 && len(data) > opts.MaxBytes {
+		ctx := newValidationRunContext(runCtx, opts)
+		if ctx.checkCanceled() {
+			result := validationResultFromContext(ctx)
+			return result, ctx.contextErr
+		}
+		addMaxBytesDiagnostic(ctx, fmt.Sprintf("> %d bytes", opts.MaxBytes))
+		return validationResultFromContext(ctx), nil
+	}
+	return v.validateDataContext(runCtx, data, opts)
+}
+
+func canceledReaderResult(data []byte, err error) *ValidationResult {
+	return &ValidationResult{
+		Collector:   NewErrorCollector(),
+		SourceLines: splitLines(data),
+		Canceled:    true,
+		ContextErr:  err,
+	}
+}
+
 // ValidateContext validates YAML data with cancellation/deadline support.
 // Validation diagnostics remain in the returned result; the error is reserved
 // for context cancellation/deadline.
@@ -599,27 +680,14 @@ func (v *Validator) validateDataContext(
 		runCtx = context.Background()
 	}
 
-	ctx := &opts
-	ctx.collector = NewErrorCollector()
-	ctx.stopped = false
-	ctx.limitReached = false
-	ctx.depth = 0
-	ctx.runContext = runCtx
-	ctx.contextErr = nil
-
+	ctx := newValidationRunContext(runCtx, opts)
 	if ctx.checkCanceled() {
 		result := validationResultFromContext(ctx)
 		return result, ctx.contextErr
 	}
 
 	if ctx.MaxBytes > 0 && len(data) > ctx.MaxBytes {
-		ctx.AddError(ValidationError{
-			Level:    LevelError,
-			Code:     "max_bytes",
-			Message:  "YAML input exceeds configured byte limit",
-			Got:      fmt.Sprintf("%d bytes", len(data)),
-			Expected: fmt.Sprintf("<= %d bytes", ctx.MaxBytes),
-		})
+		addMaxBytesDiagnostic(ctx, fmt.Sprintf("%d bytes", len(data)))
 		result := validationResultFromContext(ctx)
 		return result, ctx.contextErr
 	}
@@ -629,6 +697,27 @@ func (v *Validator) validateDataContext(
 	ctx.checkCanceled()
 	result := validationResultFromContext(ctx)
 	return result, ctx.contextErr
+}
+
+func newValidationRunContext(runCtx context.Context, opts ValidationContext) *ValidationContext {
+	ctx := &opts
+	ctx.collector = NewErrorCollector()
+	ctx.stopped = false
+	ctx.limitReached = false
+	ctx.depth = 0
+	ctx.runContext = runCtx
+	ctx.contextErr = nil
+	return ctx
+}
+
+func addMaxBytesDiagnostic(ctx *ValidationContext, got string) {
+	ctx.AddError(ValidationError{
+		Level:    LevelError,
+		Code:     "max_bytes",
+		Message:  "YAML input exceeds configured byte limit",
+		Got:      got,
+		Expected: fmt.Sprintf("<= %d bytes", ctx.MaxBytes),
+	})
 }
 
 type contextReader struct {
@@ -1929,11 +2018,11 @@ func cleanPath(path string) string {
 }
 
 func splitLines(data []byte) []string {
-	raw := bytes.Split(data, []byte("\n"))
-	lines := make([]string, len(raw))
-	for i, line := range raw {
-		line = bytes.TrimSuffix(line, []byte("\r"))
-		lines[i] = string(line)
+	// Keep one backing string instead of allocating one string per source line.
+	// TrimSuffix only reslices, so CRLF handling stays allocation-free too.
+	lines := strings.Split(string(data), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimSuffix(line, "\r")
 	}
 	return lines
 }

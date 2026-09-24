@@ -276,7 +276,176 @@ func TestCompileJSONSchemaRejectsKeywordValidateAndCompileTogether(t *testing.T)
 			},
 		}},
 	})
-	if err == nil || !strings.Contains(err.Error(), "set either Validate or Compile") {
+	if err == nil || !strings.Contains(err.Error(), "set exactly one of Validate, Compile, or CompileWithContext") {
 		t.Fatalf("expected mutually exclusive keyword function error, got %v", err)
+	}
+}
+
+func TestCompileJSONSchemaCustomKeywordWithSubschemas(t *testing.T) {
+	keyword := JSONSchemaKeyword{
+		Name: "x-dispatch",
+		Subschemas: []JSONSchemaSubschemaPath{
+			{JSONSchemaSubschemaAllProperties()},
+		},
+		CompileWithContext: func(
+			ctx *JSONSchemaKeywordCompileContext,
+			keywordValue any,
+		) (JSONSchemaKeywordValidateFunc, error) {
+			config, ok := keywordValue.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected object")
+			}
+			branches := make(map[string]*JSONSchemaSubschema, len(config))
+			for name := range config {
+				branches[name] = ctx.Subschema(name)
+			}
+			return func(instance any, validation *JSONSchemaKeywordValidationContext) {
+				object, ok := instance.(map[string]any)
+				if !ok {
+					return
+				}
+				kind, _ := object["kind"].(string)
+				branch := branches[kind]
+				if branch == nil {
+					validation.AddErrorAt([]string{"kind"}, "unknown dispatch kind")
+					return
+				}
+				validation.ValidateSubschema(branch, instance, nil)
+			}, nil
+		},
+	}
+
+	schema, err := CompileJSONSchemaWithOptions([]byte(`{
+		"$schema":"https://json-schema.org/draft/2020-12/schema",
+		"$defs":{
+			"positiveObject":{
+				"type":"object",
+				"properties":{"value":{"type":"integer","minimum":1}}
+			}
+		},
+		"type":"object",
+		"properties":{
+			"kind":{"type":"string"},
+			"value":true
+		},
+		"required":["kind","value"],
+		"x-dispatch":{
+			"text":{
+				"type":"object",
+				"properties":{"value":{"type":"string"}}
+			},
+			"positive":{"$ref":"#/$defs/positiveObject"}
+		}
+	}`), JSONSchemaCompileOptions{
+		Keywords: []JSONSchemaKeyword{keyword},
+	})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	for _, input := range []string{
+		`kind: text
+value: hello
+`,
+		`kind: positive
+value: 2
+`,
+	} {
+		if result := NewValidator(schema).ValidateBytes([]byte(input)); result.HasErrors() {
+			t.Fatalf("valid input %q rejected: %v", input, result.Collector.Errors())
+		}
+	}
+
+	result := NewValidator(schema).ValidateBytes([]byte(`kind: positive
+value: -1
+`))
+	if !containsDiagnosticCode(result, "minimum") {
+		t.Fatalf("nested $ref subschema did not run: %v", result.Collector.Errors())
+	}
+
+	result = NewValidator(schema).ValidateBytes([]byte(`kind: text
+value: 2
+`))
+	if !containsDiagnosticCode(result, "type") {
+		t.Fatalf("nested inline subschema did not run: %v", result.Collector.Errors())
+	}
+
+	result = NewValidator(schema).ValidateBytes([]byte(`kind: missing
+value: 2
+`))
+	if !containsDiagnosticCode(result, "x-dispatch") {
+		t.Fatalf("custom dispatch error missing: %v", result.Collector.Errors())
+	}
+}
+
+func TestCompileJSONSchemaCustomKeywordReferenceHelper(t *testing.T) {
+	keyword := JSONSchemaKeyword{
+		Name: "x-ref",
+		CompileWithContext: func(
+			ctx *JSONSchemaKeywordCompileContext,
+			keywordValue any,
+		) (JSONSchemaKeywordValidateFunc, error) {
+			ref, ok := keywordValue.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string reference")
+			}
+			schema, err := ctx.Reference(ref)
+			if err != nil {
+				return nil, err
+			}
+			return func(instance any, validation *JSONSchemaKeywordValidationContext) {
+				validation.ValidateSubschema(schema, instance, nil)
+			}, nil
+		},
+	}
+
+	schema, err := CompileJSONSchemaWithOptions([]byte(`{
+		"$defs":{"positive":{"type":"integer","minimum":1}},
+		"x-ref":"#/$defs/positive"
+	}`), JSONSchemaCompileOptions{
+		Keywords: []JSONSchemaKeyword{keyword},
+	})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	if result := NewValidator(schema).ValidateBytes([]byte("2")); result.HasErrors() {
+		t.Fatalf("valid referenced schema rejected: %v", result.Collector.Errors())
+	}
+	if result := NewValidator(schema).ValidateBytes([]byte("0")); !containsDiagnosticCode(result, "minimum") {
+		t.Fatalf("reference helper did not validate: %v", result.Collector.Errors())
+	}
+}
+
+func TestCompileJSONSchemaRejectsInvalidSubschemaPaths(t *testing.T) {
+	tests := []struct {
+		name string
+		path JSONSchemaSubschemaPath
+		part string
+	}{
+		{
+			name: "zero-value position",
+			path: JSONSchemaSubschemaPath{{}},
+			part: "invalid subschema position",
+		},
+		{
+			name: "negative item",
+			path: JSONSchemaSubschemaPath{JSONSchemaSubschemaItem(-1)},
+			part: "item index must be non-negative",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := CompileJSONSchemaWithOptions([]byte(`{"x-rule":true}`), JSONSchemaCompileOptions{
+				Keywords: []JSONSchemaKeyword{{
+					Name:       "x-rule",
+					Subschemas: []JSONSchemaSubschemaPath{tt.path},
+					Validate:   func(any, any, *JSONSchemaKeywordValidationContext) {},
+				}},
+			})
+			if err == nil || !strings.Contains(err.Error(), tt.part) {
+				t.Fatalf("expected error containing %q, got %v", tt.part, err)
+			}
+		})
 	}
 }

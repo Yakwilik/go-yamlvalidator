@@ -2,6 +2,7 @@ package yamlvalidator
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -72,8 +73,13 @@ type JSONSchemaCompileOptions struct {
 	// This is the preferred way to compile a closed schema graph without I/O.
 	Resources map[string][]byte
 
-	// LoadURL loads unresolved external references. If nil, the underlying engine
-	// retains its default file:// loader; HTTP(S) loading is never enabled implicitly.
+	// Resolver resolves unresolved external references. If nil, the underlying
+	// engine retains its default file:// loader; HTTP(S) loading is never enabled
+	// implicitly. Resolver takes precedence over the deprecated LoadURL field.
+	Resolver JSONSchemaResolver
+
+	// LoadURL loads unresolved external references.
+	// Deprecated: use Resolver. It is retained for source compatibility.
 	LoadURL JSONSchemaLoadFunc
 
 	// ConfigureCompiler is an advanced escape hatch exposing the underlying
@@ -90,16 +96,50 @@ type JSONSchemaCompileOptions struct {
 // CompileJSONSchema compiles a JSON Schema using draft 2020-12 as the default
 // dialect. Schemas declaring $schema are compiled using their declared dialect.
 func CompileJSONSchema(data []byte) (*FieldSchema, error) {
-	return CompileJSONSchemaWithOptions(data, JSONSchemaCompileOptions{})
+	return CompileJSONSchemaContextWithOptions(
+		context.Background(),
+		data,
+		JSONSchemaCompileOptions{},
+	)
 }
 
 // CompileJSONSchemaWithOptions compiles a standards-compliant JSON Schema and
 // returns a FieldSchema adapter that validates YAML through the JSON Schema engine
 // while preserving YAML source positions in diagnostics.
 func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*FieldSchema, error) {
+	return CompileJSONSchemaContextWithOptions(context.Background(), data, opts)
+}
+
+// CompileJSONSchemaContext is the context-aware form of CompileJSONSchema.
+// Context cancellation is observed by library-controlled compilation work and
+// by JSONSchemaResolver implementations.
+func CompileJSONSchemaContext(ctx context.Context, data []byte) (*FieldSchema, error) {
+	return CompileJSONSchemaContextWithOptions(ctx, data, JSONSchemaCompileOptions{})
+}
+
+// CompileJSONSchemaContextWithOptions is the context-aware form of
+// CompileJSONSchemaWithOptions.
+func CompileJSONSchemaContextWithOptions(
+	ctx context.Context,
+	data []byte,
+	opts JSONSchemaCompileOptions,
+) (*FieldSchema, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if opts.Resolver != nil && opts.LoadURL != nil {
+		return nil, fmt.Errorf("JSON Schema Resolver and deprecated LoadURL must not both be set")
+	}
+
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("decode JSON Schema: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	compiler := jsonschema.NewCompiler()
@@ -120,9 +160,23 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 	if opts.AssertVocabs {
 		compiler.AssertVocabs()
 	}
-	if opts.LoadURL != nil {
-		compiler.UseLoader(jsonSchemaLoaderFunc(opts.LoadURL))
+
+	resolver := opts.Resolver
+	if resolver == nil && opts.LoadURL != nil {
+		resolver = JSONSchemaResolverFunc(func(ctx context.Context, resourceURL string) ([]byte, error) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return opts.LoadURL(resourceURL)
+		})
 	}
+	if resolver != nil {
+		compiler.UseLoader(jsonSchemaResolverLoader{
+			ctx:      ctx,
+			resolver: resolver,
+		})
+	}
+
 	registerExtendedJSONSchemaFormats(compiler)
 	if err := registerFunctionalJSONSchemaExtensions(
 		compiler,
@@ -139,17 +193,20 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 	}
 
 	resourceURLs := make([]string, 0, len(opts.Resources))
-	for url := range opts.Resources {
-		resourceURLs = append(resourceURLs, url)
+	for resourceURL := range opts.Resources {
+		resourceURLs = append(resourceURLs, resourceURL)
 	}
 	sort.Strings(resourceURLs)
-	for _, url := range resourceURLs {
-		resource, err := jsonschema.UnmarshalJSON(bytes.NewReader(opts.Resources[url]))
-		if err != nil {
-			return nil, fmt.Errorf("decode JSON Schema resource %q: %w", url, err)
+	for _, resourceURL := range resourceURLs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		if err := compiler.AddResource(url, resource); err != nil {
-			return nil, fmt.Errorf("add JSON Schema resource %q: %w", url, err)
+		resource, err := jsonschema.UnmarshalJSON(bytes.NewReader(opts.Resources[resourceURL]))
+		if err != nil {
+			return nil, fmt.Errorf("decode JSON Schema resource %q: %w", resourceURL, err)
+		}
+		if err := compiler.AddResource(resourceURL, resource); err != nil {
+			return nil, fmt.Errorf("add JSON Schema resource %q: %w", resourceURL, err)
 		}
 	}
 
@@ -160,8 +217,14 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 	if err := compiler.AddResource(rootURL, doc); err != nil {
 		return nil, fmt.Errorf("add root JSON Schema: %w", err)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	compiled, err := compiler.Compile(rootURL)
 	if err != nil {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return nil, contextErr
+		}
 		return nil, fmt.Errorf("compile JSON Schema: %w", err)
 	}
 
@@ -272,11 +335,20 @@ func resolveJSONSchemaDraft(draft JSONSchemaDraft) (*jsonschema.Draft, error) {
 	}
 }
 
-type jsonSchemaLoaderFunc JSONSchemaLoadFunc
+type jsonSchemaResolverLoader struct {
+	ctx      context.Context
+	resolver JSONSchemaResolver
+}
 
-func (f jsonSchemaLoaderFunc) Load(url string) (any, error) {
-	data, err := f(url)
+func (loader jsonSchemaResolverLoader) Load(resourceURL string) (any, error) {
+	if err := loader.ctx.Err(); err != nil {
+		return nil, err
+	}
+	data, err := loader.resolver.Resolve(loader.ctx, resourceURL)
 	if err != nil {
+		return nil, err
+	}
+	if err := loader.ctx.Err(); err != nil {
 		return nil, err
 	}
 	return jsonschema.UnmarshalJSON(bytes.NewReader(data))
