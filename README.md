@@ -725,6 +725,10 @@ go test -run '^$' -bench='Benchmark(Native|JSONSchema)' -benchmem .
 
 Benchmarks are intended for before/after regression work rather than fixed CI timing thresholds. Large-document validation avoids per-source-line string allocations by sharing one backing source string.
 
+## API stability
+
+`v0.6.0` is the public-API freeze baseline for the upcoming v1 line. CI runs `golang.org/x/exp/apidiff` against that tag and rejects incompatible changes across all public packages. Backward-compatible additions remain possible; removals or signature/type changes require a new major version after v1.
+
 ## License
 
 Apache License 2.0

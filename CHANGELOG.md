@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Публичный API заморожен относительно `v0.6.0`; CI использует pinned `golang.org/x/exp/apidiff` и отклоняет несовместимые изменения во всех публичных пакетах модуля.
+
 ## v0.6.0 — 2026-09-24
 
 - Проведён pre-v1 API cleanup: удалены временные `LoadURL`/`JSONSchemaLoadFunc` и engine-specific `ConfigureCompiler`, поэтому public API больше не зависит от конкретной реализации JSON Schema engine.

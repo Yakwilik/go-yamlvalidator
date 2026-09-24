@@ -48,6 +48,18 @@ jobs:
       - name: Govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
+  api-compat:
+    name: API compatibility
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.6"
+          cache: true
+      - name: Compare public API with freeze baseline
+        run: ./scripts/check-api-compat.sh v0.6.0
+
   race:
     name: Race detector
     runs-on: ubuntu-24.04
