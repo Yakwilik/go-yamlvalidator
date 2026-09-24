@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.0 — 2026-09-24
 
 - Добавлена cooperative cancellation/deadline support через `ValidateContext` и `ValidateContextWithOptions`; custom validators получают `context.Context` через `ValidationContext.Context()`.
 - `CompileFieldSchema` теперь создаёт snapshot native schema graph и конфигурации built-in validators; для configurable custom validators добавлены `ValueValidatorCloner` / `KeyValidatorCloner`. Compiled validator безопасен для concurrent validation при concurrency-safe custom validator state.
