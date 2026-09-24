@@ -18,5 +18,7 @@ IDNA security fixes.
   - License: BSD-3-Clause (see internal/thirdparty/xtext/LICENSE)
 
 Local changes are limited to import-path rewrites into this module's internal
-namespace. The copied code itself builds and tests with Go 1.24 even though the
-upstream module-level go directives now require Go 1.25.
+namespace and removal of the original import comment. Both upstream-generated
+Unicode table variants are preserved: Unicode 15 for Go <1.27 and Unicode 17
+for Go 1.27+. The copied code itself builds and tests with Go 1.24 even though
+the upstream module-level go directives now require Go 1.25.
