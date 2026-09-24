@@ -16,7 +16,7 @@ A flexible, production-ready YAML validation library for Go with support for:
 Requires Go 1.24 or newer. CI verifies the minimum supported Go 1.24 line and the current stable Go release. Security-fixed IDNA/Unicode code is kept in an internal third-party snapshot so full `idn-hostname`/`idn-email` support does not force consumers onto Go 1.25.
 
 ```bash
-go get github.com/Yakwilik/go-yamlvalidator
+go get github.com/Yakwilik/go-yamlvalidator@v1.0.0
 ```
 
 ## Quick Start
@@ -727,7 +727,7 @@ Benchmarks are intended for before/after regression work rather than fixed CI ti
 
 ## API stability
 
-`v0.6.0` is the public-API freeze baseline for the upcoming v1 line. CI runs `golang.org/x/exp/apidiff` against that tag and rejects incompatible changes across all public packages. Backward-compatible additions remain possible; removals or signature/type changes require a new major version after v1.
+`v1.0.0` is the first SemVer-stable release. Its public API is frozen against the `v0.6.0` baseline, and CI runs `golang.org/x/exp/apidiff` against that tag to reject incompatible changes across all public packages. Backward-compatible additions remain possible within v1; removals or signature/type changes require a new major version.
 
 ## License
 
