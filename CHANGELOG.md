@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 — 2026-09-24
 
 - Минимальная поддерживаемая версия Go снижена до 1.24 и проверяется в CI; совместимость подтверждена полной сборкой и тестами EasyP `feature/v1.0-pilot` без изменения его `go 1.24.0`.
 - Добавлены first-class functional JSON Schema extensions: custom `format`, custom keywords и named vocabularies без прямой зависимости вызывающего кода от внутреннего JSON Schema engine API.
