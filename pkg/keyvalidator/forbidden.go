@@ -23,6 +23,7 @@ func (vld ForbiddenKeyValidator) ValidateKey(key string, keyNode *yaml.Node, pat
 			}
 			ctx.AddError(v.ValidationError{
 				Level:   v.LevelError,
+				Code:    "forbidden_key",
 				Path:    path,
 				Line:    keyNode.Line,
 				Column:  keyNode.Column,

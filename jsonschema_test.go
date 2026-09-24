@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/Yakwilik/go-yamlvalidator"
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
@@ -698,5 +699,48 @@ func TestCompileJSONSchemaIDNEmailEscapedYAMLEdgeCodepoints(t *testing.T) {
 		if res := NewValidator(schema).ValidateBytes([]byte(input)); res.HasErrors() {
 			t.Fatalf("escaped IDN email %s rejected: %v", input, res.Collector.Errors())
 		}
+	}
+}
+
+func TestCompileJSONSchemaMaxDepthAppliesDuringYAMLBridge(t *testing.T) {
+	schema, err := CompileJSONSchema([]byte(`{"type":"object"}`))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	res := NewValidator(schema).ValidateWithOptions([]byte("a:\n  b:\n    c: 1\n"), ValidationContext{MaxDepth: 2})
+	if !containsDiagnosticCode(res, "max_depth") {
+		t.Fatalf("expected max_depth during YAML-to-JSON conversion, got %v", res.Collector.Errors())
+	}
+}
+
+func TestCompileJSONSchemaPathDistinguishesNumericObjectKeysFromArrayIndexes(t *testing.T) {
+	schema, err := CompileJSONSchema([]byte(`{
+		"type":"object",
+		"properties": {
+			"0": {"type":"integer"},
+			"items": {"type":"array", "items":{"type":"integer"}}
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	res := NewValidator(schema).ValidateBytes([]byte("\"0\": nope\nitems: [nope]\n"))
+	paths := map[string]bool{}
+	for _, diagnostic := range res.Collector.Errors() {
+		if diagnostic.Code == "type" {
+			paths[diagnostic.Path] = true
+		}
+	}
+	if !paths[`["0"]`] || !paths["items[0]"] {
+		t.Fatalf("unexpected paths: %#v diagnostics=%v", paths, res.Collector.Errors())
+	}
+}
+
+func TestCompileJSONSchemaRejectsNegativeRegexpTimeout(t *testing.T) {
+	_, err := CompileJSONSchemaWithOptions([]byte(`{"type":"string","pattern":"a"}`), JSONSchemaCompileOptions{
+		RegexpTimeout: -time.Millisecond,
+	})
+	if err == nil || !strings.Contains(err.Error(), "regexp timeout must be non-negative") {
+		t.Fatalf("expected regexp timeout error, got %v", err)
 	}
 }

@@ -21,6 +21,7 @@ func (NonEmptyValidator) Validate(node *yaml.Node, path string, ctx *v.Validatio
 	if isEmpty {
 		ctx.AddError(v.ValidationError{
 			Level:   v.LevelError,
+			Code:    "non_empty",
 			Path:    path,
 			Line:    node.Line,
 			Column:  node.Column,

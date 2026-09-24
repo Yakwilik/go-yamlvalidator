@@ -1,29 +1,49 @@
 # Changelog
 
 ## Unreleased
-- Official JSON Schema optional-suite coverage reaches 3884/3885 cases; the sole excluded draft-04 zero-terminated-float case is host-language-specific.
-- Reworked `CompileJSONSchema`/`CompileJSONSchemaWithOptions` to use a full JSON Schema engine instead of translating a limited keyword subset. Supports draft-04, draft-06, draft-07, 2019-09, and 2020-12, including refs/dynamic refs, vocabularies, unevaluated keywords, conditional schemas, and all engine-supported constraints.
-- Added external schema resources/loaders, format/content/vocabulary assertion controls, custom compiler configuration, ECMAScript-compatible regex handling, and stricter standard format validators.
-- Added YAML-to-JSON data-model conversion with exact numeric handling and source-position mapping for JSON Schema diagnostics. Official core JSON-Schema-Test-Suite result: 4950/4950 passing.
-- Added first-class schema unions, dependent-required constraints, forbidden field groups, and multi-type schemas.
-- Fixed YAML merge precedence so explicit keys always win and earlier mappings in a merge sequence take precedence.
-- Added document-wide duplicate mapping-key detection.
-- Fixed bare `TypeAny` so arbitrary maps/sequences are not recursively treated as unknown fields.
-- YAML 1.1 compatibility booleans now apply only to plain scalars; quoted values remain strings.
-- Preserved diagnostic insertion order in `ErrorCollector.All` and `SortByPosition`.
-- Fixed range validation for legacy integer forms and bounded NaN values.
-- Made CLI schema loading reject unknown schema fields and preserve descriptions.
-- Added standalone CLI (`cmd/yamlvalidator`) that validates YAML using a schema described in YAML/JSON (serialized FieldSchema), with flags for strict keys, YAML 1.1 booleans, type strictness, and stop-on-first.
-- Added schema loader tests for YAML/JSON inputs and validation of validator names.
-- Refactored `examples/easyp` to share its schema via `examples/easyp/schema` instead of defining validators inline.
 
-## v0.1.0
-- Initial release of `go-yamlvalidator`:
-  - YAML 1.2 validation core with optional YAML 1.1 boolean support.
-  - Schema-driven validation: types, required/nullable/default/deprecated, maps/sequences, unknown key policies, inter-field rules (AnyOf/ExactlyOneOf/MutuallyExclusive/Conditions), multi-document and alias handling, position-aware error formatting.
-  - Built-in validators split into packages:
-    - `pkg/valuevalidator`: enum, regex, range, non-empty, length, URL, one-of-type, custom easyp validators.
-    - `pkg/keyvalidator`: regex, forbidden, length (rune-count aware).
-  - Public helpers: pointer helpers, exported caret renderer, type inference helper for external validators.
-  - Examples: Kubernetes-like validation (`examples/basic`) and `easyp` config validator (`examples/easyp`), plus README guides for key/value validators and settings.
-  - Tests: coverage for types, nullability, unknown keys, sequences, inter-field logic, YAML 1.1 booleans, aliases, formatting, merge keys, numeric parsing in RangeValidator, Unicode key lengths, and position sorting.
+- Переведён <code>CompileJSONSchema</code>/<code>CompileJSONSchemaWithOptions</code> на полноценный JSON Schema engine вместо частичного преобразования keywords в <code>FieldSchema</code>.
+- Поддерживаются draft-04, draft-06, draft-07, 2019-09 и 2020-12, включая references/dynamic references, vocabularies, unevaluated keywords, conditional schemas и остальные constraints движка.
+- Добавлены external resources/loaders, управление format/content/vocabulary assertions, <code>ConfigureCompiler</code> и timeout для ECMAScript regexp.
+- Добавлен ECMAScript-совместимый regexp engine и усиленные стандартные format validators.
+- Добавлен точный YAML → JSON data-model bridge без <code>float64</code>-round-trip для чисел, с сохранением YAML source positions в JSON Schema diagnostics.
+- Официальный JSON-Schema-Test-Suite теперь запускается как conformance-test в CI: 4950/4950 обязательных core cases и все применимые optional cases, кроме host-language-specific draft-04 <code>zeroTerminatedFloats</code>.
+- Добавлены <code>CompileFieldSchema</code> и <code>ValidateFieldSchema</code> для проверки native schema invariants до валидации YAML.
+- Built-in validators проверяют собственные definition errors: nil regexp, некорректные min/max, invalid URL schemes, пустые/дублированные type definitions.
+- Добавлены resource limits: <code>MaxBytes</code>, <code>MaxDocuments</code>, <code>MaxDepth</code>, <code>MaxDiagnostics</code> и признак <code>ValidationResult.Truncated</code>.
+- CLI теперь напрямую поддерживает стандартную JSON Schema через <code>-schema-format jsonschema</code>, relative file refs, draft/format/content/vocabulary options, regexp timeout и resource limits.
+- Добавлены стабильные machine-readable diagnostic codes для native и JSON Schema validation.
+- Добавлены подсказки для опечаток unknown keys и однозначное форматирование paths для ключей вроде "a.b" и "0".
+- Исправлены YAML merge precedence и duplicate-key detection.
+- Добавлен общий AST preflight для recursive/unresolved aliases, invalid merge values и hard MaxDepth enforcement до схемной валидации.
+- Исправлен bare <code>TypeAny</code>: произвольные map/sequence больше не превращаются в unknown fields.
+- YAML 1.1 compatibility booleans применяются только к plain scalars; quoted values остаются strings.
+- Исправлен порядок diagnostics в <code>ErrorCollector.All</code>/<code>SortByPosition</code>.
+- Исправлены legacy integer forms и bounded NaN в <code>RangeValidator</code>.
+- <code>URLValidator</code> теперь использует стандартный URL parser вместо ручной проверки <code>scheme://</code>.
+- CLI loader native schema использует strict known-fields decoding и сохраняет descriptions.
+- Минимальная версия Go поднята до 1.25, чтобы использовать security-fixed IDNA dependencies; CI проверяет Go 1.25 + stable.
+- Добавлен GitHub Actions CI: tests, vet, race detector, staticcheck, govulncheck и официальный JSON Schema conformance suite.
+- README синхронизирован с реальным API и лицензией Apache-2.0.
+
+## v0.2.1 — 2026-03-17
+
+- Исправлено имя Go module/import path.
+
+## v0.2.0 — 2026-02-17
+
+- Добавлен standalone CLI <code>cmd/yamlvalidator</code> для YAML validation через сериализованный <code>FieldSchema</code>.
+- Добавлены flags для strict keys, YAML 1.1 booleans, type strictness, stop-on-first и сортировки diagnostics.
+- Добавлен schema loader для YAML/JSON native schema и тесты validator names.
+- Обновлён EasyP example и покрытие CLI/schema-loader сценариев.
+
+## v0.1.0 — 2025-12-24
+
+- Первый release <code>go-yamlvalidator</code>.
+- YAML 1.2 validation core с optional YAML 1.1 boolean compatibility.
+- Schema-driven validation: types, required/nullable/default/deprecated, maps/sequences, unknown-key policies и inter-field rules.
+- Multi-document YAML, aliases, merge keys и position-aware error formatting.
+- Built-in value validators: enum, regex, range, non-empty, length, URL, one-of-type и EasyP-specific validators.
+- Built-in key validators: regex, forbidden keys и Unicode-aware length.
+- Public pointer helpers, caret renderer и type inference helper.
+- Examples для Kubernetes-like manifests и EasyP.

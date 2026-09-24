@@ -26,6 +26,7 @@ func (vld EnumValidator) Validate(node *yaml.Node, path string, ctx *v.Validatio
 	}
 	ctx.AddError(v.ValidationError{
 		Level:    v.LevelError,
+		Code:     "enum",
 		Path:     path,
 		Line:     node.Line,
 		Column:   node.Column,

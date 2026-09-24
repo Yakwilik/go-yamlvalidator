@@ -19,7 +19,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	validator := v.NewValidator(buildSchema())
+	validator, err := v.CompileFieldSchema(buildSchema())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "compile schema: %v\n", err)
+		os.Exit(1)
+	}
 	ctx := v.ValidationContext{
 		StrictKeys:     true,
 		YAML11Booleans: true,

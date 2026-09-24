@@ -13,6 +13,8 @@ A flexible, production-ready YAML validation library for Go with support for:
 
 ## Installation
 
+Requires Go 1.25 or newer. The minimum version is driven by security-fixed IDNA dependencies used by JSON Schema format validation.
+
 ```bash
 go get github.com/Yakwilik/go-yamlvalidator
 ```
@@ -79,7 +81,8 @@ type FieldSchema struct {
     Required     bool       // Field must be present
     Nullable    bool        // Allow null values
     Deprecated  string      // Deprecation message (empty = not deprecated)
-    Default     interface{} // Default value (warning if missing)
+    Description string      // Human-readable description
+    Default     interface{} // Suggested default; emits warning if omitted, does not mutate input
 
     // Map-specific
     AllowedKeys          map[string]*FieldSchema // Known keys
@@ -109,6 +112,19 @@ type FieldSchema struct {
     AnyOfSchemas []*FieldSchema // At least one schema must match
 }
 ```
+
+### Native schema compilation
+
+For schemas assembled dynamically, prefer <code>CompileFieldSchema</code> over constructing a validator directly. It rejects invalid schema graphs before any YAML is validated: recursive graphs, incompatible map/sequence constraints, invalid min/max bounds, nil validators, bad regexp definitions, invalid inter-field references, and other definition errors.
+
+~~~go
+validator, err := v.CompileFieldSchema(schema)
+if err != nil {
+    return err
+}
+~~~
+
+<code>NewValidator</code> remains available for backwards compatibility when the schema is already trusted.
 
 ### Node Types
 
@@ -173,6 +189,7 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
     AssertFormat:  true,
     AssertContent: true,
     AssertVocabs:  true,
+    RegexpTimeout: 500 * time.Millisecond, // Optional protection for untrusted schemas
 
     Resources: map[string][]byte{
         "https://schemas.example.com/common.json": commonSchema,
@@ -187,6 +204,8 @@ schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOpt
 ~~~
 
 <code>Resources</code> preloads an external schema graph without I/O. <code>LoadURL</code> resolves references not already present in that graph. HTTP(S) fetching is deliberately not enabled implicitly.
+
+<code>RegexpTimeout</code> limits one ECMAScript regexp match. The default value <code>0</code> preserves unlimited matching for full compatibility; set a positive duration when validating against untrusted schemas.
 
 For advanced JSON Schema extensions, <code>ConfigureCompiler</code> exposes the underlying compiler before resources are added. It can be used to register custom vocabularies, formats, content encodings/media types, or other engine extensions.
 
@@ -224,7 +243,7 @@ Diagnostics preserve the YAML path, line, column, JSON Schema keyword in <code>C
 
 ### Conformance
 
-The JSON Schema adapter has been run through the official JSON-Schema-Test-Suite using the public <code>CompileJSONSchema</code> and YAML validation path:
+The JSON Schema adapter is exercised in CI against the official JSON-Schema-Test-Suite using the public <code>CompileJSONSchema</code> and YAML validation path:
 
 - draft-04: 618/618 core tests
 - draft-06: 841/841 core tests
@@ -322,46 +341,47 @@ Conditions: []ConditionalRule{
 
 ```go
 result := validator.ValidateWithOptions(yaml, ValidationContext{
-    StrictKeys:     true,  // Unknown keys are errors
+    StrictKeys:     true,  // Unknown keys are errors for native FieldSchema
     StopOnFirst:    false, // Continue after first error
-    StrictTypes:    false, // Parse values for type inference
-    YAML11Booleans: false, // When true, plain YAML 1.1 literals such as yes/no/on/off are booleans; quoted scalars remain strings
+    StrictTypes:    false, // Parse values for native FieldSchema type inference
+    YAML11Booleans: false, // Plain YAML 1.1 yes/no/on/off compatibility
+
+    MaxBytes:       2 << 20, // 2 MiB; 0 = unlimited
+    MaxDocuments:   10,      // 0 = unlimited
+    MaxDepth:       100,     // root value has depth 1; 0 = unlimited
+    MaxDiagnostics: 100,     // 0 = unlimited
 })
+if result.Truncated {
+    // MaxDiagnostics was reached.
+}
 ```
 
 ## CLI
 
-The repository ships a small CLI to validate any YAML file using a schema described in YAML or JSON (a serialized `FieldSchema`). Provide the schema file with `-schema` and the YAML to validate with `-file` (or stdin).
+The CLI supports both the native serialized <code>FieldSchema</code> format and standards-compliant JSON Schema. Native schemas are compiled and checked for definition errors before validation.
 
-Minimal schema example (`/tmp/schema.yaml`):
+Native FieldSchema:
 
-```yaml
-type: map
-required: true
-unknownKeyPolicy: warn
-allowedKeys:
-  name:
-    type: string
-    required: true
-  replicas:
-    type: int
-    validators:
-      - name: range
-        min: 1
-        max: 10
-```
-
-Validate a file:
-
-```bash
+~~~bash
 go run ./cmd/yamlvalidator \
   -schema /tmp/schema.yaml \
+  -schema-format field \
   -file ./path/to/config.yaml \
-  -strict-keys \
-  -yaml11-bools
-```
+  -strict-keys
+~~~
 
-Flags: `-schema` (required), `-file` (defaults to stdin), `-strict-keys`, `-stop-on-first`, `-strict-types`, `-yaml11-bools`, and `-sort`.
+Standard JSON Schema, including relative file <code>$ref</code> resolution from the schema file location:
+
+~~~bash
+go run ./cmd/yamlvalidator \
+  -schema ./schemas/easyp-config-v1.schema.json \
+  -schema-format jsonschema \
+  -file ./easyp.yaml \
+  -assert-format \
+  -regexp-timeout 500ms
+~~~
+
+JSON Schema CLI options: <code>-json-schema-draft</code>, <code>-assert-format</code>, <code>-assert-content</code>, <code>-assert-vocabs</code>, and <code>-regexp-timeout</code>. Validation safety limits are exposed as <code>-max-bytes</code>, <code>-max-documents</code>, <code>-max-depth</code>, and <code>-max-diagnostics</code>. Existing options include <code>-stop-on-first</code>, <code>-yaml11-bools</code>, <code>-sort</code>, plus native-schema-only <code>-strict-keys</code> and <code>-strict-types</code>.
 
 ## Error Handling
 
@@ -503,7 +523,10 @@ Max:      Ptr[float64](100)
 ### Validator
 
 ```go
-// Create validator
+// Preferred for native schemas assembled dynamically
+v, err := CompileFieldSchema(schema)
+
+// Backwards-compatible constructor for an already trusted schema
 v := NewValidator(schema)
 
 // Validate bytes
@@ -522,6 +545,7 @@ result.Collector.Warnings()     // []ValidationError
 result.Collector.All()          // []ValidationError in collection order
 result.SortByPosition()         // Sort by line/column
 result.FormatAll(sortByPos)     // Format with source context
+result.Truncated                // true if MaxDiagnostics stopped validation
 ```
 
 ### ValidationError

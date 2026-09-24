@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dlclark/regexp2"
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
@@ -52,6 +53,10 @@ type JSONSchemaCompileOptions struct {
 	// AssertVocabs requires vocabularies declared by a metaschema to be known.
 	AssertVocabs bool
 
+	// RegexpTimeout bounds one ECMAScript regexp match. Zero preserves the
+	// regexp engine's unlimited default. Use a positive duration for untrusted schemas.
+	RegexpTimeout time.Duration
+
 	// Resources preloads external resources addressed by their retrieval URLs.
 	// This is the preferred way to compile a closed schema graph without I/O.
 	Resources map[string][]byte
@@ -87,7 +92,9 @@ func CompileJSONSchemaWithOptions(data []byte, opts JSONSchemaCompileOptions) (*
 	}
 
 	compiler := jsonschema.NewCompiler()
-	compiler.UseRegexpEngine(compileECMAScriptRegexp)
+	compiler.UseRegexpEngine(func(pattern string) (jsonschema.Regexp, error) {
+		return compileECMAScriptRegexpWithTimeout(pattern, opts.RegexpTimeout)
+	})
 	draft, err := resolveJSONSchemaDraft(opts.DefaultDraft)
 	if err != nil {
 		return nil, err
@@ -155,7 +162,10 @@ type ecmaRegexp struct {
 	re     *regexp2.Regexp
 }
 
-func compileECMAScriptRegexp(pattern string) (jsonschema.Regexp, error) {
+func compileECMAScriptRegexpWithTimeout(pattern string, timeout time.Duration) (jsonschema.Regexp, error) {
+	if timeout < 0 {
+		return nil, fmt.Errorf("regexp timeout must be non-negative")
+	}
 	if err := rejectNonECMAScriptRegexpExtensions(pattern); err != nil {
 		return nil, err
 	}
@@ -163,6 +173,9 @@ func compileECMAScriptRegexp(pattern string) (jsonschema.Regexp, error) {
 	re, err := regexp2.Compile(translated, regexp2.ECMAScript)
 	if err != nil {
 		return nil, err
+	}
+	if timeout > 0 {
+		re.MatchTimeout = timeout
 	}
 	return &ecmaRegexp{source: pattern, re: re}, nil
 }
@@ -294,7 +307,7 @@ func (v *compiledJSONSchemaValidator) addValidationError(err *jsonschema.Validat
 			Level:      v.levelForKeyword(keyword),
 			Code:       keyword,
 			SchemaPath: jsonSchemaErrorSchemaPath(err),
-			Path:       joinJSONSchemaInstancePath(basePath, err.InstanceLocation),
+			Path:       index.displayPath(basePath, err.InstanceLocation),
 			Line:       nodeLine(node),
 			Column:     nodeColumn(node),
 			Message:    message,
@@ -317,7 +330,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Level:      LevelError,
 				Code:       keyword,
 				SchemaPath: jsonSchemaErrorSchemaPath(err),
-				Path:       joinJSONSchemaInstancePath(basePath, appendPath(err.InstanceLocation, missing)),
+				Path:       index.displayPath(basePath, appendPath(err.InstanceLocation, missing)),
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("required property %q is missing", missing),
@@ -331,7 +344,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Level:      LevelError,
 				Code:       keyword,
 				SchemaPath: jsonSchemaErrorSchemaPath(err),
-				Path:       joinJSONSchemaInstancePath(basePath, appendPath(err.InstanceLocation, missing)),
+				Path:       index.displayPath(basePath, appendPath(err.InstanceLocation, missing)),
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("property %q is required when %q is present", missing, k.Prop),
@@ -345,7 +358,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Level:      LevelError,
 				Code:       keyword,
 				SchemaPath: jsonSchemaErrorSchemaPath(err),
-				Path:       joinJSONSchemaInstancePath(basePath, appendPath(err.InstanceLocation, missing)),
+				Path:       index.displayPath(basePath, appendPath(err.InstanceLocation, missing)),
 				Line:       nodeLine(parent),
 				Column:     nodeColumn(parent),
 				Message:    fmt.Sprintf("property %q is required when %q is present", missing, k.Prop),
@@ -366,7 +379,7 @@ func (v *compiledJSONSchemaValidator) addSpecializedError(err *jsonschema.Valida
 				Level:      v.levelForKeyword(keyword),
 				Code:       keyword,
 				SchemaPath: jsonSchemaErrorSchemaPath(err),
-				Path:       joinJSONSchemaInstancePath(basePath, location),
+				Path:       index.displayPath(basePath, location),
 				Line:       nodeLine(node),
 				Column:     nodeColumn(node),
 				Message:    fmt.Sprintf("additional property %q is not allowed", property),
@@ -460,20 +473,56 @@ func (i *yamlJSONInstanceIndex) keyNode(path []string) *yaml.Node {
 	return i.keys[jsonPointer(path)]
 }
 
+func (i *yamlJSONInstanceIndex) displayPath(base string, segments []string) string {
+	path := base
+	parentPath := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		parent := i.valueNode(parentPath)
+		for parent != nil && parent.Kind == yaml.AliasNode && parent.Alias != nil {
+			parent = parent.Alias
+		}
+		if parent != nil && parent.Kind == yaml.SequenceNode {
+			path += "[" + segment + "]"
+		} else if isSimplePathSegment(segment) {
+			if path != "" {
+				path += "."
+			}
+			path += segment
+		} else {
+			encoded, _ := json.Marshal(segment)
+			path += "[" + string(encoded) + "]"
+		}
+		parentPath = append(parentPath, segment)
+	}
+	return cleanPath(path)
+}
+
 func yamlNodeToJSONSchemaInstance(node *yaml.Node, basePath string, ctx *ValidationContext) (any, *yamlJSONInstanceIndex, *ValidationError) {
 	index := newYAMLJSONInstanceIndex()
-	value, err := convertYAMLNodeToJSON(node, nil, basePath, ctx, index, make(map[*yaml.Node]bool))
+	value, err := convertYAMLNodeToJSON(node, nil, basePath, ctx, index, make(map[*yaml.Node]bool), 1)
 	return value, index, err
 }
 
 func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, ctx *ValidationContext,
-	index *yamlJSONInstanceIndex, visiting map[*yaml.Node]bool) (any, *ValidationError) {
+	index *yamlJSONInstanceIndex, visiting map[*yaml.Node]bool, depth int) (any, *ValidationError) {
 
 	if node == nil {
 		return nil, nil
 	}
+	if ctx != nil && ctx.MaxDepth > 0 && depth > ctx.MaxDepth {
+		return nil, &ValidationError{
+			Level:    LevelError,
+			Code:     "max_depth",
+			Path:     joinJSONSchemaInstancePath(basePath, location),
+			Line:     node.Line,
+			Column:   node.Column,
+			Message:  "YAML value exceeds configured nesting depth",
+			Expected: fmt.Sprintf("depth <= %d", ctx.MaxDepth),
+			Got:      fmt.Sprintf("depth %d", depth),
+		}
+	}
 	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
-		return convertYAMLNodeToJSON(node.Content[0], location, basePath, ctx, index, visiting)
+		return convertYAMLNodeToJSON(node.Content[0], location, basePath, ctx, index, visiting, depth)
 	}
 	if node.Kind == yaml.AliasNode {
 		if node.Alias == nil {
@@ -482,7 +531,7 @@ func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, 
 		if visiting[node.Alias] {
 			return nil, jsonConversionError(node, basePath, location, "recursive YAML alias cannot be represented as a JSON instance")
 		}
-		return convertYAMLNodeToJSON(node.Alias, location, basePath, ctx, index, visiting)
+		return convertYAMLNodeToJSON(node.Alias, location, basePath, ctx, index, visiting, depth)
 	}
 
 	index.values[jsonPointer(location)] = node
@@ -500,7 +549,7 @@ func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, 
 			key := keyNode.Value
 			childLocation := appendPath(location, key)
 			index.keys[jsonPointer(childLocation)] = keyNode
-			value, err := convertYAMLNodeToJSON(pair.value, childLocation, basePath, ctx, index, visiting)
+			value, err := convertYAMLNodeToJSON(pair.value, childLocation, basePath, ctx, index, visiting, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -511,7 +560,7 @@ func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, 
 		result := make([]any, 0, len(node.Content))
 		for idx, child := range node.Content {
 			childLocation := appendPath(location, strconv.Itoa(idx))
-			value, err := convertYAMLNodeToJSON(child, childLocation, basePath, ctx, index, visiting)
+			value, err := convertYAMLNodeToJSON(child, childLocation, basePath, ctx, index, visiting, depth+1)
 			if err != nil {
 				return nil, err
 			}

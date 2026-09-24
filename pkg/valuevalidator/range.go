@@ -16,12 +16,26 @@ type RangeValidator struct {
 	Max *float64 // Maximum value (nil = no maximum)
 }
 
+func (vld RangeValidator) ValidateDefinition() error {
+	if vld.Min != nil && math.IsNaN(*vld.Min) {
+		return fmt.Errorf("minimum must not be NaN")
+	}
+	if vld.Max != nil && math.IsNaN(*vld.Max) {
+		return fmt.Errorf("maximum must not be NaN")
+	}
+	if vld.Min != nil && vld.Max != nil && *vld.Min > *vld.Max {
+		return fmt.Errorf("minimum must not exceed maximum")
+	}
+	return nil
+}
+
 // Validate implements ValueValidator.
 func (vld RangeValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	val, err := parseYAMLNumber(node)
 	if err != nil {
 		ctx.AddError(v.ValidationError{
 			Level:   v.LevelError,
+			Code:    "number",
 			Path:    path,
 			Line:    node.Line,
 			Column:  node.Column,
@@ -34,6 +48,7 @@ func (vld RangeValidator) Validate(node *yaml.Node, path string, ctx *v.Validati
 	if math.IsNaN(val) && (vld.Min != nil || vld.Max != nil) {
 		ctx.AddError(v.ValidationError{
 			Level:   v.LevelError,
+			Code:    "number",
 			Path:    path,
 			Line:    node.Line,
 			Column:  node.Column,
@@ -46,6 +61,7 @@ func (vld RangeValidator) Validate(node *yaml.Node, path string, ctx *v.Validati
 	if vld.Min != nil && val < *vld.Min {
 		ctx.AddError(v.ValidationError{
 			Level:    v.LevelError,
+			Code:     "minimum",
 			Path:     path,
 			Line:     node.Line,
 			Column:   node.Column,
@@ -58,6 +74,7 @@ func (vld RangeValidator) Validate(node *yaml.Node, path string, ctx *v.Validati
 	if vld.Max != nil && val > *vld.Max {
 		ctx.AddError(v.ValidationError{
 			Level:    v.LevelError,
+			Code:     "maximum",
 			Path:     path,
 			Line:     node.Line,
 			Column:   node.Column,

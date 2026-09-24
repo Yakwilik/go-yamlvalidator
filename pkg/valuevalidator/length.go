@@ -14,6 +14,19 @@ type LengthValidator struct {
 	Max *int // Maximum length (nil = no maximum)
 }
 
+func (vld LengthValidator) ValidateDefinition() error {
+	if vld.Min != nil && *vld.Min < 0 {
+		return fmt.Errorf("minimum length must be non-negative")
+	}
+	if vld.Max != nil && *vld.Max < 0 {
+		return fmt.Errorf("maximum length must be non-negative")
+	}
+	if vld.Min != nil && vld.Max != nil && *vld.Min > *vld.Max {
+		return fmt.Errorf("minimum length must not exceed maximum length")
+	}
+	return nil
+}
+
 // Validate implements ValueValidator.
 func (vld LengthValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	var length int
@@ -29,6 +42,7 @@ func (vld LengthValidator) Validate(node *yaml.Node, path string, ctx *v.Validat
 	if vld.Min != nil && length < *vld.Min {
 		ctx.AddError(v.ValidationError{
 			Level:    v.LevelError,
+			Code:     "min_length",
 			Path:     path,
 			Line:     node.Line,
 			Column:   node.Column,
@@ -41,6 +55,7 @@ func (vld LengthValidator) Validate(node *yaml.Node, path string, ctx *v.Validat
 	if vld.Max != nil && length > *vld.Max {
 		ctx.AddError(v.ValidationError{
 			Level:    v.LevelError,
+			Code:     "max_length",
 			Path:     path,
 			Line:     node.Line,
 			Column:   node.Column,

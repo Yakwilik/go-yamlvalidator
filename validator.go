@@ -5,6 +5,7 @@ package yamlvalidator
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -135,11 +136,26 @@ type ValidationContext struct {
 	// By default, only YAML 1.2 booleans (true/false) are recognized.
 	YAML11Booleans bool
 
+	// MaxBytes rejects inputs larger than this many bytes. Zero means unlimited.
+	MaxBytes int
+
+	// MaxDocuments limits the number of YAML documents in a stream. Zero means unlimited.
+	MaxDocuments int
+
+	// MaxDepth limits YAML container/schema traversal depth. The root value has depth 1.
+	// Zero means unlimited.
+	MaxDepth int
+
+	// MaxDiagnostics stops validation after this many errors/warnings. Zero means unlimited.
+	MaxDiagnostics int
+
 	// SourceLines contains the original YAML lines for error formatting.
 	SourceLines []string
 
-	collector *ErrorCollector
-	stopped   bool
+	collector    *ErrorCollector
+	stopped      bool
+	limitReached bool
+	depth        int
 }
 
 // NewValidationContext creates a new ValidationContext with default settings.
@@ -154,7 +170,16 @@ func (ctx *ValidationContext) AddError(err ValidationError) {
 	if ctx.stopped {
 		return
 	}
+	if ctx.MaxDiagnostics > 0 && len(ctx.collector.all) >= ctx.MaxDiagnostics {
+		ctx.stopped = true
+		ctx.limitReached = true
+		return
+	}
 	ctx.collector.Add(err)
+	if ctx.MaxDiagnostics > 0 && len(ctx.collector.all) >= ctx.MaxDiagnostics {
+		ctx.stopped = true
+		ctx.limitReached = true
+	}
 	if ctx.StopOnFirst && err.Level == LevelError {
 		ctx.stopped = true
 	}
@@ -400,6 +425,8 @@ type ValidationResult struct {
 	Collector *ErrorCollector
 	// SourceLines contains the original YAML lines.
 	SourceLines []string
+	// Truncated reports that validation stopped because MaxDiagnostics was reached.
+	Truncated bool
 }
 
 // HasErrors returns true if there are any errors.
@@ -476,24 +503,38 @@ func NewValidator(schema *FieldSchema) *Validator {
 // ValidateBytes validates YAML data and returns the result.
 // Supports multi-document YAML (separated by ---).
 func (v *Validator) ValidateBytes(data []byte) *ValidationResult {
-	ctx := NewValidationContext()
-	ctx.SourceLines = splitLines(data)
-	v.validateWithContext(bytes.NewReader(data), ctx)
-	return &ValidationResult{
-		Collector:   ctx.Collector(),
-		SourceLines: ctx.SourceLines,
-	}
+	return v.validateData(data, ValidationContext{})
 }
 
 // ValidateWithOptions validates YAML data with custom options.
 func (v *Validator) ValidateWithOptions(data []byte, opts ValidationContext) *ValidationResult {
+	return v.validateData(data, opts)
+}
+
+func (v *Validator) validateData(data []byte, opts ValidationContext) *ValidationResult {
 	ctx := &opts
 	ctx.collector = NewErrorCollector()
+	ctx.stopped = false
+	ctx.limitReached = false
+	ctx.depth = 0
+
+	if ctx.MaxBytes > 0 && len(data) > ctx.MaxBytes {
+		ctx.AddError(ValidationError{
+			Level:    LevelError,
+			Code:     "max_bytes",
+			Message:  "YAML input exceeds configured byte limit",
+			Got:      fmt.Sprintf("%d bytes", len(data)),
+			Expected: fmt.Sprintf("<= %d bytes", ctx.MaxBytes),
+		})
+		return &ValidationResult{Collector: ctx.Collector(), Truncated: ctx.limitReached}
+	}
+
 	ctx.SourceLines = splitLines(data)
 	v.validateWithContext(bytes.NewReader(data), ctx)
 	return &ValidationResult{
 		Collector:   ctx.Collector(),
 		SourceLines: ctx.SourceLines,
+		Truncated:   ctx.limitReached,
 	}
 }
 
@@ -512,12 +553,32 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 			return
 		}
 
+		if ctx.MaxDocuments > 0 && docIndex >= ctx.MaxDocuments {
+			line, column := 0, 0
+			if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
+				line, column = root.Content[0].Line, root.Content[0].Column
+			}
+			ctx.AddError(ValidationError{
+				Level:    LevelError,
+				Code:     "max_documents",
+				Path:     fmt.Sprintf("doc[%d]", docIndex),
+				Line:     line,
+				Column:   column,
+				Message:  "YAML stream contains too many documents",
+				Expected: fmt.Sprintf("at most %d documents", ctx.MaxDocuments),
+			})
+			return
+		}
+
 		if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
 			prefix := ""
 			if docIndex > 0 {
 				prefix = fmt.Sprintf("doc[%d]", docIndex)
 			}
-			v.checkDuplicateKeysRecursive(root.Content[0], prefix, ctx, make(map[*yaml.Node]bool))
+			v.checkAliasSafety(root.Content[0], prefix, ctx, make(map[*yaml.Node]uint8))
+			if !ctx.IsStopped() {
+				v.checkDuplicateKeysRecursive(root.Content[0], prefix, ctx, make(map[*yaml.Node]bool), 1)
+			}
 			if !ctx.IsStopped() {
 				v.validateNode(root.Content[0], v.schema, prefix, ctx)
 			}
@@ -527,6 +588,14 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 		if ctx.IsStopped() {
 			break
 		}
+	}
+
+	if docIndex == 0 && v.schema != nil && v.schema.Required && !ctx.IsStopped() {
+		ctx.AddError(ValidationError{
+			Level:   LevelError,
+			Code:    "required_document",
+			Message: "required YAML document is missing",
+		})
 	}
 }
 
@@ -544,6 +613,22 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 		return
 	}
 
+	ctx.depth++
+	defer func() { ctx.depth-- }()
+	if ctx.MaxDepth > 0 && ctx.depth > ctx.MaxDepth {
+		ctx.AddError(ValidationError{
+			Level:    LevelError,
+			Code:     "max_depth",
+			Path:     cleanPath(path),
+			Line:     node.Line,
+			Column:   node.Column,
+			Message:  "YAML value exceeds configured nesting depth",
+			Expected: fmt.Sprintf("depth <= %d", ctx.MaxDepth),
+			Got:      fmt.Sprintf("depth %d", ctx.depth),
+		})
+		return
+	}
+
 	// Resolve aliases
 	if node.Kind == yaml.AliasNode {
 		if node.Alias != nil {
@@ -551,6 +636,7 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 		} else {
 			ctx.AddError(ValidationError{
 				Level:   LevelError,
+				Code:    "unresolved_alias",
 				Path:    cleanPath(path),
 				Line:    node.Line,
 				Column:  node.Column,
@@ -568,6 +654,7 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 		}
 		ctx.AddError(ValidationError{
 			Level:   LevelWarning,
+			Code:    "deprecated",
 			Path:    cleanPath(path),
 			Line:    node.Line,
 			Column:  node.Column,
@@ -639,10 +726,13 @@ func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*Field
 	for _, candidate := range schemas {
 		branchCtx := &ValidationContext{
 			StrictKeys:     ctx.StrictKeys,
+			StopOnFirst:    true,
 			StrictTypes:    ctx.StrictTypes,
 			YAML11Booleans: ctx.YAML11Booleans,
+			MaxDepth:       ctx.MaxDepth,
 			SourceLines:    ctx.SourceLines,
 			collector:      NewErrorCollector(),
+			depth:          ctx.depth - 1,
 		}
 		v.validateNode(node, candidate, path, branchCtx)
 		if branchCtx.Collector().HasErrors() {
@@ -663,8 +753,13 @@ func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*Field
 		}
 	}
 	if !valid {
+		code := "any_of_schema"
+		if exactlyOne {
+			code = "one_of_schema"
+		}
 		ctx.AddError(ValidationError{
 			Level:   LevelError,
+			Code:    code,
 			Path:    cleanPath(path),
 			Line:    node.Line,
 			Column:  node.Column,
@@ -698,6 +793,7 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 		}
 		ctx.AddError(ValidationError{
 			Level:    LevelError,
+			Code:     "type_mismatch",
 			Path:     cleanPath(path),
 			Line:     node.Line,
 			Column:   node.Column,
@@ -722,6 +818,7 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 		}
 		ctx.AddError(ValidationError{
 			Level:    LevelError,
+			Code:     "type_mismatch",
 			Path:     cleanPath(path),
 			Line:     node.Line,
 			Column:   node.Column,
@@ -738,6 +835,7 @@ func (v *Validator) checkTypeWithSchema(node *yaml.Node, schema *FieldSchema, pa
 
 	ctx.AddError(ValidationError{
 		Level:    LevelError,
+		Code:     "type_mismatch",
 		Path:     cleanPath(path),
 		Line:     node.Line,
 		Column:   node.Column,
@@ -961,12 +1059,17 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 		// Report unknown key based on policy
 		level, report := v.resolveUnknownKeyLevel(schema.UnknownKeyPolicy, ctx)
 		if report {
+			message := fmt.Sprintf("unknown key %q", key)
+			if suggestion := suggestKnownKey(key, schema.AllowedKeys); suggestion != "" {
+				message += fmt.Sprintf("; did you mean %q?", suggestion)
+			}
 			ctx.AddError(ValidationError{
 				Level:   level,
+				Code:    "unknown_key",
 				Path:    cleanPath(fieldPath),
 				Line:    keyNode.Line,
 				Column:  keyNode.Column,
-				Message: fmt.Sprintf("unknown key %q", key),
+				Message: message,
 				Got:     v.describeNode(valueNode),
 			})
 		}
@@ -1074,9 +1177,23 @@ func dedupePairsKeepLast(pairs []kvPair) []kvPair {
 }
 
 func (v *Validator) checkDuplicateKeysRecursive(node *yaml.Node, path string, ctx *ValidationContext,
-	visited map[*yaml.Node]bool) {
+	visited map[*yaml.Node]bool, depth int) {
 
 	if node == nil || ctx.IsStopped() || visited[node] {
+		return
+	}
+	if ctx.MaxDepth > 0 && depth > ctx.MaxDepth {
+		ctx.AddError(ValidationError{
+			Level:    LevelError,
+			Code:     "max_depth",
+			Path:     cleanPath(path),
+			Line:     node.Line,
+			Column:   node.Column,
+			Message:  "YAML value exceeds configured nesting depth",
+			Expected: fmt.Sprintf("depth <= %d", ctx.MaxDepth),
+			Got:      fmt.Sprintf("depth %d", depth),
+		})
+		ctx.stopped = true
 		return
 	}
 	visited[node] = true
@@ -1097,6 +1214,7 @@ func (v *Validator) checkDuplicateKeysRecursive(node *yaml.Node, path string, ct
 				if first := seen[key]; first != nil {
 					ctx.AddError(ValidationError{
 						Level:   LevelError,
+						Code:    "duplicate_key",
 						Path:    cleanPath(fieldPath),
 						Line:    keyNode.Line,
 						Column:  keyNode.Column,
@@ -1109,12 +1227,114 @@ func (v *Validator) checkDuplicateKeysRecursive(node *yaml.Node, path string, ct
 					seen[key] = keyNode
 				}
 			}
-			v.checkDuplicateKeysRecursive(valueNode, fieldPath, ctx, visited)
+			v.checkDuplicateKeysRecursive(valueNode, fieldPath, ctx, visited, depth+1)
 		}
 	case yaml.SequenceNode:
 		for i, child := range node.Content {
-			v.checkDuplicateKeysRecursive(child, fmt.Sprintf("%s[%d]", path, i), ctx, visited)
+			v.checkDuplicateKeysRecursive(child, fmt.Sprintf("%s[%d]", path, i), ctx, visited, depth+1)
 		}
+	}
+}
+
+func (v *Validator) checkAliasSafety(node *yaml.Node, path string, ctx *ValidationContext, state map[*yaml.Node]uint8) {
+	if node == nil || ctx.IsStopped() {
+		return
+	}
+	if node.Kind == yaml.AliasNode {
+		if node.Alias == nil {
+			ctx.AddError(ValidationError{
+				Level:   LevelError,
+				Code:    "unresolved_alias",
+				Path:    cleanPath(path),
+				Line:    node.Line,
+				Column:  node.Column,
+				Message: "unresolved YAML alias",
+			})
+			ctx.stopped = true
+			return
+		}
+		if state[node.Alias] == 1 {
+			ctx.AddError(ValidationError{
+				Level:   LevelError,
+				Code:    "recursive_alias",
+				Path:    cleanPath(path),
+				Line:    node.Line,
+				Column:  node.Column,
+				Message: "recursive YAML alias is not supported",
+			})
+			ctx.stopped = true
+			return
+		}
+		v.checkAliasSafety(node.Alias, path, ctx, state)
+		return
+	}
+	if state[node] == 2 {
+		return
+	}
+	if state[node] == 1 {
+		return
+	}
+	state[node] = 1
+	defer func() { state[node] = 2 }()
+
+	switch node.Kind {
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+			fieldPath := joinPath(path, keyNode.Value)
+			if keyNode.Value == "<<" && !validMergeValue(valueNode, make(map[*yaml.Node]bool)) {
+				ctx.AddError(ValidationError{
+					Level:   LevelError,
+					Code:    "invalid_merge",
+					Path:    cleanPath(fieldPath),
+					Line:    valueNode.Line,
+					Column:  valueNode.Column,
+					Message: "YAML merge value must be a mapping, mapping alias, or sequence of mappings/aliases",
+				})
+				if ctx.IsStopped() {
+					return
+				}
+			}
+			v.checkAliasSafety(valueNode, fieldPath, ctx, state)
+			if ctx.IsStopped() {
+				return
+			}
+		}
+	case yaml.SequenceNode:
+		for i, child := range node.Content {
+			v.checkAliasSafety(child, fmt.Sprintf("%s[%d]", path, i), ctx, state)
+			if ctx.IsStopped() {
+				return
+			}
+		}
+	}
+}
+
+func validMergeValue(node *yaml.Node, visiting map[*yaml.Node]bool) bool {
+	if node == nil {
+		return false
+	}
+	if node.Kind == yaml.AliasNode {
+		if node.Alias == nil || visiting[node.Alias] {
+			return false
+		}
+		visiting[node.Alias] = true
+		defer delete(visiting, node.Alias)
+		return node.Alias.Kind == yaml.MappingNode
+	}
+	switch node.Kind {
+	case yaml.MappingNode:
+		return true
+	case yaml.SequenceNode:
+		for _, item := range node.Content {
+			if !validMergeValue(item, visiting) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1143,6 +1363,7 @@ func (v *Validator) checkRequiredFields(node *yaml.Node, schema *FieldSchema, pa
 		if fieldSchema.Required && foundKeys[key] == nil {
 			ctx.AddError(ValidationError{
 				Level:   LevelError,
+				Code:    "required",
 				Path:    cleanPath(joinPath(path, key)),
 				Line:    node.Line,
 				Column:  node.Column,
@@ -1159,10 +1380,11 @@ func (v *Validator) checkDefaults(node *yaml.Node, schema *FieldSchema, path str
 		if fieldSchema.Default != nil && foundKeys[key] == nil && !fieldSchema.Required {
 			ctx.AddError(ValidationError{
 				Level:   LevelWarning,
+				Code:    "default",
 				Path:    cleanPath(joinPath(path, key)),
 				Line:    node.Line,
 				Column:  node.Column,
-				Message: fmt.Sprintf("field %q not set, will use default: %v", key, fieldSchema.Default),
+				Message: fmt.Sprintf("field %q not set; default is %v", key, fieldSchema.Default),
 			})
 		}
 	}
@@ -1200,6 +1422,7 @@ func (v *Validator) checkAnyOf(node *yaml.Node, schema *FieldSchema, path string
 
 	ctx.AddError(ValidationError{
 		Level:   LevelError,
+		Code:    "any_of_required",
 		Path:    cleanPath(path),
 		Line:    node.Line,
 		Column:  node.Column,
@@ -1224,6 +1447,7 @@ func (v *Validator) checkExactlyOneOf(node *yaml.Node, schema *FieldSchema, path
 	if len(found) == 0 {
 		ctx.AddError(ValidationError{
 			Level:   LevelError,
+			Code:    "exactly_one_of",
 			Path:    cleanPath(path),
 			Line:    node.Line,
 			Column:  node.Column,
@@ -1232,6 +1456,7 @@ func (v *Validator) checkExactlyOneOf(node *yaml.Node, schema *FieldSchema, path
 	} else if len(found) > 1 {
 		ctx.AddError(ValidationError{
 			Level:   LevelError,
+			Code:    "exactly_one_of",
 			Path:    cleanPath(path),
 			Line:    keyNodes[found[1]].Line,
 			Column:  keyNodes[found[1]].Column,
@@ -1257,6 +1482,7 @@ func (v *Validator) checkMutuallyExclusive(node *yaml.Node, schema *FieldSchema,
 	if len(found) > 1 {
 		ctx.AddError(ValidationError{
 			Level:   LevelError,
+			Code:    "mutually_exclusive",
 			Path:    cleanPath(path),
 			Line:    keyNodes[found[1]].Line,
 			Column:  keyNodes[found[1]].Column,
@@ -1291,6 +1517,7 @@ func (v *Validator) checkOneOfRequired(node *yaml.Node, schema *FieldSchema, pat
 
 	ctx.AddError(ValidationError{
 		Level:   LevelError,
+		Code:    "one_of_required",
 		Path:    cleanPath(path),
 		Line:    node.Line,
 		Column:  node.Column,
@@ -1314,6 +1541,7 @@ func (v *Validator) checkForbiddenTogether(node *yaml.Node, schema *FieldSchema,
 		}
 		ctx.AddError(ValidationError{
 			Level:   LevelError,
+			Code:    "forbidden_together",
 			Path:    cleanPath(path),
 			Line:    node.Line,
 			Column:  node.Column,
@@ -1339,6 +1567,7 @@ func (v *Validator) checkDependentRequired(node *yaml.Node, schema *FieldSchema,
 			}
 			ctx.AddError(ValidationError{
 				Level:   LevelError,
+				Code:    "dependent_required",
 				Path:    cleanPath(joinPath(path, key)),
 				Line:    anchor.Line,
 				Column:  anchor.Column,
@@ -1374,6 +1603,7 @@ func (v *Validator) checkConditions(node *yaml.Node, schema *FieldSchema, path s
 			if foundKeys[reqKey] == nil {
 				ctx.AddError(ValidationError{
 					Level:  LevelError,
+					Code:   "condition_required",
 					Path:   cleanPath(joinPath(path, reqKey)),
 					Line:   condNode.Line,
 					Column: condNode.Column,
@@ -1388,6 +1618,7 @@ func (v *Validator) checkConditions(node *yaml.Node, schema *FieldSchema, path s
 			if keyNode := keyNodes[forbKey]; keyNode != nil {
 				ctx.AddError(ValidationError{
 					Level:  LevelError,
+					Code:   "condition_forbidden",
 					Path:   cleanPath(joinPath(path, forbKey)),
 					Line:   keyNode.Line,
 					Column: keyNode.Column,
@@ -1409,6 +1640,7 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 	if schema.MinItems != nil && length < *schema.MinItems {
 		ctx.AddError(ValidationError{
 			Level:    LevelError,
+			Code:     "min_items",
 			Path:     cleanPath(path),
 			Line:     node.Line,
 			Column:   node.Column,
@@ -1421,6 +1653,7 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 	if schema.MaxItems != nil && length > *schema.MaxItems {
 		ctx.AddError(ValidationError{
 			Level:    LevelError,
+			Code:     "max_items",
 			Path:     cleanPath(path),
 			Line:     node.Line,
 			Column:   node.Column,
@@ -1448,10 +1681,14 @@ func (v *Validator) validateSequence(node *yaml.Node, schema *FieldSchema, path 
 // ============================================================================
 
 func joinPath(base, key string) string {
-	if base == "" {
-		return key
+	if isSimplePathSegment(key) {
+		if base == "" {
+			return key
+		}
+		return base + "." + key
 	}
-	return base + "." + key
+	encoded, _ := json.Marshal(key)
+	return base + "[" + string(encoded) + "]"
 }
 
 func cleanPath(path string) string {
@@ -1466,6 +1703,64 @@ func splitLines(data []byte) []string {
 		lines[i] = string(line)
 	}
 	return lines
+}
+
+func suggestKnownKey(key string, allowed map[string]*FieldSchema) string {
+	if len(allowed) == 0 {
+		return ""
+	}
+	lowerKey := strings.ToLower(key)
+	best := ""
+	bestDistance := -1
+	for candidate := range allowed {
+		distance := levenshteinDistance(lowerKey, strings.ToLower(candidate))
+		if bestDistance == -1 || distance < bestDistance || distance == bestDistance && candidate < best {
+			best, bestDistance = candidate, distance
+		}
+	}
+	limit := 2
+	if utf8.RuneCountInString(key) >= 8 {
+		limit = 3
+	}
+	if bestDistance > limit {
+		return ""
+	}
+	return best
+}
+
+func levenshteinDistance(a, b string) int {
+	ar := []rune(a)
+	br := []rune(b)
+	previous := make([]int, len(br)+1)
+	current := make([]int, len(br)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i, ra := range ar {
+		current[0] = i + 1
+		for j, rb := range br {
+			cost := 0
+			if ra != rb {
+				cost = 1
+			}
+			deletion := previous[j+1] + 1
+			insertion := current[j] + 1
+			substitution := previous[j] + cost
+			current[j+1] = minInt(deletion, insertion, substitution)
+		}
+		previous, current = current, previous
+	}
+	return previous[len(br)]
+}
+
+func minInt(values ...int) int {
+	result := values[0]
+	for _, value := range values[1:] {
+		if value < result {
+			result = value
+		}
+	}
+	return result
 }
 
 func quoteAll(ss []string) []string {
@@ -1495,6 +1790,7 @@ func parseYAMLError(err error, docIndex int) ValidationError {
 
 	return ValidationError{
 		Level:   LevelError,
+		Code:    "yaml_syntax",
 		Path:    fmt.Sprintf("doc[%d]", docIndex),
 		Line:    line,
 		Column:  col,

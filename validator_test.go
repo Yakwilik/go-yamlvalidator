@@ -1181,3 +1181,155 @@ func TestRangeValidatorRejectsNaNWithBounds(t *testing.T) {
 		t.Fatalf("expected bounded NaN to fail validation, got %v", res.Collector.Errors())
 	}
 }
+
+func TestValidationLimits(t *testing.T) {
+	t.Run("max bytes", func(t *testing.T) {
+		res := NewValidator(&FieldSchema{Type: TypeAny}).ValidateWithOptions([]byte("abcdef"), ValidationContext{MaxBytes: 3})
+		if !res.HasErrors() || len(res.Collector.Errors()) != 1 || res.Collector.Errors()[0].Code != "max_bytes" {
+			t.Fatalf("expected max_bytes error, got %v", res.Collector.Errors())
+		}
+	})
+
+	t.Run("max documents", func(t *testing.T) {
+		res := NewValidator(&FieldSchema{Type: TypeAny}).ValidateWithOptions([]byte("a\n---\nb\n"), ValidationContext{MaxDocuments: 1})
+		if !res.HasErrors() || res.Collector.Errors()[0].Code != "max_documents" {
+			t.Fatalf("expected max_documents error, got %v", res.Collector.Errors())
+		}
+	})
+
+	t.Run("max depth native schema", func(t *testing.T) {
+		schema := &FieldSchema{
+			Type: TypeMap,
+			AllowedKeys: map[string]*FieldSchema{
+				"a": {
+					Type: TypeMap,
+					AllowedKeys: map[string]*FieldSchema{
+						"b": {Type: TypeString},
+					},
+				},
+			},
+		}
+		res := NewValidator(schema).ValidateWithOptions([]byte("a:\n  b: value\n"), ValidationContext{MaxDepth: 1})
+		if !res.HasErrors() || !hasDiagnosticCode(res, "max_depth") {
+			t.Fatalf("expected max_depth error, got %v", res.Collector.Errors())
+		}
+	})
+
+	t.Run("max depth with bare TypeAny", func(t *testing.T) {
+		res := NewValidator(&FieldSchema{Type: TypeAny}).ValidateWithOptions(
+			[]byte("a:\n  b:\n    c: 1\n"),
+			ValidationContext{MaxDepth: 2},
+		)
+		if !res.HasErrors() || !hasDiagnosticCode(res, "max_depth") {
+			t.Fatalf("expected max_depth error for bare TypeAny, got %v", res.Collector.Errors())
+		}
+	})
+
+	t.Run("max diagnostics", func(t *testing.T) {
+		schema := &FieldSchema{
+			Type: TypeMap,
+			AllowedKeys: map[string]*FieldSchema{
+				"a": {Type: TypeInt},
+				"b": {Type: TypeInt},
+				"c": {Type: TypeInt},
+			},
+		}
+		res := NewValidator(schema).ValidateWithOptions([]byte("a: nope\nb: nope\nc: nope\n"), ValidationContext{MaxDiagnostics: 2})
+		if got := len(res.Collector.All()); got != 2 {
+			t.Fatalf("got %d diagnostics, want 2: %v", got, res.Collector.All())
+		}
+		if !res.Truncated {
+			t.Fatalf("expected result to report truncation")
+		}
+	})
+}
+
+func TestRequiredRootRejectsEmptyStream(t *testing.T) {
+	res := NewValidator(&FieldSchema{Type: TypeMap, Required: true}).ValidateBytes(nil)
+	if !res.HasErrors() || res.Collector.Errors()[0].Code != "required_document" {
+		t.Fatalf("expected required_document error, got %v", res.Collector.Errors())
+	}
+}
+
+func hasDiagnosticCode(result *ValidationResult, code string) bool {
+	for _, diagnostic := range result.Collector.All() {
+		if diagnostic.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+func TestUnknownKeySuggestsClosestKnownKey(t *testing.T) {
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"with_imports": {Type: TypeBool},
+			"output":       {Type: TypeString},
+		},
+		UnknownKeyPolicy: UnknownKeyWarn,
+	}
+	res := NewValidator(schema).ValidateBytes([]byte("with_import: true\n"))
+	if len(res.Collector.Warnings()) != 1 {
+		t.Fatalf("expected one warning, got %v", res.Collector.Warnings())
+	}
+	warning := res.Collector.Warnings()[0]
+	if warning.Code != "unknown_key" || !strings.Contains(warning.Message, `did you mean "with_imports"`) {
+		t.Fatalf("unexpected warning: %+v", warning)
+	}
+}
+
+func TestNativePathsQuoteAmbiguousMappingKeys(t *testing.T) {
+	schema := &FieldSchema{
+		Type: TypeMap,
+		AllowedKeys: map[string]*FieldSchema{
+			"a.b": {Type: TypeInt},
+			"0":   {Type: TypeInt},
+		},
+	}
+	res := NewValidator(schema).ValidateBytes([]byte("\"a.b\": nope\n\"0\": nope\n"))
+	paths := map[string]bool{}
+	for _, diagnostic := range res.Collector.Errors() {
+		paths[diagnostic.Path] = true
+	}
+	if !paths[`["a.b"]`] || !paths[`["0"]`] {
+		t.Fatalf("unexpected paths: %#v diagnostics=%v", paths, res.Collector.Errors())
+	}
+}
+
+func TestURLValidatorUsesURLParser(t *testing.T) {
+	schema := &FieldSchema{Type: TypeString, Validators: []ValueValidator{
+		valv.URLValidator{RequireScheme: true, AllowedSchemes: []string{"https"}},
+	}}
+	if res := NewValidator(schema).ValidateBytes([]byte(`"https://example.com/a?b=c"`)); res.HasErrors() {
+		t.Fatalf("valid URL rejected: %v", res.Collector.Errors())
+	}
+	if res := NewValidator(schema).ValidateBytes([]byte(`"http://example.com"`)); !hasDiagnosticCode(res, "url_scheme") {
+		t.Fatalf("expected url_scheme error, got %v", res.Collector.Errors())
+	}
+	if res := NewValidator(schema).ValidateBytes([]byte(`"https://example.com/%zz"`)); !hasDiagnosticCode(res, "url") {
+		t.Fatalf("expected URL syntax error, got %v", res.Collector.Errors())
+	}
+}
+
+func TestRecursiveYAMLAliasIsRejectedBeforeValidation(t *testing.T) {
+	input := []byte("root: &root\n  self: *root\n")
+	res := NewValidator(&FieldSchema{Type: TypeAny}).ValidateBytes(input)
+	if !hasDiagnosticCode(res, "recursive_alias") {
+		t.Fatalf("expected recursive_alias error, got %v", res.Collector.Errors())
+	}
+}
+
+func TestInvalidYAMLMergeValueIsRejected(t *testing.T) {
+	for name, input := range map[string]string{
+		"scalar":   "value:\n  <<: 42\n",
+		"bad list": "value:\n  <<: [{a: 1}, nope]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			res := NewValidator(&FieldSchema{Type: TypeAny}).ValidateBytes([]byte(input))
+			if !hasDiagnosticCode(res, "invalid_merge") {
+				t.Fatalf("expected invalid_merge error, got %v", res.Collector.Errors())
+			}
+		})
+	}
+}

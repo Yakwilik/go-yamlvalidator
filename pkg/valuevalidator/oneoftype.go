@@ -12,6 +12,23 @@ type OneOfTypeValidator struct {
 	Types []v.NodeType
 }
 
+func (vld OneOfTypeValidator) ValidateDefinition() error {
+	if len(vld.Types) == 0 {
+		return fmt.Errorf("at least one type is required")
+	}
+	seen := make(map[v.NodeType]bool, len(vld.Types))
+	for _, nodeType := range vld.Types {
+		if nodeType < v.TypeAny || nodeType > v.TypeSequence {
+			return fmt.Errorf("invalid node type %d", nodeType)
+		}
+		if seen[nodeType] {
+			return fmt.Errorf("duplicate node type %s", nodeType)
+		}
+		seen[nodeType] = true
+	}
+	return nil
+}
+
 // Validate implements ValueValidator.
 func (vld OneOfTypeValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	validator := &v.Validator{}                       // reuse inferType
@@ -30,6 +47,7 @@ func (vld OneOfTypeValidator) Validate(node *yaml.Node, path string, ctx *v.Vali
 
 	ctx.AddError(v.ValidationError{
 		Level:    v.LevelError,
+		Code:     "type",
 		Path:     path,
 		Line:     node.Line,
 		Column:   node.Column,

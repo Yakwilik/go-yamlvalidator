@@ -234,7 +234,11 @@ oldSpec:
   legacy: true
 `)
 
-	validator := v.NewValidator(schema)
+	validator, err := v.CompileFieldSchema(schema)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "compile schema: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Validate with strict keys
 	result := validator.ValidateWithOptions(yamlData, v.ValidationContext{

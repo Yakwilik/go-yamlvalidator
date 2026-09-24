@@ -14,6 +14,13 @@ type RegexKeyValidator struct {
 	Message string // Custom error message (optional)
 }
 
+func (vld RegexKeyValidator) ValidateDefinition() error {
+	if vld.Pattern == nil {
+		return fmt.Errorf("regex pattern must not be nil")
+	}
+	return nil
+}
+
 // ValidateKey implements KeyValidator.
 func (vld RegexKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string, ctx *v.ValidationContext) {
 	if vld.Pattern.MatchString(key) {
@@ -25,6 +32,7 @@ func (vld RegexKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path st
 	}
 	ctx.AddError(v.ValidationError{
 		Level:   v.LevelError,
+		Code:    "key_pattern",
 		Path:    path,
 		Line:    keyNode.Line,
 		Column:  keyNode.Column,

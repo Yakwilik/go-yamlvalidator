@@ -1,39 +1,53 @@
-# Key Validators (пример использования)
+# Key Validators
 
-KeyValidator применяется к имени каждого ключа в `mapping`.
+<code>KeyValidator</code> применяется к имени каждого ключа YAML mapping.
 
-Подключение:
-```go
-schema := &FieldSchema{
-    Type: TypeMap,
-    AdditionalProperties: &FieldSchema{Type: TypeString},
-    KeyValidators: []KeyValidator{
-        RegexKeyValidator{
-            Pattern: regexp.MustCompile(`^[a-z][a-z0-9._-]*$`),
+Пример:
+
+~~~go
+schema := &yamlvalidator.FieldSchema{
+    Type:                 yamlvalidator.TypeMap,
+    AdditionalProperties: &yamlvalidator.FieldSchema{Type: yamlvalidator.TypeString},
+    KeyValidators: []yamlvalidator.KeyValidator{
+        keyvalidator.RegexKeyValidator{
+            Pattern: regexp.MustCompile("^[a-z][a-z0-9._-]*$"),
             Message: "недопустимый формат ключа",
         },
     },
 }
-```
 
-Встроенные валидаторы:
-- `RegexKeyValidator{Pattern: re, Message: "..."}`
-- `ForbiddenKeyValidator{Forbidden: []string{"password","secret"}}`
-- `LengthKeyValidator{Min: PtrInt(1), Max: PtrInt(63)}`
+validator, err := yamlvalidator.CompileFieldSchema(schema)
+~~~
 
-Кастомный:
-```go
+Встроенные validators:
+
+- <code>RegexKeyValidator{Pattern: re, Message: "..."}</code>
+- <code>ForbiddenKeyValidator{Forbidden: []string{"password", "secret"}}</code>
+- <code>LengthKeyValidator{Min: yamlvalidator.Ptr(1), Max: yamlvalidator.Ptr(63)}</code>
+
+Regex и length definition errors проверяются во время <code>CompileFieldSchema</code>.
+
+Кастомный validator:
+
+~~~go
 type MyKeyValidator struct{}
-func (MyKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string, ctx *ValidationContext) {
+
+func (MyKeyValidator) ValidateKey(
+    key string,
+    keyNode *yaml.Node,
+    path string,
+    ctx *yamlvalidator.ValidationContext,
+) {
     if strings.HasPrefix(key, "_") {
-        ctx.AddError(ValidationError{
-            Level:   LevelWarning,
+        ctx.AddError(yamlvalidator.ValidationError{
+            Level:   yamlvalidator.LevelWarning,
+            Code:    "reserved_key",
             Path:    path,
             Line:    keyNode.Line,
             Column:  keyNode.Column,
-            Message: "ключи с '_' зарезервированы",
+            Message: "ключи с префиксом _ зарезервированы",
             Got:     key,
         })
     }
 }
-```
+~~~

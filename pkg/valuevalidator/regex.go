@@ -14,6 +14,13 @@ type RegexValidator struct {
 	Message string // Custom error message (optional)
 }
 
+func (vld RegexValidator) ValidateDefinition() error {
+	if vld.Pattern == nil {
+		return fmt.Errorf("regex pattern must not be nil")
+	}
+	return nil
+}
+
 // Validate implements ValueValidator.
 func (vld RegexValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	if vld.Pattern.MatchString(node.Value) {
@@ -25,6 +32,7 @@ func (vld RegexValidator) Validate(node *yaml.Node, path string, ctx *v.Validati
 	}
 	ctx.AddError(v.ValidationError{
 		Level:   v.LevelError,
+		Code:    "pattern",
 		Path:    path,
 		Line:    node.Line,
 		Column:  node.Column,
