@@ -659,6 +659,7 @@ func TestCompileJSONSchemaStandardFormatOverrides(t *testing.T) {
 		{name: "ipv4", format: "ipv4", valid: `127.0.0.1`, bad: `+1.2.3.4`},
 		{name: "duration", format: "duration", valid: `P1Y2M3DT4H5M6S`, bad: `P1Y2D`},
 		{name: "idn-hostname", format: "idn-hostname", valid: `실례.테스트`, bad: `a·l`},
+		{name: "idn-email", format: "idn-email", valid: `δοκιμή@παράδειγμα.δοκιμή`, bad: `a..b@παράδειγμα.δοκιμή`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -676,5 +677,26 @@ func TestCompileJSONSchemaStandardFormatOverrides(t *testing.T) {
 				t.Fatalf("invalid %s accepted: %s", tt.format, tt.bad)
 			}
 		})
+	}
+}
+
+func TestCompileJSONSchemaIDNEmailEscapedYAMLEdgeCodepoints(t *testing.T) {
+	schema, err := CompileJSONSchemaWithOptions([]byte(`{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "string",
+		"format": "idn-email"
+	}`), JSONSchemaCompileOptions{AssertFormat: true})
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+
+	// JSON Schema's optional idn-email suite includes code points which are not
+	// legal as raw YAML source characters. YAML escapes preserve the actual
+	// Unicode scalar value and therefore exercise the JSON Schema format without
+	// violating YAML's character-set rules.
+	for _, input := range []string{`"\u0085@example.com"`, `"\uFFFF@example.com"`} {
+		if res := NewValidator(schema).ValidateBytes([]byte(input)); res.HasErrors() {
+			t.Fatalf("escaped IDN email %s rejected: %v", input, res.Collector.Errors())
+		}
 	}
 }

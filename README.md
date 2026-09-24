@@ -233,7 +233,9 @@ The JSON Schema adapter has been run through the official JSON-Schema-Test-Suite
 - 2020-12: 1301/1301 core tests
 - total: 4950/4950 core tests
 
-Additional official optional suites used during development include ECMAScript pattern semantics, email, hostname, duration, URI, URI-reference, URI-template, and format-regex validation.
+The same public API also passes 3884/3885 official optional tests when JSON string values are represented losslessly through YAML escapes where necessary. The single remaining optional draft-04 case is <code>zeroTerminatedFloats</code>, which intentionally tests host-language numeric type distinctions by expecting JSON <code>1.0</code> not to satisfy <code>integer</code>. yamlvalidator follows the engine's mathematical JSON Schema numeric semantics, where an exactly integral numeric value satisfies <code>integer</code>.
+
+Optional coverage includes ECMAScript pattern semantics, email, idn-email, hostname, idn-hostname, duration, URI, URI-reference, URI-template, content assertions, and format-regex validation. Raw YAML still obeys YAML's own character restrictions; code points such as U+0085 or U+FFFF can be supplied through YAML escapes when a JSON Schema format test needs those exact scalar values.
 
 <code>AdditionalPropertiesFalsePolicy</code> is a yamlvalidator presentation option: it can downgrade or suppress a direct <code>additionalProperties: false</code> diagnostic for editor-style workflows. It does not rewrite JSON Schema combinator semantics.
 
