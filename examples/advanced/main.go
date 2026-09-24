@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	path := flag.String("file", "easyp.yaml", "path to easyp.yaml")
+	path := flag.String("file", "config.yaml", "path to config YAML")
 	flag.Parse()
 
 	data, err := os.ReadFile(*path)

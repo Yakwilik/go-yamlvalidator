@@ -1,8 +1,13 @@
 # Changelog
 
+## v0.3.1 — 2026-09-24
+
+- Исправлена формулировка minimum Go version: v0.3.0 требует Go 1.24+, без утверждения о её «понижении» относительно предыдущего release.
+- Публичная документация, tests и examples очищены от product-specific references; advanced example сделан generic.
+
 ## v0.3.0 — 2026-09-24
 
-- Минимальная поддерживаемая версия Go снижена до 1.24 и проверяется в CI; совместимость подтверждена полной сборкой и тестами EasyP `feature/v1.0-pilot` без изменения его `go 1.24.0`.
+- Минимальная поддерживаемая версия Go для v0.3.0 — 1.24; она проверяется отдельным CI job наряду с текущим stable Go.
 - Добавлены first-class functional JSON Schema extensions: custom `format`, custom keywords и named vocabularies без прямой зависимости вызывающего кода от внутреннего JSON Schema engine API.
 - Custom keyword diagnostics поддерживают relative YAML paths и `unevaluatedProperties`/`unevaluatedItems` через evaluated-property/item markers.
 
@@ -40,7 +45,7 @@
 - Добавлен standalone CLI <code>cmd/yamlvalidator</code> для YAML validation через сериализованный <code>FieldSchema</code>.
 - Добавлены flags для strict keys, YAML 1.1 booleans, type strictness, stop-on-first и сортировки diagnostics.
 - Добавлен schema loader для YAML/JSON native schema и тесты validator names.
-- Обновлён EasyP example и покрытие CLI/schema-loader сценариев.
+- Обновлён расширенный configuration example и покрытие CLI/schema-loader сценариев.
 
 ## v0.1.0 — 2025-12-24
 
@@ -48,7 +53,7 @@
 - YAML 1.2 validation core с optional YAML 1.1 boolean compatibility.
 - Schema-driven validation: types, required/nullable/default/deprecated, maps/sequences, unknown-key policies и inter-field rules.
 - Multi-document YAML, aliases, merge keys и position-aware error formatting.
-- Built-in value validators: enum, regex, range, non-empty, length, URL, one-of-type и EasyP-specific validators.
+- Built-in value validators: enum, regex, range, non-empty, length, URL, one-of-type.
 - Built-in key validators: regex, forbidden keys и Unicode-aware length.
 - Public pointer helpers, caret renderer и type inference helper.
-- Examples для Kubernetes-like manifests и EasyP.
+- Examples для Kubernetes-like manifests и расширенной configuration validation.

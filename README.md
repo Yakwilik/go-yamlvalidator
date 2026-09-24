@@ -165,7 +165,7 @@ An explicit <code>$schema</code> selects the dialect. Without <code>$schema</cod
 All keywords implemented by the engine are available, including references and modern applicators such as <code>$ref</code>, <code>$dynamicRef</code>, <code>$defs</code>, <code>$anchor</code>, <code>allOf</code>, <code>anyOf</code>, <code>oneOf</code>, <code>if/then/else</code>, <code>dependentSchemas</code>, <code>unevaluatedProperties</code>, <code>unevaluatedItems</code>, <code>prefixItems</code>, <code>contains</code>, numeric/string/object/array constraints, boolean schemas, annotations, and vocabulary declarations. Unknown extension keywords follow JSON Schema semantics instead of being rejected merely because yamlvalidator does not know them.
 
 ~~~go
-schemaJSON, err := os.ReadFile("easyp-config.schema.json")
+schemaJSON, err := os.ReadFile("config.schema.json")
 if err != nil {
     return err
 }
@@ -183,7 +183,7 @@ result := v.NewValidator(schema).ValidateBytes(yamlData)
 ~~~go
 policy := v.UnknownKeyWarn
 schema, err := v.CompileJSONSchemaWithOptions(schemaJSON, v.JSONSchemaCompileOptions{
-    SchemaURL:    "https://schemas.example.com/easyp.json",
+    SchemaURL:    "https://schemas.example.com/config.json",
     DefaultDraft: v.JSONSchemaDraft2020,
 
     AssertFormat:  true,
@@ -436,9 +436,9 @@ Standard JSON Schema, including relative file <code>$ref</code> resolution from 
 
 ~~~bash
 go run ./cmd/yamlvalidator \
-  -schema ./schemas/easyp-config-v1.schema.json \
+  -schema ./schemas/config.schema.json \
   -schema-format jsonschema \
-  -file ./easyp.yaml \
+  -file ./config.yaml \
   -assert-format \
   -regexp-timeout 500ms
 ~~~

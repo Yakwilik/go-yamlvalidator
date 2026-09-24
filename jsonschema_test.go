@@ -59,7 +59,7 @@ func TestCompileJSONSchemaCanDowngradeAdditionalPropertiesToWarning(t *testing.T
 	}
 }
 
-func TestCompileJSONSchemaEasyPCombinators(t *testing.T) {
+func TestCompileJSONSchemaComplexCombinators(t *testing.T) {
 	schemaJSON := []byte(`{
 		"type": "object",
 		"properties": {
@@ -145,7 +145,7 @@ opts:
   flags: [grpc-js, false, 30]
 `
 	if res := NewValidator(schema).ValidateBytes([]byte(valid)); res.HasErrors() {
-		t.Fatalf("expected EasyP-like document to validate, got %v", res.Collector.Errors())
+		t.Fatalf("expected complex document to validate, got %v", res.Collector.Errors())
 	}
 
 	t.Run("oneOf required groups", func(t *testing.T) {
