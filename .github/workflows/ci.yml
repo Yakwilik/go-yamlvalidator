@@ -31,6 +31,18 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+  agent-skill:
+    name: Agent skill examples (published API)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.24.x"
+          cache: true
+      - name: Check standalone recipes against the published module
+        run: bash skills/go-yamlvalidator/scripts/check-examples.sh
+
   quality:
     name: Static analysis and vulnerabilities
     runs-on: ubuntu-24.04

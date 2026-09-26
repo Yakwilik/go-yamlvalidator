@@ -1,0 +1,8 @@
+{
+  "name": "go-yamlvalidator",
+  "source": {
+    "source": "github",
+    "repo": "Yakwilik/go-yamlvalidator"
+  },
+  "description": "Integrate go-yamlvalidator in Go with native schemas or JSON Schema, source-aware diagnostics, custom validators and extensions, explicit resolvers, and executable recipes."
+}

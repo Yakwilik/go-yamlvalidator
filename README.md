@@ -729,6 +729,28 @@ Benchmarks are intended for before/after regression work rather than fixed CI ti
 
 `v1.0.0` is the first SemVer-stable release. Its public API is frozen against the `v0.6.0` baseline, and CI runs `golang.org/x/exp/apidiff` against that tag to reject incompatible changes across all public packages. Backward-compatible additions remain possible within v1; removals or signature/type changes require a new major version.
 
+## Agent skill and Claude Code plugin
+
+The repository includes an [agent skill](skills/go-yamlvalidator/SKILL.md) for
+integrating the library in Go projects. It covers native FieldSchema and JSON
+Schema, source-aware diagnostics, custom validators and extensions, resolvers,
+CLI usage, and table-driven executable recipes.
+
+For a local Claude Code session:
+
+~~~bash
+claude --plugin-dir /absolute/path/to/go-yamlvalidator
+~~~
+
+Invoke <code>/go-yamlvalidator:go-yamlvalidator</code>, or install the standalone
+skill with <code>npx skills add Yakwilik/go-yamlvalidator</code>. Agent installation
+is separate from adding the Go module to an application.
+
+See [plugin setup and verification](docs/agent-plugin.md) for packaging details,
+standalone example checks and a candidate marketplace entry. The plugin version
+is independent of the library version; adding it here does not publish it to an
+external marketplace.
+
 ## License
 
 Apache License 2.0

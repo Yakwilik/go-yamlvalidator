@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added an optional go-yamlvalidator agent skill and Claude Code plugin, with
+  source-checked API references, executable recipes, CLI fixtures, package
+  validation, and a manual agent-evaluation rubric. No library API changed.
+- Added standalone recipe checks against the published v1.0.0 module and
+  instructions for a later, separate marketplace registration.
+
 ## v1.0.0 — 2026-09-24
 
 - Первый стабильный major release: публичный API считается SemVer-стабильным на всей линии v1.
