@@ -31,6 +31,24 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+  coverage:
+    name: Public library coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.24.x"
+          cache: true
+      - name: Enforce 80% coverage for public library packages
+        run: ./scripts/check-library-coverage.sh coverage.out
+      - name: Publish coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: coverage.out
+          format: golang
+
   agent-skill:
     name: Agent skill examples (published API)
     runs-on: ubuntu-24.04

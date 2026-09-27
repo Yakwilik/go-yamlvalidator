@@ -1,32 +1,35 @@
 # yamlvalidator
 
 <p align="center">
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/Yakwilik/go-yamlvalidator?logo=go&logoColor=white"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://pkg.go.dev/github.com/Yakwilik/go-yamlvalidator"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/Yakwilik/go-yamlvalidator.svg"></a>
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/Yakwilik/go-yamlvalidator?sort=semver&label=release"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Yakwilik/go-yamlvalidator?sort=semver"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Yakwilik/go-yamlvalidator"></a>
-  <a href="https://github.com/Yakwilik"><img alt="Author" src="https://img.shields.io/badge/author-Yakwilik-8A91E8?logo=github&logoColor=white"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/Yakwilik/go-yamlvalidator?logo=go&logoColor=white"></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/Yakwilik/go-yamlvalidator"><img alt="Repository size" src="https://img.shields.io/github/repo-size/Yakwilik/go-yamlvalidator"></a>
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/commits/master"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Yakwilik/go-yamlvalidator/master"></a>
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/commits/master"><img alt="Commit activity" src="https://img.shields.io/github/commit-activity/m/Yakwilik/go-yamlvalidator"></a>
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/pulls"><img alt="Open pull requests" src="https://img.shields.io/github/issues-pr/Yakwilik/go-yamlvalidator"></a>
-  <a href="https://github.com/Yakwilik/go-yamlvalidator/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/Yakwilik/go-yamlvalidator"></a>
-</p>
+**Source-aware YAML validation for Go.** Validate raw YAML with native Go schemas or full JSON Schema while preserving paths, lines, and columns in diagnostics.
 
-A flexible, production-ready YAML validation library for Go with support for:
+```text
+[ERROR] line 3:1: unknown key "plugin"; did you mean "plugins"? (path: generate.plugin)
+>    3 | plugin:
+       | ^
+```
 
-- **Type checking** with YAML 1.2 (and optional YAML 1.1) compliance
-- **Full JSON Schema validation** with draft-04, draft-06, draft-07, 2019-09, and 2020-12 support
-- **Custom validators** for values and keys
-- **Conditional logic** (AnyOf, ExactlyOneOf, MutuallyExclusive, Conditions)
-- **Detailed error reporting** with source context and precise positions
-- **Multi-document YAML** support
-- **Anchor/alias** support
-- **Unicode and tab** handling in error output
+Use a small Go-native schema when rules live with your application, or bring an existing JSON Schema when portability matters. Both paths validate the original YAML instead of forcing validation onto an already-decoded application struct.
+
+### Why this library?
+
+| Need | `yaml.v3` decoding | Struct validation | JSON Schema engine | `go-yamlvalidator` |
+|---|---:|---:|---:|---:|
+| YAML syntax parsing | Yes | No | No | Yes |
+| Schema diagnostics mapped back to YAML line/column | No | No | Usually no | Yes |
+| Go-native schema | No | Via struct tags | No | Yes |
+| Full JSON Schema | No | No | Yes | Yes |
+| Custom Go validators | Manual | Yes | Engine-specific | Yes |
+| Unknown-key diagnostics with YAML source context | Limited | After decoding | Without YAML positions | Yes |
+
+Originally built to validate configuration files in [EasyP](https://github.com/easyp-tech/easyp). The development story is in [this Habr article (Russian)](https://habr.com/ru/articles/1086386/).
 
 ## Installation
 
@@ -43,45 +46,25 @@ package main
 
 import (
     "fmt"
-    "regexp"
 
     v "github.com/Yakwilik/go-yamlvalidator"
-    valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 )
 
 func main() {
     schema := &v.FieldSchema{
-        Type: v.TypeMap,
+        Type:             v.TypeMap,
+        UnknownKeyPolicy: v.UnknownKeyError,
         AllowedKeys: map[string]*v.FieldSchema{
-            "name": {
-                Type:     v.TypeString,
-                Required: true,
-                Validators: []v.ValueValidator{
-                    valv.RegexValidator{
-                        Pattern: regexp.MustCompile(`^[a-z][a-z0-9-]*$`),
-                        Message: "must be lowercase with dashes",
-                    },
-                },
-            },
-            "replicas": {
-                Type: v.TypeInt,
-                Validators: []v.ValueValidator{
-                    valv.RangeValidator{Min: v.Ptr[float64](1), Max: v.Ptr[float64](100)},
-                },
-            },
+            "name": {Type: v.TypeString, Required: true},
+            "port": {Type: v.TypeInt},
         },
     }
 
-    yaml := []byte(`
-name: my-app
-replicas: 50
-`)
-
-    validator := v.NewValidator(schema)
-    result := validator.ValidateBytes(yaml)
+    data := []byte("name: api\nport: 8080\n")
+    result := v.NewValidator(schema).ValidateBytes(data)
 
     if result.HasErrors() {
-        fmt.Println(result.FormatAll(true))
+        fmt.Print(result.FormatAll(true))
     }
 }
 ```

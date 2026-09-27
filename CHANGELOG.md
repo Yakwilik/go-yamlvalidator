@@ -7,6 +7,8 @@
   validation, and a manual agent-evaluation rubric. No library API changed.
 - Added standalone recipe checks against the published v1.0.0 module and
   instructions for a later, separate marketplace registration.
+- Added an enforced 80% coverage floor for the public library packages and
+  expanded regression coverage for URI/email/IDN parsing and built-in validators.
 
 ## v1.0.0 — 2026-09-24
 
