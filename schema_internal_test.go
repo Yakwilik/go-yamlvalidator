@@ -171,7 +171,7 @@ func TestJSONSchemaResourceResolvers(t *testing.T) {
 	const resourceURL = "https://schemas.example.test/common.json"
 	resource := JSONSchemaResourceMap{resourceURL: []byte("true")}
 
-	data, err := resource.Resolve(nil, resourceURL)
+	data, err := resource.Resolve(context.Background(), resourceURL)
 	if err != nil || string(data) != "true" {
 		t.Fatalf("resource resolve=%q,%v", data, err)
 	}
@@ -193,7 +193,7 @@ func TestJSONSchemaResourceResolvers(t *testing.T) {
 
 func TestJSONSchemaResolverFuncAndChain(t *testing.T) {
 	var nilResolver JSONSchemaResolverFunc
-	if _, err := nilResolver.Resolve(nil, "x"); err == nil {
+	if _, err := nilResolver.Resolve(context.Background(), "x"); err == nil {
 		t.Fatal("nil resolver function accepted")
 	}
 
@@ -204,7 +204,7 @@ func TestJSONSchemaResolverFuncAndChain(t *testing.T) {
 		return []byte("ok"), nil
 	})
 	chain := JSONSchemaResolverChain{nil, JSONSchemaResourceMap{}, hit}
-	data, err := chain.Resolve(nil, "hit")
+	data, err := chain.Resolve(context.Background(), "hit")
 	if err != nil || string(data) != "ok" {
 		t.Fatalf("chain resolve=%q,%v", data, err)
 	}
@@ -218,16 +218,16 @@ func TestJSONSchemaResolverFuncAndChain(t *testing.T) {
 	if _, err := chain.Resolve(context.Background(), "hit"); !errors.Is(err, hard) {
 		t.Fatalf("hard resolver error=%v", err)
 	}
-	if _, err := (JSONSchemaResolverChain{}).Resolve(nil, "missing"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
+	if _, err := (JSONSchemaResolverChain{}).Resolve(context.Background(), "missing"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
 		t.Fatalf("empty chain error=%v", err)
 	}
 }
 
 func TestJSONSchemaCachingResolverBranches(t *testing.T) {
-	if _, err := (*JSONSchemaCachingResolver)(nil).Resolve(nil, "x"); err == nil {
+	if _, err := (*JSONSchemaCachingResolver)(nil).Resolve(context.Background(), "x"); err == nil {
 		t.Fatal("nil cache resolver accepted")
 	}
-	if _, err := NewJSONSchemaCachingResolver(nil).Resolve(nil, "x"); err == nil {
+	if _, err := NewJSONSchemaCachingResolver(nil).Resolve(context.Background(), "x"); err == nil {
 		t.Fatal("cache without resolver accepted")
 	}
 
@@ -238,18 +238,18 @@ func TestJSONSchemaCachingResolverBranches(t *testing.T) {
 			return []byte("cached"), nil
 		},
 	))
-	first, err := cache.Resolve(nil, "x")
+	first, err := cache.Resolve(context.Background(), "x")
 	if err != nil {
 		t.Fatal(err)
 	}
 	first[0] = 'X'
-	second, err := cache.Resolve(nil, "x")
+	second, err := cache.Resolve(context.Background(), "x")
 	if err != nil || string(second) != "cached" || calls != 1 {
 		t.Fatalf("cache second=%q calls=%d err=%v", second, calls, err)
 	}
 
 	cache.cache = nil
-	if _, err := cache.Resolve(nil, "other"); err != nil {
+	if _, err := cache.Resolve(context.Background(), "other"); err != nil {
 		t.Fatal(err)
 	}
 	if cache.cache == nil {
@@ -276,13 +276,13 @@ func TestJSONSchemaFileResolverBranches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolver.Resolve(nil, "https://example.test/schema.json"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
+	if _, err := resolver.Resolve(context.Background(), "https://example.test/schema.json"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
 		t.Fatalf("non-file scheme error=%v", err)
 	}
-	if _, err := resolver.Resolve(nil, "file://remotehost/tmp/schema.json"); err == nil {
+	if _, err := resolver.Resolve(context.Background(), "file://remotehost/tmp/schema.json"); err == nil {
 		t.Fatal("remote file host accepted")
 	}
-	if _, err := resolver.Resolve(nil, "file:///definitely/not/present/schema.json"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
+	if _, err := resolver.Resolve(context.Background(), "file:///definitely/not/present/schema.json"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
 		t.Fatalf("missing file error=%v", err)
 	}
 }
@@ -304,20 +304,20 @@ func TestJSONSchemaFileResolverReadsWithinRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := resolver.Resolve(nil, "file://"+filepath.ToSlash(inside))
+	data, err := resolver.Resolve(context.Background(), "file://"+filepath.ToSlash(inside))
 	if err != nil || string(data) != `{"type":"string"}` {
 		t.Fatalf("inside read=%q,%v", data, err)
 	}
-	if _, err := resolver.Resolve(nil, "file://"+filepath.ToSlash(outside)); !errors.Is(err, ErrJSONSchemaResourceOutsideRoot) {
+	if _, err := resolver.Resolve(context.Background(), "file://"+filepath.ToSlash(outside)); !errors.Is(err, ErrJSONSchemaResourceOutsideRoot) {
 		t.Fatalf("outside root error=%v", err)
 	}
 	if !pathWithinRoot(root, inside) || pathWithinRoot(root, outside) {
 		t.Fatal("root containment mismatch")
 	}
-	if jsonSchemaResolverContext(nil) == nil {
+	if jsonSchemaResolverContext(context.Background()) == nil {
 		t.Fatal("nil resolver context not normalized")
 	}
-	if _, err := (jsonSchemaNoExternalResolver{}).Resolve(nil, "https://example.test/x"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
+	if _, err := (jsonSchemaNoExternalResolver{}).Resolve(context.Background(), "https://example.test/x"); !errors.Is(err, ErrJSONSchemaResourceNotFound) {
 		t.Fatalf("no-external error=%v", err)
 	}
 }
