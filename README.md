@@ -1,5 +1,22 @@
 # yamlvalidator
 
+<p align="center">
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/Yakwilik/go-yamlvalidator?logo=go&logoColor=white"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://pkg.go.dev/github.com/Yakwilik/go-yamlvalidator"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/Yakwilik/go-yamlvalidator.svg"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/Yakwilik/go-yamlvalidator?sort=semver&label=release"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Yakwilik/go-yamlvalidator"></a>
+  <a href="https://github.com/Yakwilik"><img alt="Author" src="https://img.shields.io/badge/author-Yakwilik-8A91E8?logo=github&logoColor=white"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Yakwilik/go-yamlvalidator"><img alt="Repository size" src="https://img.shields.io/github/repo-size/Yakwilik/go-yamlvalidator"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/commits/master"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Yakwilik/go-yamlvalidator/master"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/commits/master"><img alt="Commit activity" src="https://img.shields.io/github/commit-activity/m/Yakwilik/go-yamlvalidator"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/pulls"><img alt="Open pull requests" src="https://img.shields.io/github/issues-pr/Yakwilik/go-yamlvalidator"></a>
+  <a href="https://github.com/Yakwilik/go-yamlvalidator/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/Yakwilik/go-yamlvalidator"></a>
+</p>
+
 A flexible, production-ready YAML validation library for Go with support for:
 
 - **Type checking** with YAML 1.2 (and optional YAML 1.1) compliance
