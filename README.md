@@ -7,6 +7,7 @@
   <a href="https://github.com/Yakwilik/go-yamlvalidator/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Yakwilik/go-yamlvalidator?sort=semver"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Yakwilik/go-yamlvalidator"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/Yakwilik/go-yamlvalidator?logo=go&logoColor=white"></a>
+  <a href="https://github.com/avelino/awesome-go"><img alt="Mentioned in Awesome Go" src="https://awesome.re/mentioned-badge-flat.svg"></a>
 </p>
 
 **Source-aware YAML validation for Go.** Validate raw YAML with native Go schemas or full JSON Schema while preserving paths, lines, and columns in diagnostics.
