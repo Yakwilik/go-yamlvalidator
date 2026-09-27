@@ -116,6 +116,21 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 			return err
 		}
 	}
+	if schema.ValueSchema != nil {
+		if err := validateFieldSchema(schema.ValueSchema, path+".valueSchema", visiting, validated); err != nil {
+			return err
+		}
+	}
+	if schema.inlineCapture != nil {
+		if err := validateFieldSchema(schema.inlineCapture, path+".inlineCapture", visiting, validated); err != nil {
+			return err
+		}
+	}
+	for i, extra := range schema.extraSchemas {
+		if err := validateFieldSchema(extra, fmt.Sprintf("%s.extraSchemas[%d]", path, i), visiting, validated); err != nil {
+			return err
+		}
+	}
 	if schema.ItemSchema != nil {
 		if err := validateFieldSchema(schema.ItemSchema, path+".itemSchema", visiting, validated); err != nil {
 			return err
@@ -152,6 +167,22 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 	}
 	if err := validateFieldGroups(path+".forbiddenTogether", schema.ForbiddenTogether, schema.AllowedKeys); err != nil {
 		return err
+	}
+	if err := validateFieldGroups(path+".exactlyGroups", schema.exactlyGroups, schema.AllowedKeys); err != nil {
+		return err
+	}
+	if err := validateFieldGroups(path+".mutuallyGroups", schema.mutuallyGroups, schema.AllowedKeys); err != nil {
+		return err
+	}
+	for i, clause := range schema.anyClauses {
+		if err := validateFieldGroups(fmt.Sprintf("%s.anyClauses[%d]", path, i), clause, schema.AllowedKeys); err != nil {
+			return err
+		}
+	}
+	for i, clause := range schema.oneClauses {
+		if err := validateFieldGroups(fmt.Sprintf("%s.oneClauses[%d]", path, i), clause, schema.AllowedKeys); err != nil {
+			return err
+		}
 	}
 	for trigger, required := range schema.DependentRequired {
 		if trigger == "" {
@@ -267,6 +298,15 @@ func cloneFieldSchema(schema *FieldSchema, memo map[*FieldSchema]*FieldSchema) *
 	cloned.AnyOf = cloneStringGroups(schema.AnyOf)
 	cloned.OneOfRequired = cloneStringGroups(schema.OneOfRequired)
 	cloned.ForbiddenTogether = cloneStringGroups(schema.ForbiddenTogether)
+	cloned.exactlyGroups = cloneStringGroups(schema.exactlyGroups)
+	cloned.mutuallyGroups = cloneStringGroups(schema.mutuallyGroups)
+	cloned.requiredNames = append([]string(nil), schema.requiredNames...)
+	cloned.anyClauses = cloneGroupClauses(schema.anyClauses)
+	cloned.oneClauses = cloneGroupClauses(schema.oneClauses)
+	cloned.extraSchemas = make([]*FieldSchema, len(schema.extraSchemas))
+	for i, extra := range schema.extraSchemas {
+		cloned.extraSchemas[i] = cloneFieldSchema(extra, memo)
+	}
 
 	if schema.MinItems != nil {
 		value := *schema.MinItems
@@ -279,6 +319,8 @@ func cloneFieldSchema(schema *FieldSchema, memo map[*FieldSchema]*FieldSchema) *
 
 	cloned.AllowedKeys = cloneSchemaMap(schema.AllowedKeys, memo)
 	cloned.AdditionalProperties = cloneFieldSchema(schema.AdditionalProperties, memo)
+	cloned.ValueSchema = cloneFieldSchema(schema.ValueSchema, memo)
+	cloned.inlineCapture = cloneFieldSchema(schema.inlineCapture, memo)
 	cloned.ItemSchema = cloneFieldSchema(schema.ItemSchema, memo)
 
 	cloned.OneOfSchemas = make([]*FieldSchema, len(schema.OneOfSchemas))
@@ -328,6 +370,17 @@ func cloneStringGroups(groups [][]string) [][]string {
 		result[i] = append([]string(nil), group...)
 	}
 	return result
+}
+
+func cloneGroupClauses(clauses [][][]string) [][][]string {
+	if clauses == nil {
+		return nil
+	}
+	out := make([][][]string, len(clauses))
+	for i, clause := range clauses {
+		out[i] = cloneStringGroups(clause)
+	}
+	return out
 }
 
 func cloneSchemaDefault(value any) any {

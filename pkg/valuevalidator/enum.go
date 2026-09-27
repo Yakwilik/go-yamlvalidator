@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	v "github.com/Yakwilik/go-yamlvalidator"
+	"github.com/Yakwilik/go-yamlvalidator/internal/checks"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,10 +30,8 @@ func (vld EnumValidator) ValidateDefinition() error {
 
 // Validate implements ValueValidator.
 func (vld EnumValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
-	for _, allowed := range vld.Allowed {
-		if node.Value == allowed {
-			return
-		}
+	if checks.ContainsScalarText(vld.Allowed, node.Value) {
+		return
 	}
 	msg := vld.Message
 	if msg == "" {

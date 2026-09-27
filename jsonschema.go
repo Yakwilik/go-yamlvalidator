@@ -658,6 +658,9 @@ func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, 
 	if node == nil {
 		return nil, nil
 	}
+	if ctx != nil && !ctx.visitNode(node, basePath) {
+		return nil, nil
+	}
 	if ctx != nil && ctx.MaxDepth > 0 && depth > ctx.MaxDepth {
 		return nil, &ValidationError{
 			Level:    LevelError,
@@ -690,7 +693,11 @@ func convertYAMLNodeToJSON(node *yaml.Node, location []string, basePath string, 
 	switch node.Kind {
 	case yaml.MappingNode:
 		result := make(map[string]any)
-		for _, pair := range expandMappingWithMerges(node) {
+		pairs := expandMappingWithMergesBounded(node, ctx)
+		if ctx != nil && ctx.IsStopped() {
+			return nil, nil
+		}
+		for _, pair := range pairs {
 			keyNode := pair.key
 			if !yamlKeyIsJSONString(keyNode) {
 				return nil, jsonConversionError(keyNode, basePath, location, "JSON Schema object keys must be strings")

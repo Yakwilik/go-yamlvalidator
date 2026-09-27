@@ -43,6 +43,23 @@ go get github.com/Yakwilik/go-yamlvalidator@v1.0.0
 
 ## Quick Start
 
+### Validated Go values
+
+The high-level codec validates struct tags during Unmarshal and Marshal. Its zero-value options enable validation, require one YAML document, and reject unknown struct fields by default.
+
+Parent mapping groups use names such as exactlyOneOf on a real field; value mapping groups use names such as exactlyOneOfKeys. Native format and uniqueItems checks run without JSON Schema compilation. Standard gopkg.in/yaml.v3 calls ignore yamlvalidate unless a caller-written hook implements validation. A generated codec is not implemented in this stage.
+
+~~~go
+var config Config // Config is defined in examples/highlevel/main.go.
+err := yamlvalidator.Unmarshal([]byte("mode: prod\nport: 8443\ntls: true\nhosts: [api.example.com]\n"), &config)
+if err != nil { return err }
+data, err := yamlvalidator.Marshal(config)
+~~~
+
+See [the high-level API guide](docs/high-level-api.md) for all validation tags, registry bindings, diagnostics, and limits. The [runnable example](examples/highlevel/main.go) defines Config with actual tags.
+
+### Native schema validation
+
 ```go
 package main
 

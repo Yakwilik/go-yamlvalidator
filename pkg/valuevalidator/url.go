@@ -2,10 +2,10 @@ package valuevalidator
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	v "github.com/Yakwilik/go-yamlvalidator"
+	"github.com/Yakwilik/go-yamlvalidator/internal/checks"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,7 +20,7 @@ func (vld URLValidator) ValidateDefinition() error {
 	seen := make(map[string]bool, len(vld.AllowedSchemes))
 	for _, scheme := range vld.AllowedSchemes {
 		normalized := strings.ToLower(scheme)
-		if !validURLScheme(normalized) {
+		if !checks.ValidURLScheme(normalized) {
 			return fmt.Errorf("invalid allowed URL scheme %q", scheme)
 		}
 		if seen[normalized] {
@@ -34,8 +34,8 @@ func (vld URLValidator) ValidateDefinition() error {
 // Validate implements ValueValidator.
 func (vld URLValidator) Validate(node *yaml.Node, path string, ctx *v.ValidationContext) {
 	value := node.Value
-	parsed, err := url.Parse(value)
-	if err != nil {
+	issue, scheme := checks.URLIssue(value, vld.RequireScheme, vld.AllowedSchemes)
+	if issue == "url" {
 		ctx.AddError(v.ValidationError{
 			Level:   v.LevelError,
 			Code:    "url",
@@ -48,7 +48,7 @@ func (vld URLValidator) Validate(node *yaml.Node, path string, ctx *v.Validation
 		return
 	}
 
-	if vld.RequireScheme && parsed.Scheme == "" {
+	if issue == "url_scheme" && vld.RequireScheme && scheme == "" {
 		ctx.AddError(v.ValidationError{
 			Level:   v.LevelError,
 			Code:    "url_scheme",
@@ -61,15 +61,9 @@ func (vld URLValidator) Validate(node *yaml.Node, path string, ctx *v.Validation
 		return
 	}
 
-	if parsed.Scheme == "" || len(vld.AllowedSchemes) == 0 {
+	if issue != "url_scheme" {
 		return
 	}
-	for _, allowed := range vld.AllowedSchemes {
-		if strings.EqualFold(parsed.Scheme, allowed) {
-			return
-		}
-	}
-
 	ctx.AddError(v.ValidationError{
 		Level:    v.LevelError,
 		Code:     "url_scheme",
@@ -77,25 +71,11 @@ func (vld URLValidator) Validate(node *yaml.Node, path string, ctx *v.Validation
 		Line:     node.Line,
 		Column:   node.Column,
 		Message:  "URL scheme not allowed",
-		Got:      parsed.Scheme,
+		Got:      scheme,
 		Expected: fmt.Sprintf("one of %v", vld.AllowedSchemes),
 	})
 }
 
-func validURLScheme(scheme string) bool {
-	if scheme == "" || !isASCIIAlpha(scheme[0]) {
-		return false
-	}
-	for i := 1; i < len(scheme); i++ {
-		ch := scheme[i]
-		if isASCIIAlpha(ch) || ch >= '0' && ch <= '9' || ch == '+' || ch == '-' || ch == '.' {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
-func isASCIIAlpha(ch byte) bool {
-	return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z'
-}
+// Kept for package-internal compatibility tests; the calculation lives in checks.
+func validURLScheme(scheme string) bool { return checks.ValidURLScheme(scheme) }
+func isASCIIAlpha(ch byte) bool         { return checks.ValidURLScheme(string([]byte{ch})) }

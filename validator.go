@@ -153,6 +153,12 @@ type ValidationContext struct {
 	// MaxDiagnostics stops validation after this many errors/warnings. Zero means unlimited.
 	MaxDiagnostics int
 
+	// MaxNodeVisits bounds high-level traversal work. Zero is unlimited.
+	MaxNodeVisits    int
+	UnknownKeyPolicy UnknownKeyPolicy
+	nodeVisits       int
+	safetyDepth      int
+
 	sourceLines  []string
 	collector    *ErrorCollector
 	stopped      bool
@@ -377,7 +383,17 @@ type FieldSchema struct {
 	Description string
 
 	// Default is the default value. If set and field is missing, a warning is emitted.
-	Default interface{}
+	Default         interface{}
+	defaultPresent  bool
+	extraSchemas    []*FieldSchema
+	inlineCapture   *FieldSchema
+	exactlyGroups   [][]string
+	mutuallyGroups  [][]string
+	anyClauses      [][][]string
+	oneClauses      [][][]string
+	pendingRequired []string
+	requiredNames   []string
+	objectOrigins   []highLevelRuleOrigin
 
 	// ─────────────────────────────────────────────────────────────────────────
 	// Map-specific fields
@@ -401,6 +417,9 @@ type FieldSchema struct {
 	// If not nil: unknown keys are allowed and validated against this schema.
 	// If nil: unknown keys are handled by UnknownKeyPolicy.
 	AdditionalProperties *FieldSchema
+
+	// ValueSchema validates every mapping value, including declared properties.
+	ValueSchema *FieldSchema
 
 	// UnknownKeyPolicy determines handling of keys not in AllowedKeys
 	// when AdditionalProperties is nil.
@@ -703,6 +722,8 @@ func newValidationRunContext(runCtx context.Context, opts ValidationContext) *Va
 	ctx.stopped = false
 	ctx.limitReached = false
 	ctx.depth = 0
+	ctx.nodeVisits = 0
+	ctx.safetyDepth = 0
 	ctx.runContext = runCtx
 	ctx.contextErr = nil
 	return ctx
@@ -787,13 +808,7 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 			if docIndex > 0 {
 				prefix = fmt.Sprintf("doc[%d]", docIndex)
 			}
-			v.checkAliasSafety(root.Content[0], prefix, ctx, make(map[*yaml.Node]uint8))
-			if !ctx.IsStopped() {
-				v.checkDuplicateKeysRecursive(root.Content[0], prefix, ctx, make(map[*yaml.Node]bool), 1)
-			}
-			if !ctx.IsStopped() {
-				v.validateNode(root.Content[0], v.schema, prefix, ctx)
-			}
+			v.validateParsedNode(root.Content[0], prefix, ctx)
 		}
 
 		docIndex++
@@ -808,6 +823,17 @@ func (v *Validator) validateWithContext(r io.Reader, ctx *ValidationContext) {
 			Code:    "required_document",
 			Message: "required YAML document is missing",
 		})
+	}
+}
+
+// validateParsedNode is shared by the stream validator and the high-level codec.
+func (v *Validator) validateParsedNode(node *yaml.Node, path string, ctx *ValidationContext) {
+	v.checkAliasSafety(node, path, ctx, make(map[*yaml.Node]uint8))
+	if !ctx.IsStopped() {
+		v.checkDuplicateKeysRecursive(node, path, ctx, make(map[*yaml.Node]bool), 1)
+	}
+	if !ctx.IsStopped() {
+		v.validateNode(node, v.schema, path, ctx)
 	}
 }
 
@@ -826,6 +852,9 @@ func InferNodeType(node *yaml.Node, ctx *ValidationContext) NodeType {
 
 func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path string, ctx *ValidationContext) {
 	if schema == nil || ctx.IsStopped() {
+		return
+	}
+	if !ctx.visitNode(node, path) {
 		return
 	}
 
@@ -913,14 +942,36 @@ func (v *Validator) validateNode(node *yaml.Node, schema *FieldSchema, path stri
 		}
 		validator.Validate(node, cleanPath(path), ctx)
 	}
+	for _, extra := range schema.extraSchemas {
+		if ctx.IsStopped() {
+			return
+		}
+		v.validateNode(node, extra, path, ctx)
+	}
+}
+
+func (ctx *ValidationContext) visitNode(node *yaml.Node, path string) bool {
+	ctx.nodeVisits++
+	if ctx.MaxNodeVisits > 0 && ctx.nodeVisits > ctx.MaxNodeVisits {
+		ctx.limitReached = true
+		ctx.stopped = true
+		return false
+	}
+	return true
 }
 
 func hasMappingConstraints(schema *FieldSchema) bool {
 	return schema.AllowedKeys != nil ||
+		schema.ValueSchema != nil ||
+		schema.inlineCapture != nil ||
 		schema.AdditionalProperties != nil ||
 		schema.UnknownKeyPolicy != UnknownKeyInherit ||
 		len(schema.KeyValidators) > 0 ||
 		len(schema.AnyOf) > 0 ||
+		len(schema.anyClauses) > 0 ||
+		len(schema.oneClauses) > 0 ||
+		len(schema.exactlyGroups) > 0 ||
+		len(schema.mutuallyGroups) > 0 ||
 		len(schema.ExactlyOneOf) > 0 ||
 		len(schema.MutuallyExclusive) > 0 ||
 		len(schema.OneOfRequired) > 0 ||
@@ -946,12 +997,20 @@ func (v *Validator) validateSchemaAlternatives(node *yaml.Node, schemas []*Field
 			StrictTypes:    ctx.StrictTypes,
 			YAML11Booleans: ctx.YAML11Booleans,
 			MaxDepth:       ctx.MaxDepth,
+			MaxNodeVisits:  ctx.MaxNodeVisits,
+			nodeVisits:     ctx.nodeVisits,
 			sourceLines:    ctx.sourceLines,
 			collector:      NewErrorCollector(),
 			depth:          ctx.depth - 1,
 			runContext:     ctx.runContext,
 		}
 		v.validateNode(node, candidate, path, branchCtx)
+		ctx.nodeVisits = branchCtx.nodeVisits
+		if branchCtx.limitReached {
+			ctx.limitReached = true
+			ctx.stopped = true
+			return false
+		}
 		if err := branchCtx.ContextErr(); err != nil {
 			ctx.contextErr = err
 			ctx.stopped = true
@@ -1263,7 +1322,10 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 	foundKeys := make(map[string]*yaml.Node)
 	keyNodes := make(map[string]*yaml.Node)
 
-	pairs := expandMappingWithMerges(node)
+	pairs := expandMappingWithMergesBounded(node, ctx)
+	if ctx.IsStopped() {
+		return
+	}
 
 	for _, kv := range pairs {
 		if ctx.IsStopped() {
@@ -1287,6 +1349,12 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 		}
 
 		// Known key?
+		if schema.ValueSchema != nil {
+			v.validateNode(valueNode, schema.ValueSchema, fieldPath, ctx)
+			if ctx.IsStopped() {
+				return
+			}
+		}
 		if fieldSchema, ok := schema.AllowedKeys[key]; ok {
 			v.validateNode(valueNode, fieldSchema, fieldPath, ctx)
 			continue
@@ -1320,6 +1388,18 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 					Suggestion: suggestion,
 				},
 			})
+		}
+	}
+	if schema.inlineCapture != nil {
+		captured := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Line: node.Line, Column: node.Column}
+		for _, kv := range pairs {
+			if _, declared := schema.AllowedKeys[kv.key.Value]; !declared {
+				captured.Content = append(captured.Content, kv.key, kv.value)
+			}
+		}
+		v.validateNode(captured, schema.inlineCapture, path, ctx)
+		if ctx.IsStopped() {
+			return
 		}
 	}
 
@@ -1357,6 +1437,32 @@ func (v *Validator) validateMapping(node *yaml.Node, schema *FieldSchema, path s
 		return
 	}
 	v.checkConditions(node, schema, path, foundKeys, keyNodes, ctx)
+	for _, clause := range schema.anyClauses {
+		if ctx.IsStopped() {
+			return
+		}
+		v.checkAnyOf(node, &FieldSchema{AnyOf: clause}, path, foundKeys, ctx)
+	}
+	for _, clause := range schema.oneClauses {
+		if ctx.IsStopped() {
+			return
+		}
+		v.checkOneOfRequired(node, &FieldSchema{OneOfRequired: clause}, path, foundKeys, ctx)
+	}
+	for _, group := range schema.exactlyGroups {
+		if ctx.IsStopped() {
+			return
+		}
+		temp := &FieldSchema{ExactlyOneOf: group}
+		v.checkExactlyOneOf(node, temp, path, foundKeys, keyNodes, ctx)
+	}
+	for _, group := range schema.mutuallyGroups {
+		if ctx.IsStopped() {
+			return
+		}
+		temp := &FieldSchema{MutuallyExclusive: group}
+		v.checkMutuallyExclusive(node, temp, path, foundKeys, keyNodes, ctx)
+	}
 }
 
 type kvPair struct {
@@ -1377,7 +1483,7 @@ func expandMappingWithMerges(node *yaml.Node) []kvPair {
 	for i := 0; i < len(node.Content); i += 2 {
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
-		if keyNode.Value == "<<" {
+		if keyNode.Tag == "!!merge" {
 			merged = appendUniquePairs(merged, extractMergePairs(valueNode))
 			continue
 		}
@@ -1454,6 +1560,9 @@ func (v *Validator) checkDuplicateKeysRecursive(node *yaml.Node, path string, ct
 	if node == nil || ctx.IsStopped() || visited[node] {
 		return
 	}
+	if !ctx.visitNode(node, path) {
+		return
+	}
 	if ctx.MaxDepth > 0 && depth > ctx.MaxDepth {
 		ctx.AddError(ValidationError{
 			Level:    LevelError,
@@ -1512,6 +1621,16 @@ func (v *Validator) checkAliasSafety(node *yaml.Node, path string, ctx *Validati
 	if node == nil || ctx.IsStopped() {
 		return
 	}
+	if !ctx.visitNode(node, path) {
+		return
+	}
+	ctx.safetyDepth++
+	defer func() { ctx.safetyDepth-- }()
+	if ctx.MaxNodeVisits > 0 && ctx.safetyDepth > 64 {
+		ctx.AddError(ValidationError{Level: LevelError, Code: "parser_depth", Path: path, Line: node.Line, Column: node.Column, Message: "YAML nesting exceeds high-level depth limit of 64"})
+		ctx.stopped = true
+		return
+	}
 	if node.Kind == yaml.AliasNode {
 		if node.Alias == nil {
 			ctx.AddError(ValidationError{
@@ -1555,7 +1674,15 @@ func (v *Validator) checkAliasSafety(node *yaml.Node, path string, ctx *Validati
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
 			fieldPath := joinPath(path, keyNode.Value)
-			if keyNode.Value == "<<" && !validMergeValue(valueNode, make(map[*yaml.Node]bool)) {
+			mergeValid := true
+			if keyNode.Tag == "!!merge" {
+				if ctx.MaxNodeVisits > 0 {
+					mergeValid = validMergeValueBounded(valueNode, ctx, make(map[*yaml.Node]bool))
+				} else {
+					mergeValid = validMergeValue(valueNode, make(map[*yaml.Node]bool))
+				}
+			}
+			if keyNode.Tag == "!!merge" && !mergeValid {
 				ctx.AddError(ValidationError{
 					Level:   LevelError,
 					Code:    "invalid_merge",
@@ -1619,6 +1746,9 @@ func (v *Validator) resolveUnknownKeyLevel(policy UnknownKeyPolicy, ctx *Validat
 	case UnknownKeyIgnore:
 		return 0, false
 	case UnknownKeyInherit:
+		if ctx.UnknownKeyPolicy != UnknownKeyInherit {
+			return v.resolveUnknownKeyLevel(ctx.UnknownKeyPolicy, &ValidationContext{StrictKeys: ctx.StrictKeys})
+		}
 		fallthrough
 	default:
 		if ctx.StrictKeys {
@@ -1647,6 +1777,14 @@ func (v *Validator) checkRequiredFields(node *yaml.Node, schema *FieldSchema, pa
 			})
 		}
 	}
+	for _, key := range schema.requiredNames {
+		if ctx.IsStopped() {
+			return
+		}
+		if foundKeys[key] == nil {
+			ctx.AddError(ValidationError{Level: LevelError, Code: "required", Path: cleanPath(joinPath(path, key)), Line: node.Line, Column: node.Column, Message: fmt.Sprintf("required field %q is missing", key), Details: RequiredDetails{Field: key}})
+		}
+	}
 }
 
 func (v *Validator) checkDefaults(node *yaml.Node, schema *FieldSchema, path string,
@@ -1656,7 +1794,7 @@ func (v *Validator) checkDefaults(node *yaml.Node, schema *FieldSchema, path str
 		if ctx.IsStopped() {
 			return
 		}
-		if fieldSchema.Default != nil && foundKeys[key] == nil && !fieldSchema.Required {
+		if (fieldSchema.Default != nil || fieldSchema.defaultPresent) && foundKeys[key] == nil && !fieldSchema.Required {
 			ctx.AddError(ValidationError{
 				Level:   LevelWarning,
 				Code:    "default",
@@ -1903,6 +2041,9 @@ func (v *Validator) checkConditions(node *yaml.Node, schema *FieldSchema, path s
 		condNode := foundKeys[rule.ConditionField]
 		if condNode == nil {
 			continue
+		}
+		for condNode.Kind == yaml.AliasNode && condNode.Alias != nil {
+			condNode = condNode.Alias
 		}
 
 		// Conditions only apply to scalars

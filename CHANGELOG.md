@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added validated high-level YAML Marshal and Unmarshal with recursive yamlvalidate tags, native formats and uniqueItems, explicit parent and value mapping groups, per-call limits and diagnostics, and registry-backed native validators and type bindings. The tag grammar and scope rules are shared for a future source frontend; no generator exists yet. High-level JSON Schema tags and registry routes were removed. Low-level JSON Schema APIs remain available.
 - Added an optional go-yamlvalidator agent skill and Claude Code plugin, with
   source-checked API references, executable recipes, CLI fixtures, package
   validation, and a manual agent-evaluation rubric. No library API changed.

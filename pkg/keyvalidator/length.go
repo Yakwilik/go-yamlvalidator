@@ -2,7 +2,7 @@ package keyvalidator
 
 import (
 	"fmt"
-	"unicode/utf8"
+	"github.com/Yakwilik/go-yamlvalidator/internal/checks"
 
 	v "github.com/Yakwilik/go-yamlvalidator"
 	"gopkg.in/yaml.v3"
@@ -29,7 +29,7 @@ func (vld LengthKeyValidator) ValidateDefinition() error {
 
 // ValidateKey implements KeyValidator.
 func (vld LengthKeyValidator) ValidateKey(key string, keyNode *yaml.Node, path string, ctx *v.ValidationContext) {
-	length := utf8.RuneCountInString(key)
+	length := checks.RuneLength(key)
 
 	if vld.Min != nil && length < *vld.Min {
 		ctx.AddError(v.ValidationError{
