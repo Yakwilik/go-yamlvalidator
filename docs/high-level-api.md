@@ -1,6 +1,6 @@
 # High-level YAML API
 
-The high-level API validates one YAML document when encoding or decoding a Go value. Package Marshal and Unmarshal use zero-value options; validation is enabled by default. Standard gopkg.in/yaml.v3 Marshal and Unmarshal do not interpret yamlvalidate tags. They continue to use caller-written YAML hooks when present. A typed generated codec is not implemented.
+The high-level API validates one YAML document when encoding or decoding a Go value. Package Marshal and Unmarshal use zero-value options; validation is enabled by default. Standard gopkg.in/yaml.v3 Marshal and Unmarshal do not interpret yamlvalidate tags. They continue to use caller-written YAML hooks when present. Optional typed codecs and standard YAML hooks can be generated with yamlvalidator-gen; see [code generation](code-generation.md).
 
 ~~~go
 var config Config
@@ -89,6 +89,6 @@ Default limits are 8 MiB input/output, depth 128, 100 diagnostics, and 1,000,000
 
 SkipValidation bypasses tag compilation and schema checks while keeping option sanity, byte limits, one-document parsing for Unmarshal, and yaml.v3 decoding. Marshal still rejects ordinary cyclic Go values. A custom YAML or text codec with unknown shape needs a registry type binding or an explicit type=any rule. Compilation never invokes codec hooks.
 
-The runtime supports strings, booleans, integers, floats, structs, slices, arrays, string-keyed maps, pointers, interfaces, time.Time, time.Duration, and byte slices. Arrays require exact item counts. Numeric destination representability is checked before decode. Recursive Go type graphs and non-string map keys are schema errors. Generated source/type frontends, streaming, and default interpolation are outside this stage. The cycle preflight does not execute custom IsZero methods; it can conservatively reject a cyclic field that a custom IsZero would omit during encoding.
+The runtime supports strings, booleans, integers, floats, structs, slices, arrays, string-keyed maps, pointers, interfaces, time.Time, time.Duration, and byte slices. Arrays require exact item counts. Numeric destination representability is checked before decode. Recursive Go type graphs and non-string map keys are schema errors. Streaming and default interpolation are not implemented. The optional source frontend and typed generated codecs are documented separately. The cycle preflight does not execute custom IsZero methods; it can conservatively reject a cyclic field that a custom IsZero would omit during encoding.
 
 See the runnable example in examples/highlevel.

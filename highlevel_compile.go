@@ -170,6 +170,12 @@ func (c *highLevelCompiler) infer(typ reflect.Type) (*FieldSchema, error) {
 }
 
 func isCustomCodec(typ reflect.Type, encode bool) bool {
+	if typ.Kind() != reflect.Interface {
+		candidate := reflect.New(typ).Interface()
+		if _, ok := candidate.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok {
+			return false
+		}
+	}
 	if encode {
 		return typ.Implements(yamlMarshalerType) || reflect.PointerTo(typ).Implements(yamlMarshalerType) || typ.Implements(textMarshalerType) || reflect.PointerTo(typ).Implements(textMarshalerType)
 	}
@@ -178,8 +184,22 @@ func isCustomCodec(typ reflect.Type, encode bool) bool {
 
 func (c *highLevelCompiler) compileStruct(typ reflect.Type, schema *FieldSchema) error {
 	schema.AllowedKeys = make(map[string]*FieldSchema)
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
+	var fields []reflect.StructField
+	if marker, ok := reflect.New(typ).Interface().(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
+		if provider, ok := reflect.New(typ).Interface().(interface{ YAMLValidatorTypePlan() SourceTypePlan }); ok {
+			plan := provider.YAMLValidatorTypePlan()
+			if plan.Type != typ || len(plan.Fields) != typ.NumField() {
+				return &SchemaError{Type: typ, Reason: "generated source type plan does not match Go type"}
+			}
+			fields = plan.Fields
+		}
+	}
+	if fields == nil {
+		for i := 0; i < typ.NumField(); i++ {
+			fields = append(fields, typ.Field(i))
+		}
+	}
+	for _, field := range fields {
 		tags, err := parseOuterStructTag(string(field.Tag))
 		if err != nil {
 			return &SchemaError{Type: typ, Field: field.Name, Tag: string(field.Tag), Offset: schemaErrorOffset(err), Reason: err.Error()}
@@ -560,62 +580,7 @@ func parseYAMLFieldTag(field reflect.StructField, text string) (name string, inl
 }
 
 func parseOuterStructTag(tag string) (map[string]string, error) {
-	result := map[string]string{}
-	for i := 0; i < len(tag); {
-		for i < len(tag) && tag[i] == ' ' {
-			i++
-		}
-		if i == len(tag) {
-			break
-		}
-		start := i
-		for i < len(tag) && tag[i] != ':' && tag[i] != ' ' && tag[i] != '"' && tag[i] < 0x7f {
-			i++
-		}
-		if i == start || i >= len(tag) || tag[i] != ':' || i+1 >= len(tag) || tag[i+1] != '"' {
-			return nil, &tagOffsetError{Offset: start, Reason: "malformed reflect.StructTag"}
-		}
-		key := tag[start:i]
-		i++
-		start = i
-		i++
-		closed := false
-		for i < len(tag) {
-			if tag[i] == '\\' {
-				i += 2
-				continue
-			}
-			if tag[i] == '"' {
-				i++
-				closed = true
-				break
-			}
-			i++
-		}
-		if !closed {
-			return nil, &tagOffsetError{Offset: start, Reason: fmt.Sprintf("unterminated reflect.StructTag value for %s", key)}
-		}
-		body := tag[start+1 : i-1]
-		for consumed := 0; consumed < len(body); {
-			_, _, rest, err := strconv.UnquoteChar(body[consumed:], '"')
-			if err != nil {
-				return nil, &tagOffsetError{Offset: start + 1 + consumed, Reason: fmt.Sprintf("invalid reflect.StructTag value for %s: %v", key, err)}
-			}
-			consumed = len(body) - len(rest)
-		}
-		value, err := strconv.Unquote(tag[start:i])
-		if err != nil {
-			return nil, &tagOffsetError{Offset: start, Reason: fmt.Sprintf("invalid reflect.StructTag value for %s: %v", key, err)}
-		}
-		if _, exists := result[key]; exists {
-			return nil, &tagOffsetError{Offset: start, Reason: fmt.Sprintf("duplicate reflect.StructTag key %s", key)}
-		}
-		result[key] = value
-		if i < len(tag) && tag[i] != ' ' {
-			return nil, &tagOffsetError{Offset: i, Reason: "missing space after reflect.StructTag value"}
-		}
-	}
-	return result, nil
+	return taglang.ParseStructTag(tag)
 }
 
 func parseTagInt(value tagValue) (int, error) {

@@ -186,6 +186,17 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 			return err
 		}
 	}
+	if codec, ok := out.(GeneratedCodec); ok && exactGeneratedType(out, codec.YAMLValidatorGeneratedType()) {
+		if withContext, ok := out.(interface {
+			YAMLValidatorDecodeWithContext(*yaml.Node, *GeneratedDecodeContext) error
+		}); ok {
+			return withContext.YAMLValidatorDecodeWithContext(root.Content[0], NewGeneratedDecodeContext(o.Limits, o.SkipValidation))
+		}
+		return codec.YAMLValidatorDecode(root.Content[0])
+	}
+	if mixedHasGenerated(dst.Elem().Type(), map[reflect.Type]bool{}) {
+		return decodeMixedNodeContext(root.Content[0], dst.Elem(), NewGeneratedDecodeContext(o.Limits, o.SkipValidation))
+	}
 	if err := root.Decode(out); err != nil {
 		return fmt.Errorf("decode YAML: %w", err)
 	}
@@ -218,7 +229,21 @@ func (o MarshalOptions) Marshal(in any) ([]byte, error) {
 	if o.Indent != 0 {
 		encoder.SetIndent(o.Indent)
 	}
-	if err := encoder.Encode(in); err != nil {
+	encodeValue := in
+	if codec, ok := in.(generatedEncoder); ok && !nilInterface(in) && exactGeneratedType(in, codec.YAMLValidatorGeneratedType()) {
+		node, encodeErr := codec.YAMLValidatorEncode()
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		encodeValue = node
+	} else if in != nil && mixedHasGenerated(reflect.TypeOf(in), map[reflect.Type]bool{}) {
+		node, encodeErr := encodeMixedNode(reflect.ValueOf(in))
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		encodeValue = node
+	}
+	if err := encoder.Encode(encodeValue); err != nil {
 		return nil, fmt.Errorf("encode YAML: %w", err)
 	}
 	if err := encoder.Close(); err != nil {
@@ -286,7 +311,11 @@ func validateHighLevelDocument(root *yaml.Node, plan *highLevelPlan, data []byte
 	if opts.policy == UnknownKeyWarn {
 		ctx.StrictKeys = false
 	}
-	ctx.sourceLines = splitLines(data)
+	var sourceLines []string
+	if data != nil {
+		sourceLines = splitLines(data)
+	}
+	ctx.sourceLines = sourceLines
 	validator := &Validator{}
 	if plan != nil {
 		validator.schema = plan.schema
@@ -309,7 +338,7 @@ func validateHighLevelDocument(root *yaml.Node, plan *highLevelPlan, data []byte
 	if !failed {
 		return nil
 	}
-	return &ValidationErrors{diagnostics: diagnostics, source: splitLines(data), generated: opts.generated, truncated: ctx.limitReached}
+	return &ValidationErrors{diagnostics: diagnostics, source: sourceLines, generated: opts.generated, truncated: ctx.limitReached}
 }
 
 func rejectGoCycles(value reflect.Value, limits Limits) error {
@@ -338,8 +367,19 @@ func rejectGoCycles(value reflect.Value, limits Limits) error {
 			}
 			v = v.Elem()
 		}
-		if v.Type().Implements(yamlMarshalerType) || v.Type().Implements(textMarshalerType) {
+		if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Map || v.Kind() == reflect.Slice) && v.IsNil() {
 			return nil
+		}
+		if v.Type().Implements(yamlMarshalerType) || v.Type().Implements(textMarshalerType) {
+			generated := false
+			if v.CanInterface() {
+				if _, ok := v.Interface().(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok {
+					generated = true
+				}
+			}
+			if !generated {
+				return nil
+			}
 		}
 		var pointer uintptr
 		switch v.Kind() {
