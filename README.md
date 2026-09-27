@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Yakwilik/go-yamlvalidator/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://coveralls.io/github/Yakwilik/go-yamlvalidator?branch=master"><img alt="Coverage Status" src="https://coveralls.io/repos/github/Yakwilik/go-yamlvalidator/badge.svg?branch=master"></a>
   <a href="https://pkg.go.dev/github.com/Yakwilik/go-yamlvalidator"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/Yakwilik/go-yamlvalidator.svg"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Yakwilik/go-yamlvalidator?sort=semver"></a>
   <a href="https://github.com/Yakwilik/go-yamlvalidator/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/Yakwilik/go-yamlvalidator"></a>
