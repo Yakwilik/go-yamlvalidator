@@ -59,5 +59,15 @@ for package in packages:
         failed = True
 if failed:
     raise SystemExit(1)
+# go test -coverpkg emits the same source block from several test binaries.
+# Publish one canonical entry per block, with merged hit counts, rather than
+# making external reporters interpret duplicate source ranges themselves.
+# This preserves exactly the coverage already measured by the gate above.
+normalized = ["mode: atomic"]
+normalized.extend(
+    f"{location} {count} {hits}"
+    for location, (count, hits) in sorted(blocks.items())
+)
+Path(path).write_text("\n".join(normalized) + "\n")
 PY
 go tool cover -func="$output" | tail -1
