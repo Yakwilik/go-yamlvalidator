@@ -7,16 +7,24 @@ The generator adds typed YAML node encoders and decoders to selected Go types. I
 Run this from the package containing the types:
 
 ~~~sh
-go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -type=Config,Item -output=zz_yamlvalidator_generated.go
+go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -all -output=zz_yamlvalidator_generated.go
+~~~
+
+-all generates roots for every eligible named struct in the current package. Nested statically known types are followed transitively, so they do not need to be listed separately. Generic structs, build-constrained structs, aliases, and structs that already declare conflicting YAML/generated methods are skipped by -all.
+
+Use -type when you want only selected roots, or combine it with -all to add non-struct named roots such as a named string type:
+
+~~~sh
+go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -all -type=Status -output=zz_yamlvalidator_generated.go
 ~~~
 
 Check a generated file in CI without changing it:
 
 ~~~sh
-go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -type=Config,Item -output=zz_yamlvalidator_generated.go -check
+go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -all -output=zz_yamlvalidator_generated.go -check
 ~~~
 
-The generator uses go/packages and loads types under the active Go build constraints. It rejects a selected type declared only in a conditional source file, since an unconstrained generated file would fail in other builds. Regeneration replaces its own prior output with temporary method signatures during type analysis, so field changes and user code referring to generated interfaces still compile. It refuses to replace a file without its generated marker. Existing user methods on a selected type cause a definition error. Separate output files receive distinct helper names.
+The generator uses go/packages and loads types under the active Go build constraints. With -all, build-constrained structs and structs with conflicting user-written YAML/generated methods are skipped; generic structs and aliases are also not automatic roots. An explicitly requested -type remains strict and reports unsupported roots or method conflicts. Regeneration replaces its own prior output with temporary method signatures during type analysis, so field changes and user code referring to generated interfaces still compile. It refuses to replace a file without its generated marker. Separate output files receive distinct helper names.
 
 ## Calls and validation
 
@@ -46,4 +54,4 @@ go run ./examples/codegen
 go test -count=1 ./examples/tagrules
 ~~~
 
-The example generation directive includes Config, Item, Containers, Dynamic, Node, Link, and Registered. For a freshness-only check in that package, use the same full type list with -check.
+The example generation directive uses -all, so new eligible struct types added to the package are picked up automatically. For a freshness-only check in that package, run the generator with -all and -check.

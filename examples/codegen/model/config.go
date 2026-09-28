@@ -1,6 +1,6 @@
 package model
 
-//go:generate go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -type=Config,Item,Containers,Dynamic,Node,Link,Registered -output=zz_yamlvalidator_generated.go
+//go:generate go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -all -output=zz_yamlvalidator_generated.go
 
 // Config is a checked-in generated-code example used by the library tests.
 type Config struct {

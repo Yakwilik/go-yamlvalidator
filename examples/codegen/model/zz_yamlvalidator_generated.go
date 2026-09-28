@@ -80,27 +80,6 @@ func (value *Dynamic) UnmarshalYAML(node *yaml.Node) error {
 	return yamlvalidator.UnmarshalGenerated(node, value)
 }
 
-func (value Item) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Item]() }
-func (value Item) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d3(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
-}
-func (value Item) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d3(registry, encode)
-}
-func (value Item) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d3(value)
-}
-func (value *Item) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
-}
-func (value *Item) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
-	return yamlvalidatorDecode_28ba702d3(node, value, ctx)
-}
-func (value Item) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
-func (value *Item) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
-}
-
 func (value Link) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Link]() }
 func (value Link) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
 	return yamlvalidatorCycle_28ba702d11(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
@@ -253,13 +232,6 @@ func yamlvalidatorGeneratedSchema_28ba702d9(registry *yamlvalidator.Registry, en
 			FieldRules:  true,
 			Conditions:  []yamlvalidator.ConditionalRule{},
 		},
-	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
-}
-func yamlvalidatorGeneratedSchema_28ba702d3(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
-		SourceIndex: 4,
-	},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
