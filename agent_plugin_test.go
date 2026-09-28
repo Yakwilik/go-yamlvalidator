@@ -143,8 +143,8 @@ func TestAgentPluginSelfContainedLinks(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if bytes.ContainsRune(data, '`') {
-				t.Fatal("skill markdown must use tilde fences and <code> inline markup")
+			if !agentMarkdownBackticksAllowed(data) {
+				t.Fatal("use tilde fences and <code> inline markup; raw Go literals are allowed inside Go code blocks")
 			}
 			for _, match := range link.FindAllSubmatch(data, -1) {
 				href := string(match[1])
@@ -247,5 +247,32 @@ func TestAgentPluginEvaluationManifest(t *testing.T) {
 			path = agentSkillPath + "/SKILL.md"
 		}
 		readAgentFile(t, path)
+	}
+}
+
+// Raw Go literals, including idiomatic struct tags, are source code rather than
+// Markdown delimiters. Keep tilde fences/inline markup rules outside Go blocks.
+func agentMarkdownBackticksAllowed(data []byte) bool {
+	goBlocks := regexp.MustCompile("(?ms)^~~~go[ \t]*\r?\n.*?^~~~[ \t]*\r?$")
+	return !bytes.ContainsRune(goBlocks.ReplaceAll(data, nil), '`')
+}
+
+func TestAgentPluginMarkdownBackticks(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		markdown string
+		allowed  bool
+	}{
+		{"raw struct tag", "~~~go\ntype Config struct { Name string `yaml:\"name\" yamlvalidate:\"required\"` }\n~~~\n", true},
+		{"inline code markup", "Use <code>yamlvalidate</code>.\n", true},
+		{"backtick fence", "```go\nvar name string\n```\n", false},
+		{"backticks outside Go", "~~~go\nvar name string\n~~~\nUse `name`.\n", false},
+		{"unclosed Go block", "~~~go\ntype Config struct { Name string `yaml:\"name\"` }\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := agentMarkdownBackticksAllowed([]byte(tc.markdown)); got != tc.allowed {
+				t.Fatalf("allowed=%v, want %v", got, tc.allowed)
+			}
+		})
 	}
 }

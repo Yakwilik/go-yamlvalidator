@@ -40,7 +40,7 @@ func TestPublicFacadeCustomValidatorAndErrors(t *testing.T) {
 		t.Fatal("custom rule not invoked")
 	}
 	var dst struct {
-		Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
+		Name string `yaml:"name" yamlvalidate:"required,nonempty"`
 	}
 	err = v.Unmarshal([]byte("name: ''\n"), &dst)
 	var validation *v.ValidationErrors
@@ -73,7 +73,7 @@ func TestGeneratedAdaptersRejectInvalidReceivers(t *testing.T) {
 // Both public entry points must reach one engine/cache, not two copied
 // validation implementations introduced by the package split.
 type sharedPlanProbe struct {
-	Name string "yaml:\"name\" yamlvalidate:\"not_a_real_rule\""
+	Name string `yaml:"name" yamlvalidate:"not_a_real_rule"`
 }
 
 var sharedPlanCompiles atomic.Int64

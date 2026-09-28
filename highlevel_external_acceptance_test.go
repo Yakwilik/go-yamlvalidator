@@ -10,14 +10,14 @@ import (
 )
 
 type PhaseOneQAIntrinsic struct {
-	File   *string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url,inline]\""
-	URL    *string "yaml:\"url,omitempty\""
-	Inline *string "yaml:\"inline,omitempty\""
+	File   *string `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url,inline]"`
+	URL    *string `yaml:"url,omitempty"`
+	Inline *string `yaml:"inline,omitempty"`
 }
 type PhaseOneQAPlain struct {
-	File   *string "yaml:\"file,omitempty\""
-	URL    *string "yaml:\"url,omitempty\""
-	Inline *string "yaml:\"inline,omitempty\""
+	File   *string `yaml:"file,omitempty"`
+	URL    *string `yaml:"url,omitempty"`
+	Inline *string `yaml:"inline,omitempty"`
 }
 
 func PhaseOneQAAssertResult(t *testing.T, input string, out any, valid bool) {
@@ -54,9 +54,9 @@ func TestHighLevelPhaseOneQA_IntrinsicAndMissingCarrier(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_UseSiteAndCacheIsolation(t *testing.T) {
 	type Config struct {
-		A PhaseOneQAPlain "yaml:\"a\" yamlvalidate:\"required,exactlyOneOfKeys=[file,url]\""
-		B PhaseOneQAPlain "yaml:\"b\" yamlvalidate:\"required,exactlyOneOfKeys=[url,inline]\""
-		C PhaseOneQAPlain "yaml:\"c\""
+		A PhaseOneQAPlain `yaml:"a" yamlvalidate:"required,exactlyOneOfKeys=[file,url]"`
+		B PhaseOneQAPlain `yaml:"b" yamlvalidate:"required,exactlyOneOfKeys=[url,inline]"`
+		C PhaseOneQAPlain `yaml:"c"`
 	}
 	for i := 0; i < 3; i++ {
 		PhaseOneQAAssertResult(t, "a: {file: x}\nb: {inline: y}\nc: {}", &Config{}, true)
@@ -66,11 +66,11 @@ func TestHighLevelPhaseOneQA_UseSiteAndCacheIsolation(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_CarrierTypeDoesNotChangeParentScope(t *testing.T) {
 	type Payload struct {
-		Value string "yaml:\"value,omitempty\""
+		Value string `yaml:"value,omitempty"`
 	}
 	type Config struct {
-		File Payload "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url]\""
-		URL  string  "yaml:\"url,omitempty\""
+		File Payload `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url]"`
+		URL  string  `yaml:"url,omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "url: x", &Config{}, true)
 	PhaseOneQAAssertResult(t, "file: {}", &Config{}, true)
@@ -78,10 +78,10 @@ func TestHighLevelPhaseOneQA_CarrierTypeDoesNotChangeParentScope(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_GroupsDeduplicateButStayIndependent(t *testing.T) {
 	type Config struct {
-		A *string "yaml:\"a,omitempty\" yamlvalidate:\"exactlyOneOf=[a,b]\""
-		B *string "yaml:\"b,omitempty\" yamlvalidate:\"exactlyOneOf=[b,a]\""
-		C *string "yaml:\"c,omitempty\" yamlvalidate:\"exactlyOneOf=[c,d]\""
-		D *string "yaml:\"d,omitempty\""
+		A *string `yaml:"a,omitempty" yamlvalidate:"exactlyOneOf=[a,b]"`
+		B *string `yaml:"b,omitempty" yamlvalidate:"exactlyOneOf=[b,a]"`
+		C *string `yaml:"c,omitempty" yamlvalidate:"exactlyOneOf=[c,d]"`
+		D *string `yaml:"d,omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "a: x\nd: y", &Config{}, true)
 	err := v.Unmarshal([]byte("{}"), &Config{})
@@ -95,9 +95,9 @@ func TestHighLevelPhaseOneQA_GroupsDeduplicateButStayIndependent(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_CollectionsAndOptionalContainer(t *testing.T) {
 	type Config struct {
-		Optional *PhaseOneQAPlain           "yaml:\"optional,omitempty\" yamlvalidate:\"exactlyOneOfKeys=[file,url]\""
-		List     []PhaseOneQAPlain          "yaml:\"list\" yamlvalidate:\"items={exactlyOneOfKeys=[file,url]}\""
-		Map      map[string]PhaseOneQAPlain "yaml:\"map\" yamlvalidate:\"values={exactlyOneOfKeys=[url,inline]}\""
+		Optional *PhaseOneQAPlain           `yaml:"optional,omitempty" yamlvalidate:"exactlyOneOfKeys=[file,url]"`
+		List     []PhaseOneQAPlain          `yaml:"list" yamlvalidate:"items={exactlyOneOfKeys=[file,url]}"`
+		Map      map[string]PhaseOneQAPlain `yaml:"map" yamlvalidate:"values={exactlyOneOfKeys=[url,inline]}"`
 	}
 	PhaseOneQAAssertResult(t, "list: [{url: x}]\nmap: {one: {inline: y}}", &Config{}, true)
 	PhaseOneQAAssertResult(t, "optional: null\nlist: [{file: x}]", &Config{}, true)
@@ -108,7 +108,7 @@ func TestHighLevelPhaseOneQA_CollectionsAndOptionalContainer(t *testing.T) {
 func TestHighLevelPhaseOneQA_DefinitionFailures(t *testing.T) {
 	t.Run("metadata", func(t *testing.T) {
 		type C struct {
-			_ struct{} "yamlvalidate:\"exactlyOneOf=[a,b]\""
+			_ struct{} `yamlvalidate:"exactlyOneOf=[a,b]"`
 			A string
 			B string
 		}
@@ -116,63 +116,63 @@ func TestHighLevelPhaseOneQA_DefinitionFailures(t *testing.T) {
 	})
 	t.Run("rawJSON", func(t *testing.T) {
 		type C struct {
-			A string "yamljsonschema:\"{}\""
+			A string `yamljsonschema:"{}"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("namedJSON", func(t *testing.T) {
 		type C struct {
-			A string "yamlvalidate:\"jsonschema=x\""
+			A string `yamlvalidate:"jsonschema=x"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("scalarKeys", func(t *testing.T) {
 		type C struct {
-			A string "yamlvalidate:\"exactlyOneOfKeys=[a,b]\""
+			A string `yamlvalidate:"exactlyOneOfKeys=[a,b]"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("missingName", func(t *testing.T) {
 		type C struct {
-			A string "yaml:\"a\" yamlvalidate:\"exactlyOneOf=[a,missing]\""
+			A string `yaml:"a" yamlvalidate:"exactlyOneOf=[a,missing]"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("implicitItemScope", func(t *testing.T) {
 		type C struct {
-			A []PhaseOneQAPlain "yamlvalidate:\"items={exactlyOneOf=[file,url]}\""
+			A []PhaseOneQAPlain `yamlvalidate:"items={exactlyOneOf=[file,url]}"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("duplicateMember", func(t *testing.T) {
 		type C struct {
-			A string "yaml:\"a\" yamlvalidate:\"exactlyOneOf=[a,a]\""
+			A string `yaml:"a" yamlvalidate:"exactlyOneOf=[a,a]"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 	t.Run("unknownFormat", func(t *testing.T) {
 		type C struct {
-			A string "yamlvalidate:\"format=not-a-real-format\""
+			A string `yamlvalidate:"format=not-a-real-format"`
 		}
 		PhaseOneQAAssertDefinitionError(t, &C{})
 	})
 }
 func TestHighLevelPhaseOneQA_InlineAndLiteralNames(t *testing.T) {
 	type Config struct {
-		PhaseOneQAIntrinsic "yaml:\",inline\""
-		Other               string "yaml:\"other,omitempty\""
+		PhaseOneQAIntrinsic `yaml:",inline"`
+		Other               string `yaml:"other,omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "url: x\nother: y", &Config{}, true)
 	PhaseOneQAAssertResult(t, "other: y", &Config{}, false)
 	type Dotted struct {
-		A string "yaml:\"a.b,omitempty\" yamlvalidate:\"exactlyOneOf=['a.b','c[d]']\""
-		B string "yaml:\"c[d],omitempty\""
+		A string `yaml:"a.b,omitempty" yamlvalidate:"exactlyOneOf=['a.b','c[d]']"`
+		B string `yaml:"c[d],omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "'c[d]': y", &Dotted{}, true)
 }
 func TestHighLevelPhaseOneQA_StandardAPIWithoutGenerationStaysStandard(t *testing.T) {
 	type Config struct {
-		Port int "yaml:\"port\" yamlvalidate:\"min=100\""
+		Port int `yaml:"port" yamlvalidate:"min=100"`
 	}
 	var c Config
 	if err := yaml.Unmarshal([]byte("port: 1\nunknown: value"), &c); err != nil || c.Port != 1 {
@@ -204,7 +204,7 @@ func TestHighLevelPhaseOneQA_ManualHookBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	type C struct {
-		A PhaseOneQAManual "yaml:\"a\""
+		A PhaseOneQAManual `yaml:"a"`
 	}
 	var c C
 	PhaseOneQAHookCalls = 0
@@ -215,12 +215,12 @@ func TestHighLevelPhaseOneQA_ManualHookBinding(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_NativeFormatsAndUniqueItems(t *testing.T) {
 	type H struct {
-		Host string "yaml:\"host\" yamlvalidate:\"format=hostname\""
+		Host string `yaml:"host" yamlvalidate:"format=hostname"`
 	}
 	PhaseOneQAAssertResult(t, "host: api.example.org", &H{}, true)
 	PhaseOneQAAssertResult(t, "host: 'bad host'", &H{}, false)
 	type U struct {
-		Items []any "yaml:\"items\" yamlvalidate:\"uniqueItems\""
+		Items []any `yaml:"items" yamlvalidate:"uniqueItems"`
 	}
 	PhaseOneQAAssertResult(t, "items: [1, '1']", &U{}, true)
 	PhaseOneQAAssertResult(t, "items: [1, 0x1]", &U{}, false)
@@ -262,9 +262,9 @@ func TestHighLevelPhaseOneQA_LowLevelJSONStillWorksAndRegistryIsNative(t *testin
 
 func TestHighLevelPhaseOneQA_ParentConditionsAndDependenciesOnAbsentCarrier(t *testing.T) {
 	type C struct {
-		Mode string "yaml:\"mode\" yamlvalidate:\"enum=[dev,prod]\""
-		Cert string "yaml:\"cert,omitempty\" yamlvalidate:\"when={field=mode,eq=prod,require=[cert,key]},dependentRequired={cert=[key]}\""
-		Key  string "yaml:\"key,omitempty\""
+		Mode string `yaml:"mode" yamlvalidate:"enum=[dev,prod]"`
+		Cert string `yaml:"cert,omitempty" yamlvalidate:"when={field=mode,eq=prod,require=[cert,key]},dependentRequired={cert=[key]}"`
+		Key  string `yaml:"key,omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "mode: dev", &C{}, true)
 	PhaseOneQAAssertResult(t, "mode: prod", &C{}, false)
@@ -273,7 +273,7 @@ func TestHighLevelPhaseOneQA_ParentConditionsAndDependenciesOnAbsentCarrier(t *t
 }
 func TestHighLevelPhaseOneQA_IntrinsicAndUseSiteGroupsAreConjoined(t *testing.T) {
 	type C struct {
-		Source PhaseOneQAIntrinsic "yaml:\"source\" yamlvalidate:\"required,exactlyOneOfKeys=[file,url]\""
+		Source PhaseOneQAIntrinsic `yaml:"source" yamlvalidate:"required,exactlyOneOfKeys=[file,url]"`
 	}
 	PhaseOneQAAssertResult(t, "source: {inline: z}", &C{}, false)
 	PhaseOneQAAssertResult(t, "source: {file: z}", &C{}, true)
@@ -281,21 +281,21 @@ func TestHighLevelPhaseOneQA_IntrinsicAndUseSiteGroupsAreConjoined(t *testing.T)
 }
 func TestHighLevelPhaseOneQA_InlineUseSiteKeysAndCarrierMoved(t *testing.T) {
 	type C struct {
-		PhaseOneQAPlain "yaml:\",inline\" yamlvalidate:\"exactlyOneOfKeys=[file,url]\""
-		X               int "yaml:\"x,omitempty\""
+		PhaseOneQAPlain `yaml:",inline" yamlvalidate:"exactlyOneOfKeys=[file,url]"`
+		X               int `yaml:"x,omitempty"`
 	}
 	PhaseOneQAAssertResult(t, "file: z\nx: 2", &C{}, true)
 	PhaseOneQAAssertResult(t, "x: 2", &C{}, false)
 	type Moved struct {
-		A string "yaml:\"a,omitempty\""
-		B string "yaml:\"b,omitempty\" yamlvalidate:\"exactlyOneOf=[a,b]\""
+		A string `yaml:"a,omitempty"`
+		B string `yaml:"b,omitempty" yamlvalidate:"exactlyOneOf=[a,b]"`
 	}
 	PhaseOneQAAssertResult(t, "a: x", &Moved{}, true)
 	PhaseOneQAAssertResult(t, "{}", &Moved{}, false)
 }
 func TestHighLevelPhaseOneQA_WarningsStayOptionsAndSingleError(t *testing.T) {
 	type C struct {
-		A int "yaml:\"a\""
+		A int `yaml:"a"`
 	}
 	seen := 0
 	opts := v.UnmarshalOptions{UnknownKeyPolicy: v.UnknownKeyWarn, OnDiagnostic: func(d v.ValidationError) { seen++ }}
@@ -314,7 +314,7 @@ func TestHighLevelPhaseOneQA_WarningsStayOptionsAndSingleError(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_NativeUniqueMergesAndTags(t *testing.T) {
 	type U struct {
-		Items []any "yaml:\"items\" yamlvalidate:\"uniqueItems\""
+		Items []any `yaml:"items" yamlvalidate:"uniqueItems"`
 	}
 	PhaseOneQAAssertResult(t, "items: [&base {a: 1}, {<<: *base}]", &U{}, false)
 	PhaseOneQAAssertResult(t, "items: [!one x, !two x]", &U{}, true)
@@ -324,7 +324,7 @@ func TestHighLevelPhaseOneQA_NativeUniqueMergesAndTags(t *testing.T) {
 
 func TestHighLevelPhaseOneQA_MappingGroupNeverSilentlyAcceptsScalar(t *testing.T) {
 	type C struct {
-		Value any "yaml:\"value\" yamlvalidate:\"exactlyOneOfKeys=[a,b]\""
+		Value any `yaml:"value" yamlvalidate:"exactlyOneOfKeys=[a,b]"`
 	}
 	err := v.Unmarshal([]byte("value: scalar"), &C{})
 	if err == nil {
@@ -333,11 +333,11 @@ func TestHighLevelPhaseOneQA_MappingGroupNeverSilentlyAcceptsScalar(t *testing.T
 }
 func TestHighLevelPhaseOneQA_DefinitionsCheckedInsideCollections(t *testing.T) {
 	type C struct {
-		Items []PhaseOneQAPlain "yaml:\"items\" yamlvalidate:\"items={exactlyOneOfKeys=[missing,file]}\""
+		Items []PhaseOneQAPlain `yaml:"items" yamlvalidate:"items={exactlyOneOfKeys=[missing,file]}"`
 	}
 	PhaseOneQAAssertDefinitionError(t, &C{})
 	type D struct {
-		Items map[string]PhaseOneQAPlain "yaml:\"items\" yamlvalidate:\"values={exactlyOneOfKeys=[missing,file]}\""
+		Items map[string]PhaseOneQAPlain `yaml:"items" yamlvalidate:"values={exactlyOneOfKeys=[missing,file]}"`
 	}
 	PhaseOneQAAssertDefinitionError(t, &D{})
 }
@@ -353,17 +353,17 @@ func TestHighLevelPhaseOneQA_MarshalInputWithSharedAcyclicSlices(t *testing.T) {
 
 func TestHighLevelPhaseOneQA_NativeNumericEdgeCases(t *testing.T) {
 	type U struct {
-		Items []any "yaml:\"items\" yamlvalidate:\"uniqueItems\""
+		Items []any `yaml:"items" yamlvalidate:"uniqueItems"`
 	}
 	t.Run("positiveInfinity", func(t *testing.T) { PhaseOneQAAssertResult(t, "items: [.inf, +.inf]", &U{}, false) })
 	t.Run("underscoredFloat", func(t *testing.T) { PhaseOneQAAssertResult(t, "items: [1_0.0, 10]", &U{}, false) })
 	type Bounded struct {
-		Value any "yaml:\"value\" yamlvalidate:\"type=float,max=100\""
+		Value any `yaml:"value" yamlvalidate:"type=float,max=100"`
 	}
 	t.Run("boundedInfinity", func(t *testing.T) { PhaseOneQAAssertResult(t, "value: .inf", &Bounded{}, false) })
 	t.Run("boundedNaN", func(t *testing.T) { PhaseOneQAAssertResult(t, "value: .nan", &Bounded{}, false) })
 	type Floats struct {
-		Value float64 "yaml:\"value\""
+		Value float64 `yaml:"value"`
 	}
 	t.Run("hexIntegerAsFloat", func(t *testing.T) { PhaseOneQAAssertResult(t, "value: 0x10", &Floats{}, true) })
 }
@@ -380,10 +380,10 @@ func TestHighLevelPhaseOneQA_InlineCheckRunsOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	type Inner struct {
-		A int "yaml:\"a\""
+		A int `yaml:"a"`
 	}
 	type Outer struct {
-		Inner "yaml:\",inline\" yamlvalidate:\"check=count\""
+		Inner `yaml:",inline" yamlvalidate:"check=count"`
 	}
 	var value Outer
 	err = (v.UnmarshalOptions{Registry: reg}).Unmarshal([]byte("a: 1"), &value)
@@ -393,7 +393,7 @@ func TestHighLevelPhaseOneQA_InlineCheckRunsOnce(t *testing.T) {
 }
 func TestHighLevelPhaseOneQA_UseSiteDuplicateDedup(t *testing.T) {
 	type C struct {
-		Source PhaseOneQAIntrinsic "yaml:\"source\" yamlvalidate:\"exactlyOneOfKeys=[inline,url,file]\""
+		Source PhaseOneQAIntrinsic `yaml:"source" yamlvalidate:"exactlyOneOfKeys=[inline,url,file]"`
 	}
 	err := v.Unmarshal([]byte("source: {}"), &C{})
 	var e *v.ValidationErrors

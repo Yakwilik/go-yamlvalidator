@@ -26,10 +26,10 @@ Unknown struct fields are errors by default in this high-level API.
 
 ~~~go
 type Config struct {
-    Name  string   "yaml:\"name\" yamlvalidate:\"required,nonempty,minLength=2,maxLength=63\""
-    Mode  string   "yaml:\"mode\" yamlvalidate:\"required,enum=[dev,prod]\""
-    Port  uint16   "yaml:\"port\" yamlvalidate:\"min=1,max=65535\""
-    Hosts []string "yaml:\"hosts\" yamlvalidate:\"required,minItems=1,items={nonempty,format=hostname}\""
+    Name  string   `yaml:"name" yamlvalidate:"required,nonempty,minLength=2,maxLength=63"`
+    Mode  string   `yaml:"mode" yamlvalidate:"required,enum=[dev,prod]"`
+    Port  uint16   `yaml:"port" yamlvalidate:"min=1,max=65535"`
+    Hosts []string `yaml:"hosts" yamlvalidate:"required,minItems=1,items={nonempty,format=hostname}"`
 }
 ~~~
 
@@ -53,9 +53,9 @@ absent from the input.
 
 ~~~go
 type Source struct {
-    File   string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url,inline],nonempty\""
-    URL    string "yaml:\"url,omitempty\""
-    Inline string "yaml:\"inline,omitempty\""
+    File   string `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url,inline],nonempty"`
+    URL    string `yaml:"url,omitempty"`
+    Inline string `yaml:"inline,omitempty"`
 }
 ~~~
 
@@ -66,7 +66,7 @@ The Keys variants constrain the mapping value of the current field:
 
 ~~~go
 type Config struct {
-    Source map[string]any "yaml:\"source\" yamlvalidate:\"exactlyOneOfKeys=[file,url,inline]\""
+    Source map[string]any `yaml:"source" yamlvalidate:"exactlyOneOfKeys=[file,url,inline]"`
 }
 ~~~
 

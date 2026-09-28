@@ -34,7 +34,7 @@ path unless the application already owns a separate schema:
 
 ~~~go
 type Config struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
 }
 
 var cfg Config

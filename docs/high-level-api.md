@@ -57,8 +57,8 @@ import (
 )
 
 type Config struct {
-    Host string "yaml:\"host\" yamlvalidate:\"required,nonempty,format=hostname\""
-    Port uint16 "yaml:\"port\" yamlvalidate:\"required,min=1\""
+    Host string `yaml:"host" yamlvalidate:"required,nonempty,format=hostname"`
+    Port uint16 `yaml:"port" yamlvalidate:"required,min=1"`
 }
 
 func main() {
@@ -105,8 +105,8 @@ import (
 )
 
 type Config struct {
-    Enabled bool "yaml:\"enabled\" yamlvalidate:\"required\""
-    Retries *int "yaml:\"retries\" yamlvalidate:\"required,notnull,min=0\""
+    Enabled bool `yaml:"enabled" yamlvalidate:"required"`
+    Retries *int `yaml:"retries" yamlvalidate:"required,notnull,min=0"`
 }
 
 func main() {
@@ -152,8 +152,8 @@ import (
 )
 
 type Config struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
-    Port uint16 "yaml:\"port\" yamlvalidate:\"required,min=1\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
+    Port uint16 `yaml:"port" yamlvalidate:"required,min=1"`
 }
 
 func main() {
@@ -194,9 +194,9 @@ import (
 )
 
 type Config struct {
-    Hosts []string "yaml:\"hosts\" yamlvalidate:\"required,minItems=1,uniqueItems,items={nonempty,format=hostname}\""
-    Limits map[string]int "yaml:\"limits\" yamlvalidate:\"keys={pattern='^[a-z][a-z0-9_-]*$'},values={min=1,max=100}\""
-    Matrix [][]int "yaml:\"matrix\" yamlvalidate:\"items={minItems=1,items={min=0,max=255}}\""
+    Hosts []string `yaml:"hosts" yamlvalidate:"required,minItems=1,uniqueItems,items={nonempty,format=hostname}"`
+    Limits map[string]int `yaml:"limits" yamlvalidate:"keys={pattern='^[a-z][a-z0-9_-]*$'},values={min=1,max=100}"`
+    Matrix [][]int `yaml:"matrix" yamlvalidate:"items={minItems=1,items={min=0,max=255}}"`
 }
 
 func main() {
@@ -247,7 +247,7 @@ import (
 )
 
 type Config struct {
-    Settings map[string]any "yaml:\"settings\" yamlvalidate:\"required,notnull,properties={host={type=string,required,format=hostname},port={type=int,required,min=1,max=65535}},additional=forbid\""
+    Settings map[string]any `yaml:"settings" yamlvalidate:"required,notnull,properties={host={type=string,required,format=hostname},port={type=int,required,min=1,max=65535}},additional=forbid"`
 }
 
 func main() {
@@ -294,9 +294,9 @@ import (
 )
 
 type Source struct {
-    File string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url,inline],nonempty\""
-    URL string "yaml:\"url,omitempty\" yamlvalidate:\"nonempty,url={requireScheme=true,schemes=[https]}\""
-    Inline string "yaml:\"inline,omitempty\" yamlvalidate:\"nonempty\""
+    File string `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url,inline],nonempty"`
+    URL string `yaml:"url,omitempty" yamlvalidate:"nonempty,url={requireScheme=true,schemes=[https]}"`
+    Inline string `yaml:"inline,omitempty" yamlvalidate:"nonempty"`
 }
 
 func main() {
@@ -343,15 +343,15 @@ import (
 )
 
 type Source struct {
-    File string "yaml:\"file,omitempty\" yamlvalidate:\"nonempty\""
-    URL string "yaml:\"url,omitempty\" yamlvalidate:\"nonempty\""
+    File string `yaml:"file,omitempty" yamlvalidate:"nonempty"`
+    URL string `yaml:"url,omitempty" yamlvalidate:"nonempty"`
 }
 
 type Config struct {
-    Primary Source "yaml:\"primary\" yamlvalidate:\"required,exactlyOneOfKeys=[file,url]\""
-    Optional *Source "yaml:\"optional,omitempty\" yamlvalidate:\"notnull,exactlyOneOfKeys=[file,url]\""
-    List []Source "yaml:\"list\" yamlvalidate:\"items={exactlyOneOfKeys=[file,url]}\""
-    Named map[string]Source "yaml:\"named\" yamlvalidate:\"values={exactlyOneOfKeys=[file,url]}\""
+    Primary Source `yaml:"primary" yamlvalidate:"required,exactlyOneOfKeys=[file,url]"`
+    Optional *Source `yaml:"optional,omitempty" yamlvalidate:"notnull,exactlyOneOfKeys=[file,url]"`
+    List []Source `yaml:"list" yamlvalidate:"items={exactlyOneOfKeys=[file,url]}"`
+    Named map[string]Source `yaml:"named" yamlvalidate:"values={exactlyOneOfKeys=[file,url]}"`
 }
 
 func main() {
@@ -403,14 +403,14 @@ import (
 )
 
 type TLS struct {
-    Cert string "yaml:\"cert,omitempty\" yamlvalidate:\"nonempty,dependentRequired={cert=[key],key=[cert]}\""
-    Key string "yaml:\"key,omitempty\" yamlvalidate:\"nonempty\""
+    Cert string `yaml:"cert,omitempty" yamlvalidate:"nonempty,dependentRequired={cert=[key],key=[cert]}"`
+    Key string `yaml:"key,omitempty" yamlvalidate:"nonempty"`
 }
 
 type Config struct {
-    Mode string "yaml:\"mode\" yamlvalidate:\"required,enum=[dev,prod],when={field=mode,eq=prod,require=[tls],forbid=[debug]}\""
-    TLS *TLS "yaml:\"tls,omitempty\" yamlvalidate:\"notnull,requireKeys=[cert,key]\""
-    Debug bool "yaml:\"debug,omitempty\""
+    Mode string `yaml:"mode" yamlvalidate:"required,enum=[dev,prod],when={field=mode,eq=prod,require=[tls],forbid=[debug]}"`
+    TLS *TLS `yaml:"tls,omitempty" yamlvalidate:"notnull,requireKeys=[cert,key]"`
+    Debug bool `yaml:"debug,omitempty"`
 }
 
 func main() {
@@ -459,15 +459,15 @@ import (
 )
 
 type Connection struct {
-    DSN string "yaml:\"dsn,omitempty\" yamlvalidate:\"oneOfRequired=[[dsn],[host,port]]\""
-    Host string "yaml:\"host,omitempty\""
-    Port uint16 "yaml:\"port,omitempty\" yamlvalidate:\"min=1\""
+    DSN string `yaml:"dsn,omitempty" yamlvalidate:"oneOfRequired=[[dsn],[host,port]]"`
+    Host string `yaml:"host,omitempty"`
+    Port uint16 `yaml:"port,omitempty" yamlvalidate:"min=1"`
 }
 
 type StrictConnection struct {
-    DSN string "yaml:\"dsn,omitempty\" yamlvalidate:\"oneOfRequired=[[dsn],[host,port]],forbiddenTogether=[[dsn,host],[dsn,port]]\""
-    Host string "yaml:\"host,omitempty\""
-    Port uint16 "yaml:\"port,omitempty\" yamlvalidate:\"min=1\""
+    DSN string `yaml:"dsn,omitempty" yamlvalidate:"oneOfRequired=[[dsn],[host,port]],forbiddenTogether=[[dsn,host],[dsn,port]]"`
+    Host string `yaml:"host,omitempty"`
+    Port uint16 `yaml:"port,omitempty" yamlvalidate:"min=1"`
 }
 
 func main() {
@@ -516,15 +516,15 @@ import (
 )
 
 type Credentials struct {
-    Token string "yaml:\"token,omitempty\" yamlvalidate:\"nonempty,exactlyOneOf=[token,user]\""
-    User string "yaml:\"user,omitempty\" yamlvalidate:\"nonempty,dependentRequired={user=[password],password=[user]}\""
-    Password string "yaml:\"password,omitempty\" yamlvalidate:\"nonempty\""
+    Token string `yaml:"token,omitempty" yamlvalidate:"nonempty,exactlyOneOf=[token,user]"`
+    User string `yaml:"user,omitempty" yamlvalidate:"nonempty,dependentRequired={user=[password],password=[user]}"`
+    Password string `yaml:"password,omitempty" yamlvalidate:"nonempty"`
 }
 
 type Job struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
-    Credentials "yaml:\",inline\""
-    Extra map[string]string "yaml:\",inline\" yamlvalidate:\"keys={pattern='^x_'},values={nonempty}\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
+    Credentials `yaml:",inline"`
+    Extra map[string]string `yaml:",inline" yamlvalidate:"keys={pattern='^x_'},values={nonempty}"`
 }
 
 func main() {
@@ -571,7 +571,7 @@ import (
 )
 
 type Config struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
 }
 
 func main() {
@@ -623,8 +623,8 @@ import (
 )
 
 type Config struct {
-    Mode string "yaml:\"mode\" yamlvalidate:\"enum=[dev,prod],default=dev\""
-    Legacy bool "yaml:\"legacy,omitempty\" yamlvalidate:\"deprecated='use features instead'\""
+    Mode string `yaml:"mode" yamlvalidate:"enum=[dev,prod],default=dev"`
+    Legacy bool `yaml:"legacy,omitempty" yamlvalidate:"deprecated='use features instead'"`
 }
 
 func main() {
@@ -676,11 +676,11 @@ import (
 )
 
 type Config struct {
-    Port uint16 "yaml:\"port\" yamlvalidate:\"required,min=1\""
+    Port uint16 `yaml:"port" yamlvalidate:"required,min=1"`
 }
 
 type BadDefinition struct {
-    Port uint16 "yaml:\"port\" yamlvalidate:\"minimum=1\""
+    Port uint16 `yaml:"port" yamlvalidate:"minimum=1"`
 }
 
 func main() {
@@ -733,13 +733,13 @@ import (
 )
 
 type Source struct {
-    File string "yaml:\"file,omitempty\""
-    URL string "yaml:\"url,omitempty\""
+    File string `yaml:"file,omitempty"`
+    URL string `yaml:"url,omitempty"`
 }
 
 type Config struct {
-    Mode string "yaml:\"mode\" yamlvalidate:\"required,check=environment\""
-    Source Source "yaml:\"source\" yamlvalidate:\"required,ref=source\""
+    Mode string `yaml:"mode" yamlvalidate:"required,check=environment"`
+    Source Source `yaml:"source" yamlvalidate:"required,ref=source"`
 }
 
 func main() {
@@ -815,7 +815,7 @@ func (p Prefix) Validate(node *yaml.Node, path string, ctx *v.ValidationContext)
 }
 
 type Config struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,check={name=prefix,args={value='svc-'}}\""
+    Name string `yaml:"name" yamlvalidate:"required,check={name=prefix,args={value='svc-'}}"`
 }
 
 func main() {
@@ -889,7 +889,7 @@ func (e Endpoint) MarshalYAML() (any, error) {
 }
 
 type Config struct {
-    Endpoint Endpoint "yaml:\"endpoint\" yamlvalidate:\"required,url={requireScheme=true,schemes=[https]}\""
+    Endpoint Endpoint `yaml:"endpoint" yamlvalidate:"required,url={requireScheme=true,schemes=[https]}"`
 }
 
 func main() {
@@ -941,7 +941,7 @@ import (
 )
 
 type Config struct {
-    Target any "yaml:\"target\" yamlvalidate:\"required,notnull,oneOfSchemas=[{type=string,nonempty},{type=map,properties={host={type=string,required,nonempty},port={type=int,required,min=1,max=65535}},additional=forbid}]\""
+    Target any `yaml:"target" yamlvalidate:"required,notnull,oneOfSchemas=[{type=string,nonempty},{type=map,properties={host={type=string,required,nonempty},port={type=int,required,min=1,max=65535}},additional=forbid}]"`
 }
 
 func main() {
@@ -991,8 +991,8 @@ import (
 )
 
 type Config struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
-    Mode string "yaml:\"mode\" yamlvalidate:\"required,enum=[dev,prod]\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
+    Mode string `yaml:"mode" yamlvalidate:"required,enum=[dev,prod]"`
 }
 
 func main() {
@@ -1047,11 +1047,11 @@ import (
 )
 
 type ValueConfig struct {
-    Attempts int "yaml:\"attempts,omitempty\" yamlvalidate:\"required,min=0\""
+    Attempts int `yaml:"attempts,omitempty" yamlvalidate:"required,min=0"`
 }
 
 type PointerConfig struct {
-    Attempts *int "yaml:\"attempts,omitempty\" yamlvalidate:\"required,notnull,min=0\""
+    Attempts *int `yaml:"attempts,omitempty" yamlvalidate:"required,notnull,min=0"`
 }
 
 func main() {
@@ -1098,8 +1098,8 @@ import (
 )
 
 type Node struct {
-    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
-    Children []*Node "yaml:\"children,omitempty\""
+    Name string `yaml:"name" yamlvalidate:"required,nonempty"`
+    Children []*Node `yaml:"children,omitempty"`
 }
 
 func main() {
@@ -1154,7 +1154,7 @@ import (
 )
 
 type Config struct {
-    Port int "yaml:\"port\" yamlvalidate:\"unknown_directive\""
+    Port int `yaml:"port" yamlvalidate:"unknown_directive"`
 }
 
 func main() {
@@ -1233,10 +1233,10 @@ Every object group has two explicit names. The bare name on a serializable struc
 
 ~~~go
 type Input struct {
-    File string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url,inline],nonempty\""
-    URL string "yaml:\"url,omitempty\""
-    Inline string "yaml:\"inline,omitempty\""
-    Choice map[string]any "yaml:\"choice,omitempty\" yamlvalidate:\"exactlyOneOfKeys=[file,url]\""
+    File string `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url,inline],nonempty"`
+    URL string `yaml:"url,omitempty"`
+    Inline string `yaml:"inline,omitempty"`
+    Choice map[string]any `yaml:"choice,omitempty" yamlvalidate:"exactlyOneOfKeys=[file,url]"`
 }
 ~~~
 

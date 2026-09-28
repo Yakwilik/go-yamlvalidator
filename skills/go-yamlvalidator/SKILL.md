@@ -76,9 +76,9 @@ import (
 )
 
 type Config struct {
-    Mode string "yaml:\"mode\" yamlvalidate:\"required,enum=[dev,prod]\""
-    File string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url],nonempty\""
-    URL  string "yaml:\"url,omitempty\""
+    Mode string `yaml:"mode" yamlvalidate:"required,enum=[dev,prod]"`
+    File string `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url],nonempty"`
+    URL  string `yaml:"url,omitempty"`
 }
 
 func main() {
