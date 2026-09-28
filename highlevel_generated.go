@@ -31,14 +31,25 @@ type generatedSchemaProvider interface {
 func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, bool, error) {
 	provider, ok := value.(generatedSchemaProvider)
 	marker, hasMarker := value.(interface{ YAMLValidatorGeneratedType() reflect.Type })
-	if !ok || !hasMarker || !exactGeneratedType(value, marker.YAMLValidatorGeneratedType()) {
+	if !ok || !hasMarker {
 		return nil, false, nil
 	}
-	schema, err := provider.YAMLValidatorSchema(registry, encode)
-	if err != nil {
-		return nil, true, err
+	typ := marker.YAMLValidatorGeneratedType()
+	if !exactGeneratedType(value, typ) {
+		return nil, false, nil
 	}
-	return &highLevelPlan{schema: schema}, true, nil
+	cache := &defaultPlanCache
+	if registry != nil {
+		cache = &registry.cache
+	}
+	plan, err := cache.getOrCompile(planKey{typ: typ, encode: encode}, func() (*highLevelPlan, error) {
+		schema, err := provider.YAMLValidatorSchema(registry, encode)
+		if err != nil {
+			return nil, err
+		}
+		return &highLevelPlan{schema: schema}, nil
+	})
+	return plan, true, err
 }
 
 func exactGeneratedType(value any, declared reflect.Type) bool {
