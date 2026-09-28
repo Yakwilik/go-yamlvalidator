@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Yakwilik/go-yamlvalidator/internal/taglang"
@@ -24,15 +25,18 @@ var textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
 var textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 var yamlMarshalerType = reflect.TypeFor[yaml.Marshaler]()
 var yamlUnmarshalerType = reflect.TypeFor[yaml.Unmarshaler]()
+var reflectSchemaCompileCalls atomic.Uint64
+var generatedStructReflectionCalls atomic.Uint64
 
 func compileHighLevel(typ reflect.Type, encode bool, registry *Registry) (*highLevelPlan, error) {
+	reflectSchemaCompileCalls.Add(1)
 	key := planKey{typ, encode}
 	cache := &defaultPlanCache
 	if registry != nil {
 		cache = &registry.cache
 	}
 	return cache.getOrCompile(key, func() (*highLevelPlan, error) {
-		compiler := &highLevelCompiler{encode: encode, registry: registry, visiting: make(map[reflect.Type]bool)}
+		compiler := &highLevelCompiler{encode: encode, registry: registry, visiting: make(map[reflect.Type]bool), schemas: make(map[reflect.Type]*FieldSchema)}
 		schema, err := compiler.infer(typ)
 		if err != nil {
 			return nil, err
@@ -47,7 +51,9 @@ func compileHighLevel(typ reflect.Type, encode bool, registry *Registry) (*highL
 type highLevelCompiler struct {
 	encode        bool
 	registry      *Registry
+	symbolic      bool
 	visiting      map[reflect.Type]bool
+	schemas       map[reflect.Type]*FieldSchema
 	inlineTargets map[reflect.Type]int
 }
 
@@ -92,8 +98,27 @@ func (c *highLevelCompiler) infer(typ reflect.Type) (*FieldSchema, error) {
 			}
 		}
 	}
+	if typ.Kind() != reflect.Interface {
+		candidate := reflect.New(typ).Interface()
+		if provider, ok := candidate.(generatedSchemaProvider); ok {
+			if marker, ok := candidate.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
+				schema, err := provider.YAMLValidatorSchema(c.registry, c.encode)
+				if err != nil {
+					return nil, err
+				}
+				schema.Nullable = schema.Nullable || nullable
+				return schema, nil
+			}
+		}
+	}
 	if c.visiting[typ] {
-		return nil, &SchemaError{Type: typ, Reason: "recursive Go type graph is not supported"}
+		schema := c.schemas[typ]
+		if nullable {
+			copy := *schema
+			copy.Nullable = true
+			return &copy, nil
+		}
+		return schema, nil
 	}
 	if typ == timeType {
 		return &FieldSchema{Type: TypeString, Nullable: nullable}, nil
@@ -109,6 +134,10 @@ func (c *highLevelCompiler) infer(typ reflect.Type) (*FieldSchema, error) {
 		return nil, &SchemaError{Type: typ, Reason: "custom YAML/text codec requires a type binding or explicit type=any"}
 	}
 	schema := &FieldSchema{Nullable: nullable}
+	if c.schemas == nil {
+		c.schemas = make(map[reflect.Type]*FieldSchema)
+	}
+	c.schemas[typ] = schema
 	switch typ.Kind() {
 	case reflect.String:
 		schema.Type = TypeString
@@ -183,6 +212,11 @@ func isCustomCodec(typ reflect.Type, encode bool) bool {
 }
 
 func (c *highLevelCompiler) compileStruct(typ reflect.Type, schema *FieldSchema) error {
+	if candidate := reflect.New(typ).Interface(); candidate != nil {
+		if marker, ok := candidate.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
+			generatedStructReflectionCalls.Add(1)
+		}
+	}
 	schema.AllowedKeys = make(map[string]*FieldSchema)
 	var fields []reflect.StructField
 	if marker, ok := reflect.New(typ).Interface().(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {

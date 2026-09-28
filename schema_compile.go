@@ -28,26 +28,25 @@ func CompileFieldSchema(schema *FieldSchema) (*Validator, error) {
 }
 
 // ValidateFieldSchema checks FieldSchema invariants, including nested schemas,
-// invalid constraints, recursive schema graphs, and validator definitions.
+// invalid constraints, non-progressing recursion, and validator definitions.
 func ValidateFieldSchema(schema *FieldSchema) error {
 	if schema == nil {
 		return fmt.Errorf("schema is nil")
 	}
-	return validateFieldSchema(schema, "$", make(map[*FieldSchema]bool), make(map[*FieldSchema]bool))
+	if err := validateFieldSchema(schema, "$", make(map[*FieldSchema]bool)); err != nil {
+		return err
+	}
+	return validateSameNodeCycles(schema)
 }
 
-func validateFieldSchema(schema *FieldSchema, path string, visiting, validated map[*FieldSchema]bool) error {
+func validateFieldSchema(schema *FieldSchema, path string, validated map[*FieldSchema]bool) error {
 	if schema == nil {
 		return fmt.Errorf("%s: schema is nil", path)
 	}
 	if validated[schema] {
 		return nil
 	}
-	if visiting[schema] {
-		return fmt.Errorf("%s: recursive FieldSchema graph is not supported", path)
-	}
-	visiting[schema] = true
-	defer delete(visiting, schema)
+	validated[schema] = true
 
 	if !validNodeType(schema.Type) {
 		return fmt.Errorf("%s.type: invalid node type %d", path, schema.Type)
@@ -107,32 +106,32 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 		if child == nil {
 			return fmt.Errorf("%s.allowedKeys[%q]: schema is nil", path, name)
 		}
-		if err := validateFieldSchema(child, path+".allowedKeys["+fmt.Sprintf("%q", name)+"]", visiting, validated); err != nil {
+		if err := validateFieldSchema(child, path+".allowedKeys["+fmt.Sprintf("%q", name)+"]", validated); err != nil {
 			return err
 		}
 	}
 	if schema.AdditionalProperties != nil {
-		if err := validateFieldSchema(schema.AdditionalProperties, path+".additionalProperties", visiting, validated); err != nil {
+		if err := validateFieldSchema(schema.AdditionalProperties, path+".additionalProperties", validated); err != nil {
 			return err
 		}
 	}
 	if schema.ValueSchema != nil {
-		if err := validateFieldSchema(schema.ValueSchema, path+".valueSchema", visiting, validated); err != nil {
+		if err := validateFieldSchema(schema.ValueSchema, path+".valueSchema", validated); err != nil {
 			return err
 		}
 	}
 	if schema.inlineCapture != nil {
-		if err := validateFieldSchema(schema.inlineCapture, path+".inlineCapture", visiting, validated); err != nil {
+		if err := validateFieldSchema(schema.inlineCapture, path+".inlineCapture", validated); err != nil {
 			return err
 		}
 	}
 	for i, extra := range schema.extraSchemas {
-		if err := validateFieldSchema(extra, fmt.Sprintf("%s.extraSchemas[%d]", path, i), visiting, validated); err != nil {
+		if err := validateFieldSchema(extra, fmt.Sprintf("%s.extraSchemas[%d]", path, i), validated); err != nil {
 			return err
 		}
 	}
 	if schema.ItemSchema != nil {
-		if err := validateFieldSchema(schema.ItemSchema, path+".itemSchema", visiting, validated); err != nil {
+		if err := validateFieldSchema(schema.ItemSchema, path+".itemSchema", validated); err != nil {
 			return err
 		}
 	}
@@ -140,7 +139,7 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 		if child == nil {
 			return fmt.Errorf("%s.oneOfSchemas[%d]: schema is nil", path, i)
 		}
-		if err := validateFieldSchema(child, fmt.Sprintf("%s.oneOfSchemas[%d]", path, i), visiting, validated); err != nil {
+		if err := validateFieldSchema(child, fmt.Sprintf("%s.oneOfSchemas[%d]", path, i), validated); err != nil {
 			return err
 		}
 	}
@@ -148,7 +147,7 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 		if child == nil {
 			return fmt.Errorf("%s.anyOfSchemas[%d]: schema is nil", path, i)
 		}
-		if err := validateFieldSchema(child, fmt.Sprintf("%s.anyOfSchemas[%d]", path, i), visiting, validated); err != nil {
+		if err := validateFieldSchema(child, fmt.Sprintf("%s.anyOfSchemas[%d]", path, i), validated); err != nil {
 			return err
 		}
 	}
@@ -216,6 +215,75 @@ func validateFieldSchema(schema *FieldSchema, path string, visiting, validated m
 	}
 
 	validated[schema] = true
+	return nil
+}
+
+// Same-node alternatives and overlays must be acyclic. Child-value edges are
+// allowed to return to an ancestor because validation has descended in YAML.
+func validateSameNodeCycles(root *FieldSchema) error {
+	all := map[*FieldSchema]bool{}
+	var collect func(*FieldSchema)
+	collect = func(s *FieldSchema) {
+		if s == nil || all[s] {
+			return
+		}
+		all[s] = true
+		for _, child := range s.AllowedKeys {
+			collect(child)
+		}
+		collect(s.AdditionalProperties)
+		collect(s.ValueSchema)
+		collect(s.inlineCapture)
+		collect(s.ItemSchema)
+		for _, child := range s.extraSchemas {
+			collect(child)
+		}
+		for _, child := range s.OneOfSchemas {
+			collect(child)
+		}
+		for _, child := range s.AnyOfSchemas {
+			collect(child)
+		}
+	}
+	collect(root)
+	state := map[*FieldSchema]uint8{}
+	var visit func(*FieldSchema) error
+	visit = func(s *FieldSchema) error {
+		if state[s] == 1 {
+			return fmt.Errorf("recursive FieldSchema graph through same-node composition")
+		}
+		if state[s] == 2 {
+			return nil
+		}
+		state[s] = 1
+		if s.inlineCapture != nil {
+			if err := visit(s.inlineCapture); err != nil {
+				return err
+			}
+		}
+		for _, child := range s.extraSchemas {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		for _, child := range s.OneOfSchemas {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		for _, child := range s.AnyOfSchemas {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		state[s] = 2
+		return nil
+	}
+	for s := range all {
+		if err := visit(s); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -23,6 +23,23 @@ type generatedEncoder interface {
 	YAMLValidatorEncode() (*yaml.Node, error)
 }
 
+type generatedSchemaProvider interface {
+	YAMLValidatorSchema(*Registry, bool) (*FieldSchema, error)
+}
+
+func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, bool, error) {
+	provider, ok := value.(generatedSchemaProvider)
+	marker, hasMarker := value.(interface{ YAMLValidatorGeneratedType() reflect.Type })
+	if !ok || !hasMarker || !exactGeneratedType(value, marker.YAMLValidatorGeneratedType()) {
+		return nil, false, nil
+	}
+	schema, err := provider.YAMLValidatorSchema(registry, encode)
+	if err != nil {
+		return nil, true, err
+	}
+	return &highLevelPlan{schema: schema}, true, nil
+}
+
 func exactGeneratedType(value any, declared reflect.Type) bool {
 	typ := reflect.TypeOf(value)
 	for typ != nil && typ.Kind() == reflect.Pointer {
@@ -41,14 +58,14 @@ func MarshalGenerated(value generatedEncoder) (*yaml.Node, error) {
 		return nil, fmt.Errorf("promoted generated YAML method on a different type")
 	}
 	limits, _ := normalizeLimits(Limits{})
-	if err := rejectGoCycles(reflect.ValueOf(value), limits); err != nil {
+	if err := checkGeneratedCycles(value, limits); err != nil {
 		return nil, err
 	}
 	node, err := value.YAMLValidatorEncode()
 	if err != nil {
 		return nil, err
 	}
-	plan, err := compileHighLevel(reflect.TypeOf(value), true, nil)
+	plan, _, err := generatedPlan(value, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -59,12 +76,23 @@ func MarshalGenerated(value generatedEncoder) (*yaml.Node, error) {
 	return node, nil
 }
 
+func checkGeneratedCycles(value any, limits Limits) error {
+	if !nilInterface(value) {
+		if marker, ok := value.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && exactGeneratedType(value, marker.YAMLValidatorGeneratedType()) {
+			if checker, ok := value.(interface{ YAMLValidatorCheckCycles(Limits) error }); ok {
+				return checker.YAMLValidatorCheckCycles(limits)
+			}
+		}
+	}
+	return rejectGoCycles(reflect.ValueOf(value), limits)
+}
+
 // UnmarshalGenerated supports the standard yaml.v3 hook on a parsed node.
 func UnmarshalGenerated(node *yaml.Node, dst GeneratedCodec) error {
 	if !exactGeneratedType(dst, dst.YAMLValidatorGeneratedType()) {
 		return fmt.Errorf("promoted generated YAML method on a different type")
 	}
-	plan, err := compileHighLevel(reflect.TypeOf(dst), false, nil)
+	plan, _, err := generatedPlan(dst, nil, false)
 	if err != nil {
 		return err
 	}

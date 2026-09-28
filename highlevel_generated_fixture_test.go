@@ -2,11 +2,13 @@ package yamlvalidator_test
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/Yakwilik/go-yamlvalidator"
 	"github.com/Yakwilik/go-yamlvalidator/examples/codegen/model"
+	valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 	"gopkg.in/yaml.v3"
 )
 
@@ -63,6 +65,131 @@ func TestCheckedInGeneratedFixture(t *testing.T) {
 	}
 	if err := (yamlvalidator.UnmarshalOptions{SkipValidation: true}).Unmarshal([]byte("name: ''\n"), &config); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGeneratedRecursiveNodeAndLink(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   []byte
+		out  any
+	}{
+		{"node", []byte("name: root\nchildren: [{name: leaf}]\n"), &model.Node{}},
+		{"link", []byte("value: root\nnext: {value: leaf}\n"), &model.Link{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := yamlvalidator.Unmarshal(tc.in, tc.out); err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := yamlvalidator.Marshal(tc.out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(encoded), "leaf") {
+				t.Fatalf("missing recursive child: %s", encoded)
+			}
+			if err := (yamlvalidator.UnmarshalOptions{Limits: yamlvalidator.Limits{MaxDepth: 2}}).Unmarshal(tc.in, tc.out); err == nil {
+				t.Fatal("depth limit accepted recursive input")
+			}
+		})
+	}
+	if err := yamlvalidator.Unmarshal([]byte("name: root\nchildren: [{}]\n"), &model.Node{}); err == nil {
+		t.Fatal("nested required field was not validated")
+	}
+	for _, value := range []any{
+		func() any {
+			n := &model.Node{Name: "cycle"}
+			n.Children = []model.Node{*n}
+			n.Children[0].Children = n.Children
+			return n
+		}(),
+		func() any { l := &model.Link{Value: "cycle"}; l.Next = l; return l }(),
+	} {
+		if _, err := yamlvalidator.Marshal(value); err == nil {
+			t.Fatalf("cyclic %T accepted", value)
+		}
+	}
+	for _, schema := range []struct {
+		name string
+		s    *yamlvalidator.FieldSchema
+		err  error
+	}{
+		func() struct {
+			name string
+			s    *yamlvalidator.FieldSchema
+			err  error
+		} {
+			s, e := model.Node{}.YAMLValidatorSchema(nil, false)
+			return struct {
+				name string
+				s    *yamlvalidator.FieldSchema
+				err  error
+			}{"node", s, e}
+		}(),
+		func() struct {
+			name string
+			s    *yamlvalidator.FieldSchema
+			err  error
+		} {
+			s, e := model.Link{}.YAMLValidatorSchema(nil, false)
+			return struct {
+				name string
+				s    *yamlvalidator.FieldSchema
+				err  error
+			}{"link", s, e}
+		}(),
+	} {
+		if schema.err != nil {
+			t.Fatal(schema.err)
+		}
+		if _, err := yamlvalidator.CompileFieldSchema(schema.s); err != nil {
+			t.Fatalf("%s schema: %v", schema.name, err)
+		}
+	}
+}
+
+func TestGeneratedRegistryRulesUseEmittedDeclarations(t *testing.T) {
+	registry, err := yamlvalidator.NewRegistry(yamlvalidator.RegistryConfig{
+		ValueValidators: map[string]yamlvalidator.ValueValidator{
+			"registered": valv.EnumValidator{Allowed: []string{"allowed"}},
+		},
+		Schemas: map[string]*yamlvalidator.FieldSchema{
+			"registeredSchema": {Type: yamlvalidator.TypeString},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value model.Registered
+	if err := (yamlvalidator.UnmarshalOptions{Registry: registry}).Unmarshal([]byte("value: allowed\n"), &value); err != nil {
+		t.Fatal(err)
+	}
+	if value.Value != "allowed" {
+		t.Fatalf("%+v", value)
+	}
+	if err := (yamlvalidator.UnmarshalOptions{Registry: registry}).Unmarshal([]byte("value: denied\n"), &value); err == nil {
+		t.Fatal("named check skipped")
+	}
+	if _, err := (yamlvalidator.MarshalOptions{Registry: registry}).Marshal(model.Registered{Value: "allowed"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := yamlvalidator.Unmarshal([]byte("value: allowed\n"), &value); err == nil {
+		t.Fatal("missing registry accepted")
+	}
+}
+
+func TestGeneratedTypeBindingKeepsFieldRules(t *testing.T) {
+	registry, err := yamlvalidator.NewRegistry(yamlvalidator.RegistryConfig{TypeBindings: map[reflect.Type]yamlvalidator.TypeBinding{
+		reflect.TypeFor[string](): {Decode: &yamlvalidator.FieldSchema{Type: yamlvalidator.TypeString}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, input := range []string{"items: [one]\n", "name: ''\nitems: [one]\n"} {
+		var value model.Config
+		if err := (yamlvalidator.UnmarshalOptions{Registry: registry}).Unmarshal([]byte(input), &value); err == nil {
+			t.Fatalf("binding discarded generated field rules for %q", input)
+		}
 	}
 }
 

@@ -116,11 +116,51 @@ func TestCompileFieldSchemaRejectsInvalidDefinitions(t *testing.T) {
 }
 
 func TestCompileFieldSchemaRejectsRecursiveGraph(t *testing.T) {
-	schema := &FieldSchema{Type: TypeMap}
-	schema.AdditionalProperties = schema
+	schema := &FieldSchema{Type: TypeAny}
+	schema.AnyOfSchemas = []*FieldSchema{schema}
 	_, err := CompileFieldSchema(schema)
 	if err == nil || !strings.Contains(err.Error(), "recursive FieldSchema graph") {
 		t.Fatalf("expected recursive graph error, got %v", err)
+	}
+}
+
+func TestCompileFieldSchemaAllowsStructuralRecursion(t *testing.T) {
+	node := &FieldSchema{Type: TypeMap}
+	node.AllowedKeys = map[string]*FieldSchema{
+		"name":     {Type: TypeString, Required: true},
+		"children": {Type: TypeSequence, ItemSchema: node},
+	}
+	link := &FieldSchema{Type: TypeMap, Nullable: true}
+	link.AllowedKeys = map[string]*FieldSchema{
+		"value": {Type: TypeString},
+		"next":  link,
+	}
+	for _, tc := range []struct {
+		name   string
+		schema *FieldSchema
+		data   string
+	}{
+		{"node", node, "name: root\nchildren: [{name: leaf}]\n"},
+		{"link", link, "value: root\nnext: {value: leaf}\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			compiled, err := CompileFieldSchema(tc.schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result := compiled.ValidateBytes([]byte(tc.data)); result.HasErrors() {
+				t.Fatalf("finite recursive document: %v", result.Collector.Errors())
+			}
+		})
+	}
+	bad := &FieldSchema{Type: TypeMap}
+	bad.AllowedKeys = map[string]*FieldSchema{"child": {Type: TypeAny, OneOfSchemas: []*FieldSchema{bad}}}
+	if _, err := CompileFieldSchema(bad); err != nil {
+		t.Fatalf("structural edge preceding composition cycle rejected: %v", err)
+	}
+	bad.OneOfSchemas = []*FieldSchema{bad}
+	if _, err := CompileFieldSchema(bad); err == nil {
+		t.Fatal("same-node composition cycle accepted")
 	}
 }
 

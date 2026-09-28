@@ -109,6 +109,9 @@ func newJSONNumber(s string) (json.Number, bool) {
 	err := json.Unmarshal([]byte(s), &n)
 	return n, err == nil
 }
+
+// GeneratedNumber preserves an exact numeric default in generated schema code.
+func GeneratedNumber(text string) json.Number { return json.Number(text) }
 func parseRuleType(s string) (NodeType, error) {
 	switch s {
 	case "any":
@@ -400,6 +403,10 @@ func (c *highLevelCompiler) applyExtensionRule(s *FieldSchema, r tagRule) error 
 		if err != nil {
 			return err
 		}
+		if c.symbolic {
+			s.extraSchemas = append(s.extraSchemas, &FieldSchema{Type: TypeAny, generatedRef: text})
+			return nil
+		}
 		if c.registry == nil {
 			return fmt.Errorf("ref %q requires registry", text)
 		}
@@ -410,7 +417,7 @@ func (c *highLevelCompiler) applyExtensionRule(s *FieldSchema, r tagRule) error 
 		s.extraSchemas = append(s.extraSchemas, child)
 		return nil
 	case "check", "checks":
-		if c.registry == nil {
+		if c.registry == nil && !c.symbolic {
 			return fmt.Errorf("check requires registry")
 		}
 		var values []tagValue
@@ -453,10 +460,14 @@ func (c *highLevelCompiler) applyExtensionRule(s *FieldSchema, r tagRule) error 
 				if err != nil {
 					return err
 				}
-				if c.registry == nil || c.registry.schemas[name] == nil {
-					return fmt.Errorf("unknown schema %q", name)
+				if c.symbolic {
+					child = &FieldSchema{Type: TypeAny, generatedRef: name}
+				} else {
+					if c.registry == nil || c.registry.schemas[name] == nil {
+						return fmt.Errorf("unknown schema %q", name)
+					}
+					child = c.registry.schemas[name]
 				}
-				child = c.registry.schemas[name]
 			}
 			if r.key == "oneOfSchemas" {
 				s.OneOfSchemas = append(s.OneOfSchemas, child)

@@ -92,7 +92,7 @@ func run(namesText, output string, check bool) error {
 	if err := rejectConditionalTypes(pkg, names); err != nil {
 		return err
 	}
-	g := &generator{pkg: pkg.Types, ids: map[string]int{}, active: map[string]bool{}, imports: map[string]string{}, rootsByName: seen}
+	g := &generator{pkg: pkg.Types, ids: map[string]int{}, imports: map[string]string{}, rootsByName: seen, schemaFields: map[int][]schemaField{}}
 	for _, name := range names {
 		obj := pkg.Types.Scope().Lookup(name)
 		typ, ok := obj.(*types.TypeName)
@@ -106,7 +106,7 @@ func run(namesText, output string, check bool) error {
 		if named.TypeParams() != nil && named.TypeParams().Len() > 0 {
 			return fmt.Errorf("type %s: generic type parameters are unsupported", name)
 		}
-		for _, method := range []string{"MarshalYAML", "UnmarshalYAML", "YAMLValidatorEncode", "YAMLValidatorDecode", "YAMLValidatorDecodeWithContext", "YAMLValidatorGeneratedType", "YAMLValidatorTypePlan"} {
+		for _, method := range []string{"MarshalYAML", "UnmarshalYAML", "YAMLValidatorEncode", "YAMLValidatorDecode", "YAMLValidatorDecodeWithContext", "YAMLValidatorGeneratedType", "YAMLValidatorSchema"} {
 			for i := 0; i < named.NumMethods(); i++ {
 				if named.Method(i).Name() == method && filepath.Clean(pkg.Fset.Position(named.Method(i).Pos()).Filename) != filepath.Clean(path) {
 					return fmt.Errorf("type %s: method %s already exists", name, method)
@@ -117,14 +117,10 @@ func run(namesText, output string, check bool) error {
 		if err != nil {
 			return fmt.Errorf("type %s: %w", name, err)
 		}
-		plan, err := g.sourcePlanMethod(named, name)
-		if err != nil {
-			return err
-		}
-		g.roots = append(g.roots, root{name: name, id: id, plan: plan})
+		g.roots = append(g.roots, root{name: name, id: id})
 	}
 	var source strings.Builder
-	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"github.com/Yakwilik/go-yamlvalidator\"\n\"gopkg.in/yaml.v3\"\n")
+	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"strconv\"\n\"github.com/Yakwilik/go-yamlvalidator\"\n\"gopkg.in/yaml.v3\"\n")
 	paths := make([]string, 0, len(g.imports))
 	for path := range g.imports {
 		paths = append(paths, path)
@@ -133,24 +129,36 @@ func run(namesText, output string, check bool) error {
 	for _, path := range paths {
 		fmt.Fprintf(&source, "%s %q\n", g.imports[path], path)
 	}
-	source.WriteString(")\n\nvar _ = fmt.Sprintf\nvar _ = sort.Strings\n\n")
+	source.WriteString(")\n\nvar _ = fmt.Sprintf\nvar _ = sort.Strings\nvar _ = strconv.IntSize\n\n")
 	for _, r := range g.roots {
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[%s]() }\n", r.name, r.name)
+		fmt.Fprintf(&source, "func (value %s) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error { return yamlvalidatorCycle%d(value,yamlvalidator.NewGeneratedCycleContext(limits),0) }\n", r.name, r.id)
+		fmt.Fprintf(&source, "func (value %s) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema,error) { return yamlvalidatorGeneratedSchema%d(registry,encode) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorEncode() (*yaml.Node,error) { return yamlvalidatorEncode%d(value) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecode(node *yaml.Node) error { return value.YAMLValidatorDecodeWithContext(node,yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{},false)) }\n", r.name)
 		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecodeWithContext(node *yaml.Node,ctx *yamlvalidator.GeneratedDecodeContext) error { return yamlvalidatorDecode%d(node,value,ctx) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) MarshalYAML() (any,error) { return yamlvalidator.MarshalGenerated(value) }\n", r.name)
 		fmt.Fprintf(&source, "func (value *%s) UnmarshalYAML(node *yaml.Node) error { return yamlvalidator.UnmarshalGenerated(node,value) }\n\n", r.name)
-		source.WriteString(r.plan)
 	}
+	schemaSource, err := g.schemaGraphSource()
+	if err != nil {
+		return err
+	}
+	source.WriteString(schemaSource)
 	for _, body := range g.bodies {
 		source.WriteString(body)
 	}
+	source.WriteString(g.emptyCycleSource())
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(filepath.Base(output)))
 	prefix := fmt.Sprintf("_%08x", h.Sum32())
 	raw := strings.ReplaceAll(source.String(), "yamlvalidatorEncode", "yamlvalidatorEncode"+prefix)
 	raw = strings.ReplaceAll(raw, "yamlvalidatorDecode", "yamlvalidatorDecode"+prefix)
+	raw = strings.ReplaceAll(raw, "yamlvalidatorEmpty", "yamlvalidatorEmpty"+prefix)
+	raw = strings.ReplaceAll(raw, "yamlvalidatorCycle", "yamlvalidatorCycle"+prefix)
+	raw = strings.ReplaceAll(raw, "yamlvalidatorGeneratedSchemaGraph", "yamlvalidatorGeneratedSchemaGraph"+prefix)
+	raw = strings.ReplaceAll(raw, "yamlvalidatorGeneratedTypes", "yamlvalidatorGeneratedTypes"+prefix)
+	raw = strings.ReplaceAll(raw, "yamlvalidatorGeneratedSchema", "yamlvalidatorGeneratedSchema"+prefix)
 	formatted, err := format.Source([]byte(raw))
 	if err != nil {
 		return fmt.Errorf("format generated source: %w\n%s", err, raw)
@@ -218,36 +226,17 @@ func rejectConditionalTypes(pkg *packages.Package, names []string) error {
 type root struct {
 	name string
 	id   int
-	plan string
-}
-
-func (g *generator) sourcePlanMethod(named *types.Named, name string) (string, error) {
-	u, ok := named.Underlying().(*types.Struct)
-	if !ok {
-		return "", nil
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "func (value %s) YAMLValidatorTypePlan() yamlvalidator.SourceTypePlan {return yamlvalidator.SourceTypePlan{Type:reflect.TypeFor[%s](),Fields:[]reflect.StructField{", name, name)
-	for i := 0; i < u.NumFields(); i++ {
-		field := u.Field(i)
-		pkgPath := ""
-		if !field.Exported() && field.Pkg() != nil {
-			pkgPath = field.Pkg().Path()
-		}
-		fmt.Fprintf(&b, "{Name:%q,Type:reflect.TypeFor[%s](),Tag:reflect.StructTag(%q),Anonymous:%t,PkgPath:%q},", field.Name(), g.typeText(field.Type()), u.Tag(i), field.Embedded(), pkgPath)
-	}
-	b.WriteString("}}}\n\n")
-	return b.String(), nil
 }
 
 type generator struct {
-	pkg         *types.Package
-	ids         map[string]int
-	active      map[string]bool
-	bodies      []string
-	roots       []root
-	imports     map[string]string
-	rootsByName map[string]bool
+	pkg          *types.Package
+	ids          map[string]int
+	types        []types.Type
+	bodies       []string
+	roots        []root
+	imports      map[string]string
+	rootsByName  map[string]bool
+	schemaFields map[int][]schemaField
 }
 
 func generatedStubs(old []byte, packageName string, selected []string) (string, error) {
@@ -310,18 +299,14 @@ func (g *generator) typeText(t types.Type) string {
 func (g *generator) ensure(t types.Type) (int, error) {
 	key := types.TypeString(t, func(p *types.Package) string { return p.Path() })
 	if id, ok := g.ids[key]; ok {
-		if g.active[key] {
-			return 0, fmt.Errorf("recursive type %s is unsupported", key)
-		}
 		return id, nil
 	}
 	id := len(g.ids)
 	g.ids[key] = id
-	g.active[key] = true
+	g.types = append(g.types, t)
 	// Reserve the body slot before visiting children so IDs and output order agree.
 	g.bodies = append(g.bodies, "")
 	body, err := g.makeBody(t, id)
-	delete(g.active, key)
 	if err != nil {
 		return 0, err
 	}
@@ -335,13 +320,9 @@ func (g *generator) makeBody(t types.Type, id int) (string, error) {
 	fmt.Fprintf(&b, "func yamlvalidatorEncode%d(value %s) (*yaml.Node,error) {\n", id, typeName)
 	base := types.Unalias(t)
 	if named, ok := base.(*types.Named); ok {
-		if named.Obj().Pkg() != g.pkg && named.Obj().Pkg() != nil {
-			base = nil
-		} else {
-			base = named.Underlying()
-		}
+		base = named.Underlying()
 	}
-	if base == nil || customCodec(t) && !g.rootType(t) {
+	if customCodec(t) && !g.rootOrPointerType(t) {
 		b.WriteString("return yamlvalidator.GeneratedFallbackEncode(value)\n}\n")
 		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return yamlvalidator.GeneratedFallbackDecodeWithContext(node,dst,ctx) }\n", id, typeName)
 		return b.String(), nil
@@ -403,6 +384,19 @@ func (g *generator) makeBody(t types.Type, id int) (string, error) {
 func (g *generator) rootType(t types.Type) bool {
 	named, ok := types.Unalias(t).(*types.Named)
 	return ok && named.Obj().Pkg() == g.pkg && g.rootsByName[named.Obj().Name()]
+}
+
+func (g *generator) rootOrPointerType(t types.Type) bool {
+	for {
+		if g.rootType(t) {
+			return true
+		}
+		pointer, ok := types.Unalias(t).(*types.Pointer)
+		if !ok {
+			return false
+		}
+		t = pointer.Elem()
+	}
 }
 
 func customCodec(t types.Type) bool {
@@ -604,6 +598,7 @@ func (g *generator) structBody(t types.Type, id int, u *types.Struct) (string, e
 		}
 		item.id = child
 		fields = append(fields, item)
+		g.schemaFields[id] = append(g.schemaFields[id], schemaField{field: item, tag: validation})
 	}
 	allKeys := map[string]bool{}
 	for _, field := range fields {
@@ -643,7 +638,7 @@ func (g *generator) structBody(t types.Type, id int, u *types.Struct) (string, e
 	b.WriteByte('\n')
 	for _, f := range fields {
 		if f.omit {
-			fmt.Fprintf(&b, "if !yamlvalidator.GeneratedIsEmpty(value.%s) {\n", f.name)
+			fmt.Fprintf(&b, "if !yamlvalidatorEmpty%d(value.%s) {\n", f.id, f.name)
 		}
 		fmt.Fprintf(&b, "child,err=yamlvalidatorEncode%d(value.%s);if err!=nil{return nil,fmt.Errorf(\"field %s: %%w\",err)};", f.id, f.name, f.name)
 		if f.flow {

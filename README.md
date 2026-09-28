@@ -66,7 +66,7 @@ Generate methods for existing Go types without changing their definitions:
 go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -type=Config -output=zz_yamlvalidator_generated.go
 ~~~
 
-Generated types support ordinary yaml.v3 Marshal/Unmarshal through standard YAML hooks, as well as yamlvalidator Options. The generator emits typed node mapping and shares the native validation engine; reflection remains in documented fallback paths. See [code generation](docs/code-generation.md), the [runnable generated example](examples/codegen), and [cross-field rule examples in Russian](docs/tag-rules-examples.ru.md).
+Generated types support ordinary yaml.v3 Marshal/Unmarshal through standard YAML hooks, as well as yamlvalidator Options. The generator emits typed node mapping and a reusable native schema graph for every selected root and its statically known children, including recursive types. Reflection remains in documented fallback paths. See [code generation](docs/code-generation.md), the [runnable generated example](examples/codegen), and [cross-field rule examples in Russian](docs/tag-rules-examples.ru.md).
 
 ### Native schema validation
 

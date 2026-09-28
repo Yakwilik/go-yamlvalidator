@@ -383,17 +383,20 @@ type FieldSchema struct {
 	Description string
 
 	// Default is the default value. If set and field is missing, a warning is emitted.
-	Default         interface{}
-	defaultPresent  bool
-	extraSchemas    []*FieldSchema
-	inlineCapture   *FieldSchema
-	exactlyGroups   [][]string
-	mutuallyGroups  [][]string
-	anyClauses      [][][]string
-	oneClauses      [][][]string
-	pendingRequired []string
-	requiredNames   []string
-	objectOrigins   []highLevelRuleOrigin
+	Default              interface{}
+	defaultPresent       bool
+	generatedRef         string
+	generatedSourceIndex int
+	generatedFieldRules  bool
+	extraSchemas         []*FieldSchema
+	inlineCapture        *FieldSchema
+	exactlyGroups        [][]string
+	mutuallyGroups       [][]string
+	anyClauses           [][][]string
+	oneClauses           [][][]string
+	pendingRequired      []string
+	requiredNames        []string
+	objectOrigins        []highLevelRuleOrigin
 
 	// ─────────────────────────────────────────────────────────────────────────
 	// Map-specific fields

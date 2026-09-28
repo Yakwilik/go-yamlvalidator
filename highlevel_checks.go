@@ -413,6 +413,9 @@ func (c *highLevelCompiler) valueCheck(value tagValue) (ValueValidator, error) {
 		if err != nil {
 			return nil, err
 		}
+		if c.symbolic {
+			return generatedValueSymbol{Name: name, Args: args, Factory: true}, nil
+		}
 		if c.registry == nil || c.registry.valueFactories[name] == nil {
 			return nil, fmt.Errorf("unknown value factory %q", name)
 		}
@@ -433,6 +436,9 @@ func (c *highLevelCompiler) valueCheck(value tagValue) (ValueValidator, error) {
 	name, err := scalarText(value)
 	if err != nil {
 		return nil, err
+	}
+	if c.symbolic {
+		return generatedValueSymbol{Name: name}, nil
 	}
 	if c.registry == nil || c.registry.values[name] == nil {
 		return nil, fmt.Errorf("unknown value validator %q", name)

@@ -5,13 +5,16 @@ import (
 )
 
 func (c *highLevelCompiler) keyCheck(value tagValue) (KeyValidator, error) {
-	if c.registry == nil {
+	if c.registry == nil && !c.symbolic {
 		return nil, fmt.Errorf("key check requires registry")
 	}
 	if value.kind != tagObject {
 		name, err := tagScalar(value)
 		if err != nil {
 			return nil, err
+		}
+		if c.symbolic {
+			return generatedKeySymbol{Name: name}, nil
 		}
 		validator := c.registry.keys[name]
 		if validator == nil {
@@ -22,6 +25,9 @@ func (c *highLevelCompiler) keyCheck(value tagValue) (KeyValidator, error) {
 	name, args, err := parseFactoryDeclaration(value)
 	if err != nil {
 		return nil, err
+	}
+	if c.symbolic {
+		return generatedKeySymbol{Name: name, Args: args, Factory: true}, nil
 	}
 	factory := c.registry.keyFactories[name]
 	if factory == nil {

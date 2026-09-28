@@ -33,8 +33,8 @@ func TestValidateFieldSchemaInvalidDefinitions(t *testing.T) {
 }
 
 func TestValidateFieldSchemaStructuralErrors(t *testing.T) {
-	recursive := &FieldSchema{Type: TypeMap}
-	recursive.AllowedKeys = map[string]*FieldSchema{"self": recursive}
+	recursive := &FieldSchema{Type: TypeAny}
+	recursive.OneOfSchemas = []*FieldSchema{recursive}
 
 	invalid := []struct {
 		name   string
@@ -55,7 +55,7 @@ func TestValidateFieldSchemaStructuralErrors(t *testing.T) {
 		{"nil one-of schema", &FieldSchema{Type: TypeAny, OneOfSchemas: []*FieldSchema{nil}}},
 		{"nil any-of schema", &FieldSchema{Type: TypeAny, AnyOfSchemas: []*FieldSchema{nil}}},
 		{"empty any-of group", &FieldSchema{Type: TypeMap, AnyOf: [][]string{{}}}},
-		{"recursive graph", recursive},
+		{"same-node recursive graph", recursive},
 	}
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {

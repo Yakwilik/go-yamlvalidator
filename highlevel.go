@@ -171,7 +171,11 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 	}
 	var plan *highLevelPlan
 	if !o.SkipValidation {
-		plan, err = compileHighLevel(dst.Elem().Type(), false, o.Registry)
+		var generated bool
+		plan, generated, err = generatedPlan(out, o.Registry, false)
+		if !generated && err == nil {
+			plan, err = compileHighLevel(dst.Elem().Type(), false, o.Registry)
+		}
 		if err != nil {
 			return err
 		}
@@ -216,12 +220,16 @@ func (o MarshalOptions) Marshal(in any) ([]byte, error) {
 	}
 	var plan *highLevelPlan
 	if !o.SkipValidation && in != nil {
-		plan, err = compileHighLevel(reflect.TypeOf(in), true, o.Registry)
+		var generated bool
+		plan, generated, err = generatedPlan(in, o.Registry, true)
+		if !generated && err == nil {
+			plan, err = compileHighLevel(reflect.TypeOf(in), true, o.Registry)
+		}
 		if err != nil {
 			return nil, err
 		}
 	}
-	if err := rejectGoCycles(reflect.ValueOf(in), limits); err != nil {
+	if err := checkGeneratedCycles(in, limits); err != nil {
 		return nil, err
 	}
 	var buffer bytes.Buffer
