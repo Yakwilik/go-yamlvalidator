@@ -2,7 +2,7 @@
 
 ![Coverage](coverage.svg)
 
-Source: [f421900eee67](https://github.com/Yakwilik/go-yamlvalidator/commit/f421900eee6772489e3593b8d2e068b4b8cb68ed) · [GitHub Actions run](https://github.com/Yakwilik/go-yamlvalidator/actions/runs/36445626286)
+Source: [6c384c859455](https://github.com/Yakwilik/go-yamlvalidator/commit/6c384c859455ee97a6e356a55cb6f4bb7c5ec5dd) · [GitHub Actions run](https://github.com/Yakwilik/go-yamlvalidator/actions/runs/36447818818)
 
 **81.6%** — 4385 of 5371 instrumented statements covered.
 
