@@ -29,7 +29,7 @@ compile and execute these exact Go blocks rather than a separately maintained co
 | [10. Flatten credentials and validate only captured inline-map entries](#inline) | Rules on an inline struct use the actual flattened YAML keys |
 | [11. Choose error, warning or ignore for unknown struct keys](#unknown-keys) | The high-level default is stricter than the native low-level inherited policy: an unknown struct key is an error |
 | [12. Collect warnings without silently filling defaults](#warnings-defaults) | default is an annotation, not a configuration-merging mechanism |
-| [13. Inspect validation errors and bad tag definitions separately](#diagnostics) | Use errors |
+| [13. Inspect validation errors and bad tag definitions separately](#diagnostics) | Use errors.As to distinguish YAML failures from invalid tag definitions |
 | [14. Reuse named checks and native schemas with a Registry](#named-registry) | A named check selects a ValueValidator; ref selects a native FieldSchema |
 | [15. Implement a parameterized native check](#factory) | A factory receives structured tag arguments and returns an ordinary native validator |
 | [16. Bind a schema to a custom YAML representation](#custom-codec) | This struct is encoded as one URI string, not as a mapping of its Go fields |
