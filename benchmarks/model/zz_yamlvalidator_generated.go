@@ -4,7 +4,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/Yakwilik/go-yamlvalidator"
 	"github.com/Yakwilik/go-yamlvalidator/genruntime"
 	"github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 	"gopkg.in/yaml.v3"
@@ -18,11 +17,11 @@ var _ = sort.Strings
 var _ = strconv.IntSize
 
 func (value Config) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Config]() }
-func (value Config) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d0(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
+func (value Config) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d0(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Config) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d0(registry, encode)
+func (value Config) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d0()
 }
 func (value Config) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d0(value)
@@ -33,17 +32,17 @@ func (value *Config) YAMLValidatorDecode(node *yaml.Node) error {
 func (value *Config) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d0(node, value, ctx)
 }
-func (value Config) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
+func (value Config) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
 func (value *Config) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
+	return genruntime.UnmarshalYAML(node, value)
 }
 
 func (value Endpoint) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Endpoint]() }
-func (value Endpoint) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d9(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
+func (value Endpoint) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d9(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Endpoint) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d9(registry, encode)
+func (value Endpoint) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d9()
 }
 func (value Endpoint) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d9(value)
@@ -54,17 +53,17 @@ func (value *Endpoint) YAMLValidatorDecode(node *yaml.Node) error {
 func (value *Endpoint) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d9(node, value, ctx)
 }
-func (value Endpoint) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
+func (value Endpoint) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
 func (value *Endpoint) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
+	return genruntime.UnmarshalYAML(node, value)
 }
 
 func (value Server) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Server]() }
-func (value Server) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d2(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
+func (value Server) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d2(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Server) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d2(registry, encode)
+func (value Server) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d2()
 }
 func (value Server) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d2(value)
@@ -75,17 +74,17 @@ func (value *Server) YAMLValidatorDecode(node *yaml.Node) error {
 func (value *Server) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d2(node, value, ctx)
 }
-func (value Server) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
+func (value Server) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
 func (value *Server) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
+	return genruntime.UnmarshalYAML(node, value)
 }
 
 func (value Service) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Service]() }
-func (value Service) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d7(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
+func (value Service) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d7(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Service) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d7(registry, encode)
+func (value Service) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d7()
 }
 func (value Service) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d7(value)
@@ -96,17 +95,17 @@ func (value *Service) YAMLValidatorDecode(node *yaml.Node) error {
 func (value *Service) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d7(node, value, ctx)
 }
-func (value Service) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
+func (value Service) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
 func (value *Service) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
+	return genruntime.UnmarshalYAML(node, value)
 }
 
 func (value TLS) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[TLS]() }
-func (value TLS) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d5(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
+func (value TLS) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d5(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value TLS) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidatorGeneratedSchema_28ba702d5(registry, encode)
+func (value TLS) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d5()
 }
 func (value TLS) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d5(value)
@@ -117,15 +116,13 @@ func (value *TLS) YAMLValidatorDecode(node *yaml.Node) error {
 func (value *TLS) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d5(node, value, ctx)
 }
-func (value TLS) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
-func (value *TLS) UnmarshalYAML(node *yaml.Node) error {
-	return yamlvalidator.UnmarshalGenerated(node, value)
-}
+func (value TLS) MarshalYAML() (any, error)            { return genruntime.MarshalYAML(value) }
+func (value *TLS) UnmarshalYAML(node *yaml.Node) error { return genruntime.UnmarshalYAML(node, value) }
 
 var yamlvalidatorGeneratedTypes_28ba702d = []reflect.Type{reflect.TypeFor[Config](), reflect.TypeFor[string](), reflect.TypeFor[Server](), reflect.TypeFor[int](), reflect.TypeFor[*TLS](), reflect.TypeFor[TLS](), reflect.TypeFor[[]Service](), reflect.TypeFor[Service](), reflect.TypeFor[[]Endpoint](), reflect.TypeFor[Endpoint](), reflect.TypeFor[map[string]string](), reflect.TypeFor[map[string]bool](), reflect.TypeFor[bool]()}
 
-func yamlvalidatorGeneratedSchema_28ba702d0(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+func yamlvalidatorGeneratedSchema_28ba702d0() (spec.Graph, []reflect.Type) {
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 1,
 		AllowedKeys: map[string]int{"environment": 1,
 			"features": 2,
@@ -347,10 +344,10 @@ func yamlvalidatorGeneratedSchema_28ba702d0(registry *yamlvalidator.Registry, en
 			Conditions: []spec.ConditionalRule{},
 		},
 	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
+	}, yamlvalidatorGeneratedTypes_28ba702d
 }
-func yamlvalidatorGeneratedSchema_28ba702d9(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+func yamlvalidatorGeneratedSchema_28ba702d9() (spec.Graph, []reflect.Type) {
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 10,
 		AllowedKeys: map[string]int{"path": 1,
 			"timeout_ms": 2,
@@ -386,10 +383,10 @@ func yamlvalidatorGeneratedSchema_28ba702d9(registry *yamlvalidator.Registry, en
 			Conditions: []spec.ConditionalRule{},
 		},
 	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
+	}, yamlvalidatorGeneratedTypes_28ba702d
 }
-func yamlvalidatorGeneratedSchema_28ba702d2(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+func yamlvalidatorGeneratedSchema_28ba702d2() (spec.Graph, []reflect.Type) {
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 3,
 		AllowedKeys: map[string]int{"host": 1,
 			"port": 2,
@@ -451,10 +448,10 @@ func yamlvalidatorGeneratedSchema_28ba702d2(registry *yamlvalidator.Registry, en
 			Conditions: []spec.ConditionalRule{},
 		},
 	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
+	}, yamlvalidatorGeneratedTypes_28ba702d
 }
-func yamlvalidatorGeneratedSchema_28ba702d7(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+func yamlvalidatorGeneratedSchema_28ba702d7() (spec.Graph, []reflect.Type) {
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 8,
 		AllowedKeys: map[string]int{"endpoints": 1,
 			"name":     5,
@@ -536,10 +533,10 @@ func yamlvalidatorGeneratedSchema_28ba702d7(registry *yamlvalidator.Registry, en
 			Conditions: []spec.ConditionalRule{},
 		},
 	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
+	}, yamlvalidatorGeneratedTypes_28ba702d
 }
-func yamlvalidatorGeneratedSchema_28ba702d5(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+func yamlvalidatorGeneratedSchema_28ba702d5() (spec.Graph, []reflect.Type) {
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 6,
 		AllowedKeys: map[string]int{"cert": 1,
 			"key": 2,
@@ -563,7 +560,7 @@ func yamlvalidatorGeneratedSchema_28ba702d5(registry *yamlvalidator.Registry, en
 			Conditions: []spec.ConditionalRule{},
 		},
 	},
-	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
+	}, yamlvalidatorGeneratedTypes_28ba702d
 }
 
 // yamlvalidator source fingerprint: 92b55ba0c19505e471e178f6

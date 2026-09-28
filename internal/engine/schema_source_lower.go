@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
 )
 
 func lowerGeneratedSourceGraph(g genspec.SourceGraph, rootID int) (*FieldSchema, error) {

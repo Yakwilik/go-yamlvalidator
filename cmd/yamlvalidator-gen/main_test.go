@@ -23,6 +23,8 @@ func TestGenerateAndRun(t *testing.T) {
 	}
 	write("go.mod", "module fixture\n\ngo 1.24.0\n\nrequire (\ngithub.com/Yakwilik/go-yamlvalidator v0.0.0\ngopkg.in/yaml.v3 v3.0.1\n)\nreplace github.com/Yakwilik/go-yamlvalidator => "+root+"\n")
 	write("types.go", `package fixture
+import api "github.com/Yakwilik/go-yamlvalidator"
+type NativeKind struct { Kind api.NodeType }
 type Child struct { Name string `+"`yaml:\"name\" yamlvalidate:\"required,minLength=2\"`"+` }
 type Config struct {
   Child Child `+"`yaml:\"child\"`"+`
@@ -65,7 +67,7 @@ func TestCodec(t *testing.T) {
  if _,err:=(v.MarshalOptions{SkipValidation:true}).Marshal(InlineConfig{Child:Child{Name:"ok"},Extra:map[string]int{"child":1}});err==nil {t.Fatal("inline collision accepted")}
 }
 `)
-	cmd := exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go")
+	cmd := exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -78,7 +80,7 @@ func TestCodec(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("fixture: %v\n%s", err, out)
 	}
-	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go", "-check")
+	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -93,16 +95,18 @@ func TestCodec(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"SourceTypePlan", "reflect.StructField", "GeneratedRule", "GeneratedRuleValue",
+		"github.com/Yakwilik/go-yamlvalidator/internal/",
 		"normalizeFieldRules", "applyRules", "compileHighLevel",
 		"yamlvalidator.GeneratedScalar", "yamlvalidator.GeneratedFallback",
 		"yamlvalidator.GeneratedAppendInline", "yamlvalidator.GeneratedIsEmpty",
 		"yamlvalidator.GeneratedDecodeContext", "yamlvalidator.GeneratedCycleContext",
+		"MarshalGenerated", "UnmarshalGenerated", "BuildGeneratedSchema", "LowerGeneratedSchema",
 	} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Fatalf("generated source contains runtime schema-lowering metadata %q", forbidden)
 		}
 	}
-	if !strings.Contains(string(generated), "BuildGeneratedSchema") || !strings.Contains(string(generated), "Required:") {
+	if !strings.Contains(string(generated), "YAMLValidatorSchemaSpec") || !strings.Contains(string(generated), "Required:") {
 		t.Fatal("generated source is missing the normalized schema")
 	}
 	if !strings.Contains(string(generated), "genruntime.") || !strings.Contains(string(generated), "spec.Graph") {
@@ -140,7 +144,7 @@ func TestCodec(t *testing.T) {
 	}
 	changed := strings.Replace(string(source), "type Config struct {\n", "type Config struct {\n Added string\n", 1)
 	write("types.go", changed)
-	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go", "-check")
+	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "stale") {
@@ -153,7 +157,7 @@ func TestCodec(t *testing.T) {
 	if string(still) != string(generated) {
 		t.Fatal("check changed output")
 	}
-	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go")
+	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -161,14 +165,14 @@ func TestCodec(t *testing.T) {
 	}
 	tagChanged := strings.Replace(changed, "minLength=2", "minLength=3", 1)
 	write("types.go", tagChanged)
-	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go", "-check")
+	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "stale") {
 		t.Fatalf("tag staleness: %v\n%s", err, out)
 	}
 	write("types.go", changed+"\nfunc (Config) MarshalYAML() (any,error) {return nil,nil}\n")
-	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig", "-output=zz_generated.go")
+	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "MarshalYAML already declared") {

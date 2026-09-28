@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Yakwilik/go-yamlvalidator/genruntime"
+	"github.com/Yakwilik/go-yamlvalidator/internal/yamlcodec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -193,14 +193,14 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 	}
 	if codec, ok := out.(generatedCodec); ok && exactGeneratedType(out, codec.YAMLValidatorGeneratedType()) {
 		if withContext, ok := out.(interface {
-			YAMLValidatorDecodeWithContext(*yaml.Node, *genruntime.DecodeContext) error
+			YAMLValidatorDecodeWithContext(*yaml.Node, *yamlcodec.DecodeContext) error
 		}); ok {
-			return withContext.YAMLValidatorDecodeWithContext(root.Content[0], genruntime.NewDecodeContext(toGeneratedLimits(o.Limits), o.SkipValidation))
+			return withContext.YAMLValidatorDecodeWithContext(root.Content[0], yamlcodec.NewDecodeContext(toGeneratedLimits(o.Limits), o.SkipValidation))
 		}
 		return codec.YAMLValidatorDecode(root.Content[0])
 	}
-	if genruntime.HasGenerated(dst.Elem().Type(), map[reflect.Type]bool{}) {
-		return genruntime.DecodeMixedWithContext(root.Content[0], dst.Elem(), genruntime.NewDecodeContext(toGeneratedLimits(o.Limits), o.SkipValidation))
+	if yamlcodec.HasGenerated(dst.Elem().Type(), map[reflect.Type]bool{}) {
+		return yamlcodec.DecodeMixedWithContext(root.Content[0], dst.Elem(), yamlcodec.NewDecodeContext(toGeneratedLimits(o.Limits), o.SkipValidation))
 	}
 	if err := root.Decode(out); err != nil {
 		return fmt.Errorf("decode YAML: %w", err)
@@ -245,8 +245,8 @@ func (o MarshalOptions) Marshal(in any) ([]byte, error) {
 			return nil, encodeErr
 		}
 		encodeValue = node
-	} else if in != nil && genruntime.HasGenerated(reflect.TypeOf(in), map[reflect.Type]bool{}) {
-		node, encodeErr := genruntime.EncodeMixed(reflect.ValueOf(in))
+	} else if in != nil && yamlcodec.HasGenerated(reflect.TypeOf(in), map[reflect.Type]bool{}) {
+		node, encodeErr := yamlcodec.EncodeMixed(reflect.ValueOf(in))
 		if encodeErr != nil {
 			return nil, encodeErr
 		}

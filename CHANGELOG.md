@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Removed the four generation-specific bridge functions from the application-facing root API. Generated hooks now use genruntime adapters and return data-only schema specs; source-time lowering and schema materialization are internal.
+- Split shared validation and codec implementations behind the root and generated facades. Root type names remain available through aliases, but canonical reflection package paths now identify internal/engine; see docs/generated-runtime-architecture.md before publishing this migration.
+- Coverage checks now include the shared internal implementations; the 80% threshold is unchanged. API compatibility checks now fail on a nonempty apidiff incompatibility report rather than accepting its zero exit code.
+
 - Added optional yamlvalidator-gen with typed YAML node encoding/decoding, standard YAML hooks, Go-native normalized validation schemas, recursive type-graph support, a dedicated genruntime ABI package, cached generated validation plans, Options-preserving mixed-tree support, per-call decode limits, deterministic regeneration and freshness checks, generated-file ownership protection, checked-in examples, -all package-wide struct generation, and reproducible runtime-vs-generated benchmarks.
 - Added validated high-level YAML Marshal and Unmarshal with recursive yamlvalidate tags, native formats and uniqueItems, explicit parent and value mapping groups, per-call limits and diagnostics, and registry-backed native validators and type bindings. The tag grammar and scope rules are shared with the optional source frontend. High-level JSON Schema tags and registry routes were removed. Low-level JSON Schema APIs remain available.
 - Added an optional go-yamlvalidator agent skill and Claude Code plugin, with

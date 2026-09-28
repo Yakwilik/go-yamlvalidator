@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
 )
 
 func generatedTestRules(t *testing.T, source string) []genspec.Rule {
@@ -45,14 +45,14 @@ func TestGeneratedNormalizedGraphContainsLoweredConstraints(t *testing.T) {
 		{Type: genspec.NodeType(TypeInt), NumberKind: reflect.Int, NumberBits: strconv.IntSize, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
 		{Type: genspec.NodeType(TypeSequence), Nullable: true, Item: 1, AliasOf: -1, Value: -1, ArrayLen: -1},
 	}}
-	lowered, err := LowerGeneratedSchema(graph, 0)
+	lowered, err := CompileSourceSchema(graph, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(lowered.Nodes[lowered.Root].Conditions) != 1 {
 		t.Fatalf("condition not lowered: %+v", lowered.Nodes[lowered.Root])
 	}
-	schema, err := BuildGeneratedSchema(lowered, nil, nil, false)
+	schema, err := buildGeneratedSchema(lowered, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,18 +79,18 @@ func TestGeneratedNormalizedGraphResolvesNamedAlternatives(t *testing.T) {
 		{Type: genspec.NodeType(TypeMap), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1, Fields: []genspec.SourceField{{Key: "value", Node: 1, FieldName: "Value", Rules: generatedTestRules(t, "oneOfSchemas=[named]")}}},
 		{Type: genspec.NodeType(TypeString), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
 	}}
-	lowered, err := LowerGeneratedSchema(graph, 0)
+	lowered, err := CompileSourceSchema(graph, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := BuildGeneratedSchema(lowered, nil, nil, false); err == nil {
+	if _, err := buildGeneratedSchema(lowered, nil, nil, false); err == nil {
 		t.Fatal("missing named schema accepted")
 	}
 	registry, err := NewRegistry(RegistryConfig{Schemas: map[string]*FieldSchema{"named": {Type: TypeString, Validators: []ValueValidator{enumRule{"ok"}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema, err := BuildGeneratedSchema(lowered, nil, registry, false)
+	schema, err := buildGeneratedSchema(lowered, nil, registry, false)
 	if err != nil {
 		t.Fatal(err)
 	}

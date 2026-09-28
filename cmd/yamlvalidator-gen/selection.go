@@ -20,6 +20,7 @@ var generatedRootMethods = map[string]bool{
 	"YAMLValidatorDecode":            true,
 	"YAMLValidatorDecodeWithContext": true,
 	"YAMLValidatorGeneratedType":     true,
+	"YAMLValidatorSchemaSpec":        true,
 	"YAMLValidatorSchema":            true,
 	"YAMLValidatorCheckCycles":       true,
 }

@@ -1,4 +1,4 @@
-package genruntime
+package yamlcodec
 
 import (
 	"math"

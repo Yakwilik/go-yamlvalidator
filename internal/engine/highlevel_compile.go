@@ -102,7 +102,8 @@ func (c *highLevelCompiler) infer(typ reflect.Type) (*FieldSchema, error) {
 		candidate := reflect.New(typ).Interface()
 		if provider, ok := candidate.(generatedSchemaProvider); ok {
 			if marker, ok := candidate.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
-				schema, err := provider.YAMLValidatorSchema(c.registry, c.encode)
+				graph, typeIDs := provider.YAMLValidatorSchemaSpec()
+				schema, err := buildGeneratedSchema(graph, typeIDs, c.registry, c.encode)
 				if err != nil {
 					return nil, err
 				}
@@ -218,20 +219,9 @@ func (c *highLevelCompiler) compileStruct(typ reflect.Type, schema *FieldSchema)
 		}
 	}
 	schema.AllowedKeys = make(map[string]*FieldSchema)
-	var fields []reflect.StructField
-	if marker, ok := reflect.New(typ).Interface().(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
-		if provider, ok := reflect.New(typ).Interface().(interface{ YAMLValidatorTypePlan() SourceTypePlan }); ok {
-			plan := provider.YAMLValidatorTypePlan()
-			if plan.Type != typ || len(plan.Fields) != typ.NumField() {
-				return &SchemaError{Type: typ, Reason: "generated source type plan does not match Go type"}
-			}
-			fields = plan.Fields
-		}
-	}
-	if fields == nil {
-		for i := 0; i < typ.NumField(); i++ {
-			fields = append(fields, typ.Field(i))
-		}
+	fields := make([]reflect.StructField, typ.NumField())
+	for i := range fields {
+		fields[i] = typ.Field(i)
 	}
 	for _, field := range fields {
 		tags, err := parseOuterStructTag(string(field.Tag))

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/Yakwilik/go-yamlvalidator/genruntime"
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
+	"github.com/Yakwilik/go-yamlvalidator/internal/yamlcodec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,7 +17,7 @@ type generatedCodec interface {
 
 type generatedContextDecoder interface {
 	YAMLValidatorGeneratedType() reflect.Type
-	YAMLValidatorDecodeWithContext(*yaml.Node, *genruntime.DecodeContext) error
+	YAMLValidatorDecodeWithContext(*yaml.Node, *yamlcodec.DecodeContext) error
 }
 
 type generatedEncoder interface {
@@ -25,7 +26,7 @@ type generatedEncoder interface {
 }
 
 type generatedSchemaProvider interface {
-	YAMLValidatorSchema(*Registry, bool) (*FieldSchema, error)
+	YAMLValidatorSchemaSpec() (genspec.Graph, []reflect.Type)
 }
 
 func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, bool, error) {
@@ -43,7 +44,8 @@ func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, 
 		cache = &registry.cache
 	}
 	plan, err := cache.getOrCompile(planKey{typ: typ, encode: encode}, func() (*highLevelPlan, error) {
-		schema, err := provider.YAMLValidatorSchema(registry, encode)
+		graph, typeIDs := provider.YAMLValidatorSchemaSpec()
+		schema, err := buildGeneratedSchema(graph, typeIDs, registry, encode)
 		if err != nil {
 			return nil, err
 		}
@@ -60,11 +62,10 @@ func exactGeneratedType(value any, declared reflect.Type) bool {
 	return typ != nil && typ == declared
 }
 
-// MarshalGenerated is the small bridge used by generated yaml.v3 hooks.
-// Codec mechanics live in genruntime; validation remains owned by this package.
-func MarshalGenerated(value any) (*yaml.Node, error) {
+// MarshalGeneratedNode is the internal parsed-node entry used by genruntime adapters.
+func MarshalGeneratedNode(value any) (*yaml.Node, error) {
 	if nilInterface(value) {
-		return genruntime.FallbackEncode[any](nil)
+		return yamlcodec.FallbackEncode[any](nil)
 	}
 	codec, ok := value.(generatedEncoder)
 	if !ok {
@@ -96,16 +97,22 @@ func checkGeneratedCycles(value any, limits Limits) error {
 	if !nilInterface(value) {
 		if marker, ok := value.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok &&
 			exactGeneratedType(value, marker.YAMLValidatorGeneratedType()) {
-			if checker, ok := value.(interface{ YAMLValidatorCheckCycles(Limits) error }); ok {
-				return checker.YAMLValidatorCheckCycles(limits)
+			if checker, ok := value.(interface{ YAMLValidatorCheckCycles(yamlcodec.Limits) error }); ok {
+				return checker.YAMLValidatorCheckCycles(toGeneratedLimits(limits))
 			}
 		}
 	}
 	return rejectGoCycles(reflect.ValueOf(value), limits)
 }
 
-// UnmarshalGenerated is the bridge used by generated yaml.v3 hooks.
-func UnmarshalGenerated(node *yaml.Node, dst any) error {
+// UnmarshalGeneratedNode validates a parsed YAML node before typed decoding.
+func UnmarshalGeneratedNode(node *yaml.Node, dst any) error {
+	if node == nil {
+		return fmt.Errorf("nil YAML node")
+	}
+	if nilInterface(dst) {
+		return fmt.Errorf("generated YAML destination must be a non-nil pointer")
+	}
 	codec, ok := dst.(generatedCodec)
 	if !ok {
 		return fmt.Errorf("destination does not implement generated YAML codec")
@@ -122,15 +129,15 @@ func UnmarshalGenerated(node *yaml.Node, dst any) error {
 	if err := validateHighLevelDocument(root, plan, nil, highLevelRunOptions{limits: limits}); err != nil {
 		return err
 	}
-	ctx := genruntime.NewDecodeContext(toGeneratedLimits(Limits{}), false)
+	ctx := yamlcodec.NewDecodeContext(toGeneratedLimits(Limits{}), false)
 	if withContext, ok := dst.(generatedContextDecoder); ok {
 		return withContext.YAMLValidatorDecodeWithContext(node, ctx)
 	}
 	return codec.YAMLValidatorDecode(node)
 }
 
-func toGeneratedLimits(limits Limits) genruntime.Limits {
-	return genruntime.Limits{
+func toGeneratedLimits(limits Limits) yamlcodec.Limits {
+	return yamlcodec.Limits{
 		MaxDepth:      limits.MaxDepth,
 		MaxNodeVisits: limits.MaxNodeVisits,
 	}

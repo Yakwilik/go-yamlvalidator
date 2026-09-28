@@ -102,7 +102,7 @@ func generatedLiteralType(t reflect.Type) string {
 			return t.Name()
 		case "github.com/Yakwilik/go-yamlvalidator":
 			return "yamlvalidator." + t.Name()
-		case "github.com/Yakwilik/go-yamlvalidator/genruntime/spec":
+		case "github.com/Yakwilik/go-yamlvalidator/genruntime/spec", "github.com/Yakwilik/go-yamlvalidator/internal/genspec":
 			return "spec." + t.Name()
 		case "encoding/json":
 			return "json." + t.Name()

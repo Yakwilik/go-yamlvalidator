@@ -106,7 +106,7 @@ func run(namesText string, all bool, output string, check bool) error {
 		if named.TypeParams() != nil && named.TypeParams().Len() > 0 {
 			return fmt.Errorf("type %s: generic type parameters are unsupported", name)
 		}
-		for _, method := range []string{"MarshalYAML", "UnmarshalYAML", "YAMLValidatorEncode", "YAMLValidatorDecode", "YAMLValidatorDecodeWithContext", "YAMLValidatorGeneratedType", "YAMLValidatorSchema", "YAMLValidatorCheckCycles"} {
+		for _, method := range []string{"MarshalYAML", "UnmarshalYAML", "YAMLValidatorEncode", "YAMLValidatorDecode", "YAMLValidatorDecodeWithContext", "YAMLValidatorGeneratedType", "YAMLValidatorSchema", "YAMLValidatorSchemaSpec", "YAMLValidatorCheckCycles"} {
 			for i := 0; i < named.NumMethods(); i++ {
 				if named.Method(i).Name() == method && filepath.Clean(pkg.Fset.Position(named.Method(i).Pos()).Filename) != filepath.Clean(path) {
 					return fmt.Errorf("type %s: method %s already exists", name, method)
@@ -120,7 +120,7 @@ func run(namesText string, all bool, output string, check bool) error {
 		g.roots = append(g.roots, root{name: name, id: id})
 	}
 	var source strings.Builder
-	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"strconv\"\n\"github.com/Yakwilik/go-yamlvalidator\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime/spec\"\n\"gopkg.in/yaml.v3\"\n")
+	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"strconv\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime/spec\"\n\"gopkg.in/yaml.v3\"\n")
 	paths := make([]string, 0, len(g.imports))
 	for path := range g.imports {
 		paths = append(paths, path)
@@ -132,13 +132,13 @@ func run(namesText string, all bool, output string, check bool) error {
 	source.WriteString(")\n\nvar _ = fmt.Sprintf\nvar _ = sort.Strings\nvar _ = strconv.IntSize\n\n")
 	for _, r := range g.roots {
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[%s]() }\n", r.name, r.name)
-		fmt.Fprintf(&source, "func (value %s) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error { return yamlvalidatorCycle%d(value,genruntime.NewCycleContext(genruntime.Limits{MaxDepth:limits.MaxDepth,MaxNodeVisits:limits.MaxNodeVisits}),0) }\n", r.name, r.id)
-		fmt.Fprintf(&source, "func (value %s) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema,error) { return yamlvalidatorGeneratedSchema%d(registry,encode) }\n", r.name, r.id)
+		fmt.Fprintf(&source, "func (value %s) YAMLValidatorCheckCycles(limits genruntime.Limits) error { return yamlvalidatorCycle%d(value,genruntime.NewCycleContext(limits),0) }\n", r.name, r.id)
+		fmt.Fprintf(&source, "func (value %s) YAMLValidatorSchemaSpec() (spec.Graph,[]reflect.Type) { return yamlvalidatorGeneratedSchema%d() }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorEncode() (*yaml.Node,error) { return yamlvalidatorEncode%d(value) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecode(node *yaml.Node) error { return value.YAMLValidatorDecodeWithContext(node,genruntime.NewDecodeContext(genruntime.Limits{},false)) }\n", r.name)
 		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecodeWithContext(node *yaml.Node,ctx *genruntime.DecodeContext) error { return yamlvalidatorDecode%d(node,value,ctx) }\n", r.name, r.id)
-		fmt.Fprintf(&source, "func (value %s) MarshalYAML() (any,error) { return yamlvalidator.MarshalGenerated(value) }\n", r.name)
-		fmt.Fprintf(&source, "func (value *%s) UnmarshalYAML(node *yaml.Node) error { return yamlvalidator.UnmarshalGenerated(node,value) }\n\n", r.name)
+		fmt.Fprintf(&source, "func (value %s) MarshalYAML() (any,error) { return genruntime.MarshalYAML(value) }\n", r.name)
+		fmt.Fprintf(&source, "func (value *%s) UnmarshalYAML(node *yaml.Node) error { return genruntime.UnmarshalYAML(node,value) }\n\n", r.name)
 	}
 	schemaSource, err := g.schemaGraphSource()
 	if err != nil {
@@ -241,12 +241,12 @@ func generatedStubs(old []byte, packageName string, selected []string) (string, 
 		}
 	}
 	var b strings.Builder
-	b.WriteString("package " + packageName + "\nimport (\"reflect\";yamlvalidator \"github.com/Yakwilik/go-yamlvalidator\";genruntime \"github.com/Yakwilik/go-yamlvalidator/genruntime\";\"gopkg.in/yaml.v3\")\n")
+	b.WriteString("package " + packageName + "\nimport (\"reflect\";genruntime \"github.com/Yakwilik/go-yamlvalidator/genruntime\";spec \"github.com/Yakwilik/go-yamlvalidator/genruntime/spec\";\"gopkg.in/yaml.v3\")\n")
 	for _, name := range selected {
 		if !oldRoots[name] {
 			continue
 		}
-		fmt.Fprintf(&b, "func (value %s) YAMLValidatorGeneratedType() reflect.Type{return nil}\nfunc (value %s) YAMLValidatorCheckCycles(yamlvalidator.Limits)error{return nil}\nfunc (value %s) YAMLValidatorSchema(*yamlvalidator.Registry,bool)(*yamlvalidator.FieldSchema,error){return nil,nil}\nfunc (value %s) YAMLValidatorEncode()(*yaml.Node,error){return nil,nil}\nfunc (value *%s) YAMLValidatorDecode(*yaml.Node)error{return nil}\nfunc (value *%s) YAMLValidatorDecodeWithContext(*yaml.Node,*genruntime.DecodeContext)error{return nil}\nfunc (value %s) MarshalYAML()(any,error){return nil,nil}\nfunc (value *%s) UnmarshalYAML(*yaml.Node)error{return nil}\n", name, name, name, name, name, name, name, name)
+		fmt.Fprintf(&b, "func (value %s) YAMLValidatorGeneratedType() reflect.Type{return nil}\nfunc (value %s) YAMLValidatorCheckCycles(genruntime.Limits)error{return nil}\nfunc (value %s) YAMLValidatorSchemaSpec()(spec.Graph,[]reflect.Type){return spec.Graph{},nil}\nfunc (value %s) YAMLValidatorEncode()(*yaml.Node,error){return nil,nil}\nfunc (value *%s) YAMLValidatorDecode(*yaml.Node)error{return nil}\nfunc (value *%s) YAMLValidatorDecodeWithContext(*yaml.Node,*genruntime.DecodeContext)error{return nil}\nfunc (value %s) MarshalYAML()(any,error){return nil,nil}\nfunc (value *%s) UnmarshalYAML(*yaml.Node)error{return nil}\n", name, name, name, name, name, name, name, name)
 	}
 	if len(oldRoots) == 0 {
 		return "package " + packageName + "\n", nil
@@ -259,7 +259,8 @@ func (g *generator) typeText(t types.Type) string {
 		if p == g.pkg {
 			return ""
 		}
-		if p.Path() == "github.com/Yakwilik/go-yamlvalidator" {
+		if p.Path() == "github.com/Yakwilik/go-yamlvalidator" || p.Path() == "github.com/Yakwilik/go-yamlvalidator/internal/engine" {
+			g.imports["github.com/Yakwilik/go-yamlvalidator"] = "yamlvalidator"
 			return "yamlvalidator"
 		}
 		if p.Path() == "gopkg.in/yaml.v3" {

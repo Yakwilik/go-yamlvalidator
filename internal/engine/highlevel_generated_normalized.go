@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"sort"
 
-	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,10 +29,10 @@ type generatedKeySymbol struct {
 
 func (generatedKeySymbol) ValidateKey(string, *yaml.Node, string, *ValidationContext) {}
 
-// LowerGeneratedSchema runs tag normalization during source generation. The
+// CompileSourceSchema runs tag normalization during source generation. The
 // returned graph contains only native schema properties, edges and validator
 // specifications; generated programs never receive tag language declarations.
-func LowerGeneratedSchema(graph genspec.SourceGraph, root int) (genspec.Graph, error) {
+func CompileSourceSchema(graph genspec.SourceGraph, root int) (genspec.Graph, error) {
 	schema, err := lowerGeneratedSourceGraph(graph, root)
 	if err != nil {
 		return genspec.Graph{}, err
@@ -186,10 +186,10 @@ func generatedKeySpec(v KeyValidator) (genspec.ValidatorSpec, error) {
 	}
 }
 
-// BuildGeneratedSchema allocates a normalized graph, wires its references and
+// buildGeneratedSchema allocates a normalized graph, wires its references and
 // resolves registry symbols. typeIDs are identity tokens emitted by the source
 // generator; they are never inspected for fields or tags.
-func BuildGeneratedSchema(graph genspec.Graph, typeIDs []reflect.Type, registry *Registry, encode bool) (*FieldSchema, error) {
+func buildGeneratedSchema(graph genspec.Graph, typeIDs []reflect.Type, registry *Registry, encode bool) (*FieldSchema, error) {
 	if graph.Root < 0 || graph.Root >= len(graph.Nodes) {
 		return nil, fmt.Errorf("invalid generated root")
 	}

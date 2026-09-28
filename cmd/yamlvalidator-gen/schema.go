@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	yamlvalidator "github.com/Yakwilik/go-yamlvalidator"
-	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
+	"github.com/Yakwilik/go-yamlvalidator/internal/schemacompiler"
 	"github.com/Yakwilik/go-yamlvalidator/internal/taglang"
 )
 
@@ -33,11 +34,11 @@ func (g *generator) schemaGraphSource() (string, error) {
 	}
 	b.WriteString("}\n")
 	for _, root := range g.roots {
-		lowered, err := yamlvalidator.LowerGeneratedSchema(graph, root.id)
+		lowered, err := schemacompiler.Lower(graph, root.id)
 		if err != nil {
 			return "", fmt.Errorf("type %s: lower schema: %w", root.name, err)
 		}
-		fmt.Fprintf(&b, "func yamlvalidatorGeneratedSchema%d(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema,error) { return yamlvalidator.BuildGeneratedSchema(%s,yamlvalidatorGeneratedTypes,registry,encode) }\n", root.id, renderGeneratedLiteral(reflect.ValueOf(lowered)))
+		fmt.Fprintf(&b, "func yamlvalidatorGeneratedSchema%d() (spec.Graph,[]reflect.Type) { return %s,yamlvalidatorGeneratedTypes }\n", root.id, renderGeneratedLiteral(reflect.ValueOf(lowered)))
 	}
 	return b.String(), nil
 }

@@ -1,6 +1,7 @@
 package yamlvalidator
 
 import (
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
 	"reflect"
 	"sync/atomic"
 	"testing"
@@ -14,9 +15,9 @@ func (generatedPlanCacheProbe) YAMLValidatorGeneratedType() reflect.Type {
 	return reflect.TypeFor[generatedPlanCacheProbe]()
 }
 
-func (generatedPlanCacheProbe) YAMLValidatorSchema(*Registry, bool) (*FieldSchema, error) {
+func (generatedPlanCacheProbe) YAMLValidatorSchemaSpec() (genspec.Graph, []reflect.Type) {
 	generatedPlanCacheCalls.Add(1)
-	return &FieldSchema{Type: TypeMap, AllowedKeys: map[string]*FieldSchema{}}, nil
+	return genspec.Graph{Nodes: []genspec.Node{{Type: genspec.NodeType(TypeMap), HasAllowedKeys: true}}}, nil
 }
 
 func TestGeneratedPlanUsesRegistryCache(t *testing.T) {

@@ -1,6 +1,7 @@
 package yamlvalidator
 
 import (
+	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
 	"reflect"
 	"testing"
 
@@ -15,8 +16,8 @@ type generatedSchemaProbe struct {
 func (generatedSchemaProbe) YAMLValidatorGeneratedType() reflect.Type {
 	return reflect.TypeFor[generatedSchemaProbe]()
 }
-func (generatedSchemaProbe) YAMLValidatorSchema(*Registry, bool) (*FieldSchema, error) {
-	return &FieldSchema{Type: TypeMap, AllowedKeys: map[string]*FieldSchema{"name": {Type: TypeString, Required: true}}}, nil
+func (generatedSchemaProbe) YAMLValidatorSchemaSpec() (genspec.Graph, []reflect.Type) {
+	return genspec.Graph{Nodes: []genspec.Node{{Type: genspec.NodeType(TypeMap), HasAllowedKeys: true, AllowedKeys: map[string]int{"name": 1}}, {Type: genspec.NodeType(TypeString), Required: true}}}, nil
 }
 func (value generatedSchemaProbe) YAMLValidatorEncode() (*yaml.Node, error) {
 	return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{

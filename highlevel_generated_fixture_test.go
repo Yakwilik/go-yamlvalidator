@@ -8,6 +8,7 @@ import (
 
 	"github.com/Yakwilik/go-yamlvalidator"
 	"github.com/Yakwilik/go-yamlvalidator/examples/codegen/model"
+	"github.com/Yakwilik/go-yamlvalidator/genruntime"
 	valv "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator"
 	"gopkg.in/yaml.v3"
 )
@@ -109,43 +110,22 @@ func TestGeneratedRecursiveNodeAndLink(t *testing.T) {
 			t.Fatalf("cyclic %T accepted", value)
 		}
 	}
-	for _, schema := range []struct {
-		name string
-		s    *yamlvalidator.FieldSchema
-		err  error
+	for _, tc := range []struct {
+		name  string
+		input []byte
+		out   any
 	}{
-		func() struct {
-			name string
-			s    *yamlvalidator.FieldSchema
-			err  error
-		} {
-			s, e := model.Node{}.YAMLValidatorSchema(nil, false)
-			return struct {
-				name string
-				s    *yamlvalidator.FieldSchema
-				err  error
-			}{"node", s, e}
-		}(),
-		func() struct {
-			name string
-			s    *yamlvalidator.FieldSchema
-			err  error
-		} {
-			s, e := model.Link{}.YAMLValidatorSchema(nil, false)
-			return struct {
-				name string
-				s    *yamlvalidator.FieldSchema
-				err  error
-			}{"link", s, e}
-		}(),
+		{"node", []byte("name: root\nchildren: [{name: child}]\n"), &model.Node{}},
+		{"link", []byte("value: root\nnext: {value: child}\n"), &model.Link{}},
 	} {
-		if schema.err != nil {
-			t.Fatal(schema.err)
+		if err := yaml.Unmarshal(tc.input, tc.out); err != nil {
+			t.Fatalf("%s generated schema / standard hook: %v", tc.name, err)
 		}
-		if _, err := yamlvalidator.CompileFieldSchema(schema.s); err != nil {
-			t.Fatalf("%s schema: %v", schema.name, err)
+		if _, err := yaml.Marshal(tc.out); err != nil {
+			t.Fatalf("%s generated schema / standard marshal: %v", tc.name, err)
 		}
 	}
+
 }
 
 func TestGeneratedRegistryRulesUseEmittedDeclarations(t *testing.T) {
@@ -266,5 +246,11 @@ func TestCheckedInGeneratedPromotionUsesOuterShape(t *testing.T) {
 	data, err := yamlvalidator.Marshal(outer)
 	if err != nil || !strings.Contains(string(data), "other: kept") {
 		t.Fatalf("%s %v", data, err)
+	}
+}
+
+func TestGeneratedAdapterRejectsNilNode(t *testing.T) {
+	if err := genruntime.UnmarshalYAML(nil, &model.Config{}); err == nil {
+		t.Fatal("nil YAML node accepted")
 	}
 }
