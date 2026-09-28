@@ -1,0 +1,45 @@
+{
+  "coverage": "81.6",
+  "covered_statements": 4385,
+  "total_statements": 5371,
+  "source_commit": "f421900eee6772489e3593b8d2e068b4b8cb68ed",
+  "workflow_run": "https://github.com/Yakwilik/go-yamlvalidator/actions/runs/36445626286",
+  "packages": {
+    "github.com/Yakwilik/go-yamlvalidator": {
+      "covered": 26,
+      "total": 26
+    },
+    "github.com/Yakwilik/go-yamlvalidator/genruntime": {
+      "covered": 18,
+      "total": 18
+    },
+    "github.com/Yakwilik/go-yamlvalidator/genruntime/spec": {
+      "covered": 2,
+      "total": 2
+    },
+    "github.com/Yakwilik/go-yamlvalidator/internal/engine": {
+      "covered": 3577,
+      "total": 4433
+    },
+    "github.com/Yakwilik/go-yamlvalidator/internal/genspec": {
+      "covered": 2,
+      "total": 2
+    },
+    "github.com/Yakwilik/go-yamlvalidator/internal/schemacompiler": {
+      "covered": 1,
+      "total": 1
+    },
+    "github.com/Yakwilik/go-yamlvalidator/internal/yamlcodec": {
+      "covered": 510,
+      "total": 611
+    },
+    "github.com/Yakwilik/go-yamlvalidator/pkg/keyvalidator": {
+      "covered": 47,
+      "total": 48
+    },
+    "github.com/Yakwilik/go-yamlvalidator/pkg/valuevalidator": {
+      "covered": 202,
+      "total": 230
+    }
+  }
+}

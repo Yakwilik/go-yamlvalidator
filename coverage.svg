@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="20" role="img" aria-label="coverage: 81.6%">
+  <title>coverage: 81.6%</title>
+  <linearGradient id="shade" x2="0" y2="100%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="clip"><rect width="116" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#clip)">
+    <path fill="#555" d="M0 0h63v20H0z"/>
+    <path fill="#97ca00" d="M63 0h53v20H63z"/>
+    <path fill="url(#shade)" d="M0 0h116v20H0z"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">
+    <text x="31.5" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+    <text x="31.5" y="14">coverage</text>
+    <text x="89.5" y="15" fill="#010101" fill-opacity=".3">81.6%</text>
+    <text x="89.5" y="14">81.6%</text>
+  </g>
+</svg>
