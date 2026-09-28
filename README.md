@@ -22,14 +22,18 @@ For typed application configuration, put rules next to Go fields with `yamlvalid
 
 ### Why this library?
 
-| Need | `yaml.v3` decoding | Struct validation | JSON Schema engine | `go-yamlvalidator` |
-|---|---:|---:|---:|---:|
-| YAML syntax parsing | Yes | No | No | Yes |
-| Schema diagnostics mapped back to YAML line/column | No | No | Usually no | Yes |
-| Go struct-tag validation before decode | No | Usually after decoding | No | Yes |
-| Full JSON Schema | No | No | Yes | Yes |
-| Custom Go validators | Manual | Yes | Engine-specific | Yes |
-| Unknown-key diagnostics with YAML source context | Limited | After decoding | Without YAML positions | Yes |
+The comparison below covers the libraries' documented APIs, not every integration that could be built on top of them. The JSON Schema column refers to the Go library, not its separate CLI.
+
+| Need | [yaml.v3](https://github.com/go-yaml/yaml/tree/v3.0.1) | [goccy/go-yaml](https://github.com/goccy/go-yaml) | [go-playground/validator](https://github.com/go-playground/validator) | [santhosh-tekuri/jsonschema](https://github.com/santhosh-tekuri/jsonschema) | [go-yamlvalidator](https://github.com/Yakwilik/go-yamlvalidator) |
+|---|---|---|---|---|---|
+| YAML parsing and Marshal/Unmarshal | Yes | Yes | No; validates Go values | No YAML codec in library API | Yes; uses yaml.v3 |
+| Validation diagnostics with YAML source locations | Manual via <code>yaml.Node</code> | Validator integration and YAML Path annotations | No YAML source mapping | JSON instance paths; needs YAML source mapping | Paths, lines, columns and source snippets |
+| Go struct-tag validation | Not built in | Via <code>StructValidator</code> on decoded values | Yes, on Go values | No | Native tags checked on YAML before decoding |
+| JSON Schema validation | Not built in | Not built in | No | Yes | Yes, with YAML source diagnostics |
+| Custom Go validation | Manual hooks | <code>StructValidator</code> integration | Field and struct callbacks | Formats and vocabularies | Value/key validators and registry |
+| Unknown struct/object keys | <code>KnownFields(true)</code> | <code>DisallowUnknownField()</code> | Not recoverable once discarded by struct decoding | <code>additionalProperties</code> | Error/warn/ignore policies and key suggestions |
+
+[goccy/go-yaml](https://github.com/goccy/go-yaml) already provides source-aware errors: its [validator integration](https://pkg.go.dev/github.com/goccy/go-yaml#Validator) can annotate field-validation failures, [YAML Path](https://pkg.go.dev/github.com/goccy/go-yaml#Path.AnnotateSource) can annotate custom errors, and [unknown-field rejection](https://pkg.go.dev/github.com/goccy/go-yaml#example-Decoder.Decode-DisallowUnknownField) includes source context. It should not be treated as a decoder without validation support. The distinction here is validation of the original YAML tree before decoding into an application struct, with native schemas, struct tags, JSON Schema and optional typed code generation in one library.
 
 Originally built to validate configuration files in [EasyP](https://github.com/easyp-tech/easyp). The development story is in [this Habr article (Russian)](https://habr.com/ru/articles/1086386/).
 
