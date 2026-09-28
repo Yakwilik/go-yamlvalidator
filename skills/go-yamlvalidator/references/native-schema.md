@@ -126,8 +126,12 @@ schema := &v.FieldSchema{
 }
 ~~~
 
-Use JSON Schema for recursive schema graphs: CompileFieldSchema rejects native
-recursive graphs. Sharing the same child schema in several places is allowed.
+Native structural recursion is supported when each recursive edge descends into
+a child YAML value, for example a tree whose <code>child</code> property points
+back to the same FieldSchema. <code>CompileFieldSchema</code> rejects same-node
+composition cycles that could revalidate the same YAML node forever, such as a
+schema directly containing itself in <code>OneOfSchemas</code>. Sharing the same
+child schema in several places is also allowed.
 
 ## Definition checking and snapshot
 

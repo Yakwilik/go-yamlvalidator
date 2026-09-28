@@ -88,7 +88,7 @@ jobs:
           go-version: "1.26.6"
           cache: true
       - name: Compare public API with freeze baseline
-        run: ./scripts/check-api-compat.sh v0.6.0
+        run: ./scripts/check-api-compat.sh v1.0.0
 
   race:
     name: Race detector

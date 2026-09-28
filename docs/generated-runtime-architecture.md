@@ -64,9 +64,9 @@ Validation performed during this refactor:
 
 - Unchanged external tests from v1.0.0 compiled against the facade. 266 test/subtest cases passed when excluding the old test that required all recursive schemas to be rejected; structural recursion was intentionally enabled in an earlier feature commit.
 - Comparing v1.0.0's root declarations with the shared engine using apidiff produced no incompatible structural API changes.
-- The raw whole-module apidiff still reports canonical type relocations through aliases. Its output is not hidden or treated as an empty compatibility result. The compatibility script now fails on a nonempty report instead of relying on apidiff's exit status.
+- The raw whole-module apidiff reports canonical type relocations through aliases even when the root source signature is unchanged. The release gate canonicalizes only the exact root-to-internal/engine relocation and ignores a report only when the old and new type text then become identical; every other incompatibility still fails the gate.
 
-This is a local, unreleased refactor. Publication requires explicit review of the canonical type-path migration; ordinary client-source compatibility is not the same as an unchanged reflection identity.
+For v1.1 this canonical reflection-path migration is an accepted compatibility tradeoff. Application-facing root names, imports and call signatures remain available, while code that persists or compares reflect.Type.PkgPath() must account for the new implementation path. Do not describe v1.1 as reflection-identical to v1.0.0.
 
 ## Regression gates
 

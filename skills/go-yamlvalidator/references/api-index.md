@@ -1,15 +1,16 @@
 # API coverage and source map
 
-This package documents <code>github.com/Yakwilik/go-yamlvalidator v1.0.0</code>,
-source commit <code>7cdf27270469587259432af4605e351d6cf5efa0</code>. The skill/plugin
-has its own version, <code>0.1.0</code>. It neither upgrades the Go module nor
-changes library behavior. These references describe that implementation, not
-all possible future releases of JSON Schema or the library.
+This package documents <code>github.com/Yakwilik/go-yamlvalidator v1.1.0</code>.
+The skill/plugin has its own version, <code>0.2.0</code>. It neither upgrades the
+Go module nor changes library behavior. These references describe the v1.1.0
+surface, including high-level struct tags and optional typed code generation.
 
 ## Coverage map
 
 | Public surface | Reference | Executable coverage |
 | --- | --- | --- |
+| High-level Marshal/Unmarshal, Options, yamlvalidate tags, Registry bindings | [High-level tags and codegen](high-level-and-codegen.md) | highlevel_test.go, library high-level acceptance tests |
+| yamlvalidator-gen -all/-type/-check, generated yaml.v3 hooks, recursive generated models | [High-level tags and codegen](high-level-and-codegen.md) | generator integration tests, checked-in generated examples |
 | Module installation, NewValidator, optional CompileFieldSchema and ValidateFieldSchema | [Installation](installation.md), [native schemas](native-schema.md) | [Native program](../examples/native/main.go), native_test.go |
 | All FieldSchema fields, NodeType constants, UnknownKeyPolicy values, ConditionalRule | [Native schemas](native-schema.md) | native_test.go |
 | ValueValidator, KeyValidator, DefinitionValidator, both cloner interfaces | [Native validators](native-validators.md), [execution](execution-and-testing.md) | custom_test.go, execution_test.go |
@@ -38,16 +39,13 @@ reference does not answer a version-specific question:
 
 | Source | Owns |
 | --- | --- |
-| [validator.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/validator.go) | Native execution, type inference, YAML traversal, results, collectors, entry points |
-| [schema_compile.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/schema_compile.go) | Definition checking and snapshots |
-| [diagnostic.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/diagnostic.go) | Typed paths, structured details |
-| [jsonschema.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/jsonschema.go) | Compiler options, YAML bridge, diagnostic adaptation |
-| [jsonschema_extensions.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/jsonschema_extensions.go) | Functional formats, keywords, vocabularies, subschemas |
-| [jsonschema_content.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/jsonschema_content.go) | Content handlers |
-| [jsonschema_resolver.go](https://github.com/Yakwilik/go-yamlvalidator/blob/7cdf27270469587259432af4605e351d6cf5efa0/jsonschema_resolver.go) | Resolver interfaces and implementations |
-| [pkg/valuevalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/7cdf27270469587259432af4605e351d6cf5efa0/pkg/valuevalidator) | Native value checks, exact bounds, cloning |
-| [pkg/keyvalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/7cdf27270469587259432af4605e351d6cf5efa0/pkg/keyvalidator) | Native key checks |
-| [CLI](https://github.com/Yakwilik/go-yamlvalidator/tree/7cdf27270469587259432af4605e351d6cf5efa0/cmd/yamlvalidator) | CLI loading, options, serialization support |
+| [api.go](https://github.com/Yakwilik/go-yamlvalidator/blob/v1.1.0/api.go) | Application-facing root facade and stable exported names |
+| [internal/engine](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/internal/engine) | High-level tag compiler, native validation, JSON Schema bridge, diagnostics, registry and plan cache |
+| [genruntime](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/genruntime) | ABI used by generated YAML hooks and typed codec helpers |
+| [cmd/yamlvalidator-gen](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/cmd/yamlvalidator-gen) | Go source/type frontend, -all selection and code generation |
+| [pkg/valuevalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/pkg/valuevalidator) | Native value checks, exact bounds, cloning |
+| [pkg/keyvalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/pkg/keyvalidator) | Native key checks |
+| [CLI](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/cmd/yamlvalidator) | CLI loading, options, serialization support |
 
 Implementation takes precedence over README shortcuts. For example, native
 unknown keys are warnings by default, native schema compilation is optional,

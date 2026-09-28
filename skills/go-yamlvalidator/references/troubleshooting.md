@@ -6,6 +6,8 @@ or silently disabling unknown-key checks.
 
 | Symptom | Check / correct action |
 | --- | --- |
+| yamlvalidate is ignored by yaml.Unmarshal | Without generated/user YAML hooks this is ordinary yaml.v3 behavior; use yamlvalidator.Unmarshal or generate hooks |
+| Generated file is stale after changing tags/fields | Regenerate with yamlvalidator-gen or run the same command with -check in CI |
 | Unknown keys do not make HasErrors true | Native inherited policy defaults to warning; set UnknownKeyError or StrictKeys |
 | Every map key is unknown | TypeMap without AllowedKeys is not an arbitrary-map schema; use AdditionalProperties |
 | An arbitrary object gets no recursive errors | Bare TypeAny does not constrain structure |
@@ -23,7 +25,7 @@ or silently disabling unknown-key checks.
 | Callback panics on a map | Use type assertions; maps/slices cannot be compared through interface == |
 | JSON Schema callback cannot find a YAML node | It receives the JSON data model; use native callbacks for YAML tags/styles |
 | Large numbers round or Int64 fails | Keep json.Number / ExactNumber; choose conversions matching the required range |
-| Cannot compileFieldSchema on a recursive graph | Use JSON Schema refs for recursion; native definition checker rejects it |
+| Recursive schema fails to compile | Structural child recursion is supported; inspect for a same-node composition cycle such as self-referential OneOfSchemas/AnyOfSchemas |
 | Cancellation returns a result with no errors | Inspect returned error and Canceled/Truncated before HasErrors |
 | Required missing field has parent's location | The missing node has no source position |
 | Native schema file rejects a Go API field | CLI serialization covers a subset; see cli.md |
@@ -31,8 +33,10 @@ or silently disabling unknown-key checks.
 ## Migration from older library versions
 
 Inspect the exact selected version with go list -m, not an old README or copied
-snippet. This skill targets v1.0.0. In v1:
+snippet. This skill targets v1.1.0. In v1.1:
 
+- For typed config structs, yamlvalidator.Unmarshal/Marshal can validate yamlvalidate tags directly.
+- yamlvalidator-gen -all adds typed codecs and ordinary yaml.v3 validation hooks; use -check for freshness.
 - Use Resolver and JSONSchemaResolverFunc, not LoadURL or JSONSchemaLoadFunc.
 - Use Formats, Keywords, Vocabularies, ContentEncodings, ContentMediaTypes and
   CompileWithContext; ConfigureCompiler is not available.

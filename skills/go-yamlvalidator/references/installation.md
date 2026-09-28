@@ -1,6 +1,6 @@
 # Installation and integration choice
 
-This skill targets <code>github.com/Yakwilik/go-yamlvalidator v1.0.0</code>, whose
+This skill targets <code>github.com/Yakwilik/go-yamlvalidator v1.1.0</code>, whose
 minimum Go directive is <code>1.24.0</code>. The plugin version is independent.
 Inspect the caller's go.mod before changing dependencies; do not upgrade Go to
 satisfy an example without asking. For older library versions, read their API.
@@ -8,7 +8,7 @@ satisfy an example without asking. For older library versions, read their API.
 ~~~bash
 go version
 go list -m github.com/Yakwilik/go-yamlvalidator
-go get github.com/Yakwilik/go-yamlvalidator@v1.0.0
+go get github.com/Yakwilik/go-yamlvalidator@v1.1.0
 ~~~
 
 The last command changes the current Go module and may download dependencies.
@@ -26,6 +26,29 @@ import (
 
 Include only used imports. Import yaml.v3 only for decoding or native callbacks.
 Do not import the internal JSON Schema engine for supported extension APIs.
+
+## Choose the integration style
+
+For an existing typed Go configuration model, prefer the high-level struct-tag
+path unless the application already owns a separate schema:
+
+~~~go
+type Config struct {
+    Name string "yaml:\"name\" yamlvalidate:\"required,nonempty\""
+}
+
+var cfg Config
+if err := v.Unmarshal(data, &cfg); err != nil {
+    return err
+}
+~~~
+
+This validates the YAML tree before mutating cfg. See
+[high-level tags and codegen](high-level-and-codegen.md).
+
+Use FieldSchema when the contract is built programmatically or independently of
+one struct. Use JSON Schema when the schema is portable/external or needs the
+JSON Schema vocabulary.
 
 ## Native versus JSON Schema
 
@@ -81,7 +104,7 @@ go test ./skills/go-yamlvalidator/examples/...
 ~~~
 
 An installed skill may be outside any Go module. Its check-examples.sh script
-copies only the bundled examples into a temporary module, pins v1.0.0, and runs
+copies only the bundled examples into a temporary module, pins v1.1.0, and runs
 the tests. Pass <code>--local /path/to/go-yamlvalidator</code> to test a checkout
 without editing the application's go.mod. Both commands and source files are
 examples for explicit execution, not automatic hooks.

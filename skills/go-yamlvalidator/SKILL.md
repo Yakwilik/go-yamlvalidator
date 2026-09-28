@@ -1,22 +1,23 @@
 ---
 name: go-yamlvalidator
 description: >-
-  Integrate, configure, debug, and test github.com/Yakwilik/go-yamlvalidator in Go.
-  Use for YAML config validation with FieldSchema or JSON Schema, unknown or
-  required keys, indentation errors with source positions, maps, sequences,
-  cross-field rules, custom ValueValidator/KeyValidator, formats, keywords,
-  vocabularies, subschemas, external $ref resolvers, CLI usage, or migration from
-  yaml.Unmarshal plus struct validation. Also use when the user mentions
-  go-yamlvalidator, CompileJSONSchema, CompileFieldSchema, or asks in Russian
-  about валидация YAML в Go, проверка конфигов, or свои валидаторы.
+  Integrate, configure, generate, debug, and test github.com/Yakwilik/go-yamlvalidator in Go.
+  Use for source-aware YAML config validation with yamlvalidate struct tags,
+  yamlvalidator.Marshal/Unmarshal, optional yamlvalidator-gen typed codecs,
+  FieldSchema or JSON Schema, unknown/required keys, maps, sequences, cross-field
+  rules, custom ValueValidator/KeyValidator, formats, keywords, vocabularies,
+  subschemas, external $ref resolvers, CLI usage, or migration from yaml.Unmarshal
+  plus post-decode validation. Also use when the user mentions go-yamlvalidator,
+  yamlvalidate, yamlvalidator-gen, CompileJSONSchema, CompileFieldSchema, or asks
+  in Russian about валидация YAML в Go, проверка конфигов, or свои валидаторы.
 license: Apache-2.0
 compatibility: >-
   Agent instructions are portable. Running the bundled Go examples requires
   Go 1.24 or newer; downloading uncached Go modules requires network access.
 metadata:
-  version: "0.1.0"
-  library-version: "v1.0.0"
-  source-revision: "7cdf27270469587259432af4605e351d6cf5efa0"
+  version: "0.2.0"
+  library-version: "v1.1.0"
+  source-revision: "002ec25f4a645ebd77b86d6151a512d159e3fdee"
 ---
 
 # go-yamlvalidator
@@ -30,7 +31,7 @@ Use the user's language in explanations and preserve their code style.
 
 1. Inspect the caller's Go version, go.mod, existing config loading, YAML input,
    schema, and tests. Preserve the exact module path including uppercase
-   <code>Yakwilik</code>. These references describe library v1.0.0. For another
+   <code>Yakwilik</code>. These references describe library v1.1.0. For another
    version, inspect that version's code or go doc before using a newer API.
 2. Choose the validation surface from the table below. Do not introduce JSON
    Schema or native schema compilation merely to make a small example longer.
@@ -47,6 +48,8 @@ Use the user's language in explanations and preserve their code style.
 
 | Need | Use | Read next |
 | --- | --- | --- |
+| Typed Go config with rules next to fields | <code>yamlvalidator.Unmarshal</code>/<code>Marshal</code> + <code>yamlvalidate</code> | [High-level tags and codegen](references/high-level-and-codegen.md) |
+| Standard <code>yaml.v3</code> hooks or typed codec generation | <code>yamlvalidator-gen -all</code> | [High-level tags and codegen](references/high-level-and-codegen.md) |
 | Small, trusted Go-defined schema | <code>NewValidator(schema)</code> | [Native schemas](references/native-schema.md) |
 | Check schema definitions or snapshot mutable configuration | <code>ValidateFieldSchema</code> or <code>CompileFieldSchema</code> | [Native schemas](references/native-schema.md) |
 | A portable JSON Schema document | <code>CompileJSONSchema</code>, then <code>NewValidator</code> | [JSON Schema](references/json-schema.md) |
@@ -58,6 +61,40 @@ Use the user's language in explanations and preserve their code style.
 | Validate from the terminal | Installed CLI, correct schema format and flags | [CLI](references/cli.md) |
 | Existing/older integration does not compile | Version-specific migration and troubleshooting | [Troubleshooting](references/troubleshooting.md) |
 | Find all supported knobs or check provenance | API coverage and source map | [API index](references/api-index.md) |
+
+## First high-level example
+
+For an ordinary Go configuration struct, validate the YAML source before decoding:
+
+~~~go
+package main
+
+import (
+    "fmt"
+
+    v "github.com/Yakwilik/go-yamlvalidator"
+)
+
+type Config struct {
+    Mode string "yaml:\"mode\" yamlvalidate:\"required,enum=[dev,prod]\""
+    File string "yaml:\"file,omitempty\" yamlvalidate:\"exactlyOneOf=[file,url],nonempty\""
+    URL  string "yaml:\"url,omitempty\""
+}
+
+func main() {
+    data := []byte("mode: prod\nurl: https://example.org\n")
+    var cfg Config
+    if err := v.Unmarshal(data, &cfg); err != nil {
+        panic(err)
+    }
+    fmt.Printf("%s %s\n", cfg.Mode, cfg.URL)
+}
+~~~
+
+Use <code>yamlvalidator.Unmarshal</code>, not <code>yaml.Unmarshal</code>, when you
+want tag validation without generated code. Generated types also expose ordinary
+yaml.v3 hooks; types without generated/user hooks remain ordinary yaml.v3 types.
+See [high-level tags and codegen](references/high-level-and-codegen.md).
 
 ## First native example
 
@@ -119,6 +156,17 @@ maps diagnostics back to YAML nodes. Do not replace it with a float64 JSON round
 
 ## Rules that prevent incorrect integrations
 
+- High-level <code>yamlvalidator.Unmarshal</code> validates before decoding. A
+  validation failure must not be replaced by decode-then-validate logic that can
+  partially mutate application state. It accepts one YAML document and rejects
+  unknown struct fields by default.
+- Bare object-group tags such as <code>exactlyOneOf=[file,url]</code> constrain
+  sibling keys of the containing mapping; <code>exactlyOneOfKeys</code> constrains
+  the mapping value of the current field. Do not guess scope from field type.
+- Standard <code>yaml.Unmarshal</code>/<code>Marshal</code> only apply
+  <code>yamlvalidate</code> when generated or user-written YAML hooks exist.
+  Running <code>yamlvalidator-gen -all</code> generates eligible package structs
+  and follows statically known nested types transitively.
 - Native unknown keys default to warnings. Set <code>UnknownKeyError</code>, or
   <code>StrictKeys: true</code> with an inherited policy, when rejection is required.
   <code>HasErrors()</code> does not report warnings.
@@ -159,6 +207,6 @@ go test ./skills/go-yamlvalidator/examples/...
 
 For an installed copy outside this repository, use the explicitly invoked
 [scripts/check-examples.sh](scripts/check-examples.sh), which tests in a temporary
-module against v1.0.0 and leaves the caller's module unchanged. It may download
+module against v1.1.0 and leaves the caller's module unchanged. It may download
 Go dependencies. [Evaluation scenarios](evals/scenarios.json) are a manual agent
 quality rubric, not a claim that behavioral evaluations have already passed.

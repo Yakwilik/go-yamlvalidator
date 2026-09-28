@@ -63,13 +63,14 @@ claude plugin validate .
 go test -count=1 -run '^TestAgentPlugin' .
 go test -count=1 ./skills/go-yamlvalidator/examples/...
 go test -race ./skills/go-yamlvalidator/examples/...
-bash skills/go-yamlvalidator/scripts/check-examples.sh
+bash skills/go-yamlvalidator/scripts/check-examples.sh --local .
 ~~~
 
-The last command tests against the published v1.0.0 module in a temporary
-workspace. It may download modules and does not alter the current module.
-Add <code>--local /absolute/path/to/go-yamlvalidator</code> to check local library
-changes. Normal repository tests include the packaging checks and recipes.
+The last command checks the current release candidate without altering its
+go.mod. After v1.1.0 is published, run the checker without <code>--local</code>
+to verify the bundled examples against the tagged module in a temporary
+workspace. That mode may download modules. Normal repository tests include the
+packaging checks and recipes.
 
 The [manual evaluation scenarios](../skills/go-yamlvalidator/evals/scenarios.json)
 cover agent behavior, version checks, API selection, ambiguous policies and
@@ -100,8 +101,9 @@ already contains the plugin.
 
 ## Version and maintenance
 
-The initial plugin/skill version is <code>0.1.0</code>; its documented library
-version is <code>v1.0.0</code>. Plugin and library versions are independent.
+The plugin/skill version for the v1.1.0 library documentation is
+<code>0.2.0</code>; its documented library version is <code>v1.1.0</code>.
+Plugin and library versions are independent.
 Change the plugin version when its instructions or resources change, and keep
 it synchronized with the SKILL frontmatter. No new Go-library tag is required
 merely to publish a skill update.

@@ -5,7 +5,7 @@ set -euo pipefail
 # Never creates a go.mod or go.work in the caller's project.
 skill_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 module='github.com/Yakwilik/go-yamlvalidator'
-version='v1.0.0'
+version='v1.1.0'
 local_repo=''
 test_args=(-count=1)
 while (($#)); do
@@ -15,9 +15,14 @@ while (($#)); do
       local_repo="$(cd -- "$2" && pwd)"
       shift 2
       ;;
+    --version)
+      if (($# < 2)); then echo '--version requires a module version' >&2; exit 2; fi
+      version="$2"
+      shift 2
+      ;;
     --race) test_args+=(-race); shift ;;
     -h|--help)
-      echo 'Usage: check-examples.sh [--local /path/to/go-yamlvalidator] [--race]'
+      echo 'Usage: check-examples.sh [--local /path/to/go-yamlvalidator] [--version v1.1.0] [--race]'
       exit 0
       ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
@@ -45,5 +50,6 @@ if [[ -n "$local_repo" ]]; then
 fi
 go mod tidy
 go test "${test_args[@]}" ./examples/...
+go run ./examples/highlevel
 go run ./examples/native
 go run ./examples/jsonschema

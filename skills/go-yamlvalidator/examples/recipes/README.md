@@ -6,6 +6,7 @@ recipe as a mandatory framework. They use only public library APIs.
 
 | File | Scenarios |
 | --- | --- |
+| [highlevel_test.go](highlevel_test.go) | yamlvalidate struct tags, high-level Marshal/Unmarshal, parent object groups, unknown keys, pre-decode validation |
 | [native_test.go](native_test.go) | Unknown-key policies, presence/null/defaults, containers, every cross-field rule and schema alternatives |
 | [builtins_test.go](builtins_test.go) | All native value and key validators, exact bounds and malformed definitions |
 | [custom_test.go](custom_test.go) | Application-defined function adapter, custom key/value types, definition validation, cloners |
@@ -26,7 +27,7 @@ go test -race ./skills/go-yamlvalidator/examples/...
 
 For a skill installed outside the library repository, explicitly run
 [the checker](../../scripts/check-examples.sh). It creates a temporary module,
-requires v1.0.0, and tests these files there. The caller's module is not changed:
+requires v1.1.0, and tests these files there. The caller's module is not changed:
 
 ~~~bash
 bash /path/to/go-yamlvalidator-skill/scripts/check-examples.sh

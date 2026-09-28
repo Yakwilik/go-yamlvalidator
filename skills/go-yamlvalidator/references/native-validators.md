@@ -83,7 +83,7 @@ schema := &v.FieldSchema{
 
 ## Application-defined callbacks
 
-There is no exported native ValueValidatorFunc or KeyValidatorFunc in v1.0.0.
+There is no exported native ValueValidatorFunc or KeyValidatorFunc in v1.1.0.
 Implement the interface with a struct, or define a function adapter in the
 application. Do not invent a library helper. Complete adapter example:
 

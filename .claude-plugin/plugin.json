@@ -1,7 +1,7 @@
 {
   "name": "go-yamlvalidator",
-  "description": "Use go-yamlvalidator in Go: native FieldSchema and JSON Schema validation, source-aware diagnostics, custom key/value validators, formats, keywords, vocabularies, resolvers, and tested integration recipes.",
-  "version": "0.1.0",
+  "description": "Use go-yamlvalidator in Go: yamlvalidate struct tags, typed code generation, native FieldSchema and JSON Schema validation, source-aware diagnostics, custom validators, resolvers, and tested integration recipes.",
+  "version": "0.2.0",
   "author": {
     "name": "Khasbulat Abdullin"
   },
@@ -12,6 +12,8 @@
     "go",
     "golang",
     "yaml",
+    "yamlvalidate",
+    "codegen",
     "json-schema",
     "validation",
     "configuration",

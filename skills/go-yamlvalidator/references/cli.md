@@ -5,7 +5,7 @@ formats are distinct. Do not pass a JSON Schema document with the default field
 format, or assume a JSON filename automatically selects JSON Schema mode.
 
 ~~~bash
-go install github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator@v1.0.0
+go install github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator@v1.1.0
 yamlvalidator -schema schema.json -schema-format jsonschema -file config.yaml
 ~~~
 

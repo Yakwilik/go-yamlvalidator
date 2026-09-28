@@ -94,7 +94,7 @@ func TestAgentPluginManifestAndSkill(t *testing.T) {
 	if len(header.Description) == 0 || len(header.Description) > 1024 || header.Compatibility == "" {
 		t.Fatal("skill description/compatibility does not satisfy package contract")
 	}
-	if header.Metadata.LibraryVersion != "v1.0.0" || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(header.Metadata.SourceRevision) {
+	if header.Metadata.LibraryVersion != "v1.1.0" || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(header.Metadata.SourceRevision) {
 		t.Fatal("skill must identify the tested library version and source revision")
 	}
 	if strings.Count(skill, "\n") > 250 {
@@ -187,7 +187,7 @@ func TestAgentPluginQuickStartMatchesRunnableExample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	example, err := format.Source(readAgentFile(t, agentSkillPath+"/examples/native/main.go"))
+	example, err := format.Source(readAgentFile(t, agentSkillPath+"/examples/highlevel/main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,7 +10,7 @@
   <a href="https://github.com/avelino/awesome-go"><img alt="Mentioned in Awesome Go" src="https://awesome.re/mentioned-badge-flat.svg"></a>
 </p>
 
-**Source-aware YAML validation for Go.** Validate raw YAML with native Go schemas or full JSON Schema while preserving paths, lines, and columns in diagnostics.
+**Source-aware YAML validation and typed YAML codecs for Go.** Validate Go struct tags, native Go schemas, or full JSON Schema while preserving paths, lines, and columns in diagnostics.
 
 ```text
 [ERROR] line 3:1: unknown key "plugin"; did you mean "plugins"? (path: generate.plugin)
@@ -18,7 +18,7 @@
        | ^
 ```
 
-Use a small Go-native schema when rules live with your application, or bring an existing JSON Schema when portability matters. Both paths validate the original YAML instead of forcing validation onto an already-decoded application struct.
+For typed application configuration, put rules next to Go fields with `yamlvalidate` and use `yamlvalidator.Unmarshal` / `yamlvalidator.Marshal`. Use `FieldSchema` when you need a programmatic native contract, or bring an existing JSON Schema when portability matters. Validation runs against the YAML representation before application decoding.
 
 ### Why this library?
 
@@ -26,7 +26,7 @@ Use a small Go-native schema when rules live with your application, or bring an 
 |---|---:|---:|---:|---:|
 | YAML syntax parsing | Yes | No | No | Yes |
 | Schema diagnostics mapped back to YAML line/column | No | No | Usually no | Yes |
-| Go-native schema | No | Via struct tags | No | Yes |
+| Go struct-tag validation before decode | No | Usually after decoding | No | Yes |
 | Full JSON Schema | No | No | Yes | Yes |
 | Custom Go validators | Manual | Yes | Engine-specific | Yes |
 | Unknown-key diagnostics with YAML source context | Limited | After decoding | Without YAML positions | Yes |
@@ -38,25 +38,36 @@ Originally built to validate configuration files in [EasyP](https://github.com/e
 Requires Go 1.24 or newer. CI verifies the minimum supported Go 1.24 line and the current stable Go release. Security-fixed IDNA/Unicode code is kept in an internal third-party snapshot so full `idn-hostname`/`idn-email` support does not force consumers onto Go 1.25.
 
 ```bash
-go get github.com/Yakwilik/go-yamlvalidator@v1.0.0
+go get github.com/Yakwilik/go-yamlvalidator@v1.1.0
 ```
 
 ## Quick Start
 
-### Validated Go values
+### Validated Go values with struct tags
 
-The high-level codec validates struct tags during Unmarshal and Marshal. Its zero-value options enable validation, require one YAML document, and reject unknown struct fields by default.
-
-Parent mapping groups use names such as exactlyOneOf on a real field; value mapping groups use names such as exactlyOneOfKeys. Native format and uniqueItems checks run without JSON Schema compilation. Standard gopkg.in/yaml.v3 calls use caller-written or generated YAML hooks when present; otherwise they do not interpret yamlvalidate. The high-level and generated-code APIs described here are unreleased additions on the development branch.
+For typed configuration, the shortest path is a normal Go struct with `yaml` and `yamlvalidate` tags:
 
 ~~~go
-var config Config // Config is defined in examples/highlevel/main.go.
-err := yamlvalidator.Unmarshal([]byte("mode: prod\nport: 8443\ntls: true\nhosts: [api.example.com]\n"), &config)
-if err != nil { return err }
-data, err := yamlvalidator.Marshal(config)
+type Config struct {
+    Mode  string   `yaml:"mode" yamlvalidate:"required,enum=[dev,prod]"`
+    File  string   `yaml:"file,omitempty" yamlvalidate:"exactlyOneOf=[file,url],nonempty"`
+    URL   string   `yaml:"url,omitempty"`
+    Hosts []string `yaml:"hosts" yamlvalidate:"required,minItems=1,items={nonempty,format=hostname}"`
+}
+
+var config Config
+if err := yamlvalidator.Unmarshal(data, &config); err != nil {
+    return err
+}
+
+encoded, err := yamlvalidator.Marshal(config)
 ~~~
 
-See [the high-level API guide](docs/high-level-api.md) for all validation tags, registry bindings, diagnostics, and limits. The [runnable example](examples/highlevel/main.go) defines Config with actual tags.
+`Unmarshal` parses one YAML document, validates the source tree, and only then decodes into the destination. A validation failure does not mutate the destination. Unknown struct fields are errors by default. `Marshal` validates the YAML representation it actually emits, so `omitempty`, inline fields, and custom codecs affect validation exactly as they affect output.
+
+Object rules have explicit scopes. A bare group such as `exactlyOneOf=[file,url]` on a real struct field constrains sibling keys in the containing mapping, even when the carrier field is absent. The `Keys` form, such as `exactlyOneOfKeys=[file,url]`, constrains the mapping value of the current field.
+
+See [the high-level API guide](docs/high-level-api.md) for the complete tag language, registry bindings, diagnostics, limits, nested `items`/`values`, and recursive types. The [runnable example](examples/highlevel/main.go) defines a complete configuration.
 
 ### Optional typed code generation
 
@@ -66,7 +77,11 @@ Generate methods for existing Go types without changing their definitions:
 go run github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen -all -output=zz_yamlvalidator_generated.go
 ~~~
 
-Generated types support ordinary yaml.v3 Marshal/Unmarshal through standard YAML hooks, as well as yamlvalidator Options. Use -all to generate every eligible named struct in the package without maintaining a type list; nested statically known types are followed automatically. Generated hooks and codec/runtime mechanics use the dedicated genruntime package; the root API exposes no generated bridge functions. Both facades share internal implementations. See [package boundaries and compatibility](docs/generated-runtime-architecture.md), including the canonical reflection type-path migration. The generator emits typed node mapping and a reusable native schema graph for every root and its statically known children, including recursive types. Reflection remains only in documented fallback paths. See [code generation](docs/code-generation.md), the [benchmark suite](benchmarks), the [runnable generated example](examples/codegen), and [cross-field rule examples in Russian](docs/tag-rules-examples.ru.md).
+Generated types support ordinary `yaml.v3` Marshal/Unmarshal through standard YAML hooks, as well as `yamlvalidator` Options. Use `-all` to generate every eligible named struct in the package without maintaining a type list; nested statically known types are followed transitively.
+
+The generated file contains typed field/collection mapping and a normalized native schema graph. It does not inspect generated structs with reflection or parse `yamlvalidate` tags at runtime. Generated hook mechanics live in the dedicated `genruntime` package; the application-facing root package exposes no generator bridge functions. Reflection remains only in fallback paths for non-generated or genuinely dynamic values.
+
+See [code generation](docs/code-generation.md), [generated runtime architecture](docs/generated-runtime-architecture.md), the [benchmark suite](benchmarks), the [runnable generated example](examples/codegen), and [cross-field rule examples in Russian](docs/tag-rules-examples.ru.md).
 
 ### Native schema validation
 
@@ -746,24 +761,39 @@ The collector accessors return defensive copies, so callers may sort or modify r
 
 ## Benchmarks
 
-The repository includes allocation-aware benchmarks for native schema compilation, native small/large validation, JSON Schema compilation, and JSON Schema small/large validation:
+The repository contains both validation-engine benchmarks and a reproducible runtime-vs-generated codec suite.
+
+On an Apple M4 Max / Go 1.26.1 fixture, generated `yaml.Node` encoding was about **12.4–13.5× faster** than reflective node encoding, while generated node decoding was about **15–21% faster**. Complete validated `Unmarshal` improved by about **2–6%** because YAML parsing and validation dominate the total cost. The source-aware high-level `Marshal` path is near parity with the reflective validated path because it intentionally validates the exact emitted bytes; the standard `yaml.v3` generated hook was about **28–38% faster** than the reflective validated Marshal in the same fixture.
+
+These are measurements of the checked-in fixture, not universal throughput guarantees. In particular, do not interpret the 12–13× node-encoder result as a 12–13× speedup for the complete validated pipeline.
+
+Run the generated-code suite:
+
+```bash
+go test -mod=readonly -run '^$' \
+  -bench '^Benchmark(Unmarshal|Marshal|NodeCodec)$' \
+  -benchmem -benchtime=1s -count=5 ./benchmarks
+```
+
+The exact machine, methodology, medians, allocations, and interpretation are recorded in [benchmarks/results/2026-09-28-m4-max.md](benchmarks/results/2026-09-28-m4-max.md).
+
+The native/JSON Schema engine benchmarks remain available with:
 
 ```bash
 go test -run '^$' -bench='Benchmark(Native|JSONSchema)' -benchmem .
 ```
 
-Benchmarks are intended for before/after regression work rather than fixed CI timing thresholds. Large-document validation avoids per-source-line string allocations by sharing one backing source string.
-
 ## API stability
 
-`v1.0.0` is the first SemVer-stable release. Its public API is frozen against the `v0.6.0` baseline, and CI runs `golang.org/x/exp/apidiff` against that tag to reject incompatible changes across all public packages. Backward-compatible additions remain possible within v1; removals or signature/type changes require a new major version.
+`v1.0.0` established the SemVer-stable v1 line. `v1.1.0` adds high-level struct-tag validation and optional typed code generation without changing the application-facing names or call signatures from v1. Existing low-level `FieldSchema`, `Validator`, JSON Schema, diagnostics, and extension APIs remain available.
 
 ## Agent skill and Claude Code plugin
 
 The repository includes an [agent skill](skills/go-yamlvalidator/SKILL.md) for
-integrating the library in Go projects. It covers native FieldSchema and JSON
-Schema, source-aware diagnostics, custom validators and extensions, resolvers,
-CLI usage, and table-driven executable recipes.
+integrating the library in Go projects. It covers high-level `yamlvalidate`
+struct tags, optional `yamlvalidator-gen` code generation, native `FieldSchema`,
+JSON Schema, source-aware diagnostics, custom validators and extensions,
+resolvers, CLI usage, and table-driven executable recipes.
 
 For a local Claude Code session:
 
