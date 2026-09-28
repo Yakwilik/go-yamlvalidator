@@ -26,7 +26,7 @@ func renderGeneratedLiteral(value reflect.Value) string {
 			return "nil"
 		}
 		if t.Elem().Kind() == reflect.Int {
-			return fmt.Sprintf("yamlvalidator.GeneratedInt(%d)", value.Elem().Int())
+			return fmt.Sprintf("spec.Int(%d)", value.Elem().Int())
 		}
 		panic("unexpected pointer in generated schema")
 	case reflect.Struct:
@@ -66,7 +66,7 @@ func renderGeneratedLiteral(value reflect.Value) string {
 	case reflect.String:
 		text := strconv.Quote(value.String())
 		if t.PkgPath() == "encoding/json" && t.Name() == "Number" {
-			return "yamlvalidator.GeneratedNumber(" + text + ")"
+			return "spec.Number(" + text + ")"
 		}
 		if t.Name() != "" && t.PkgPath() != "" {
 			return generatedLiteralType(t) + "(" + text + ")"
@@ -102,6 +102,8 @@ func generatedLiteralType(t reflect.Type) string {
 			return t.Name()
 		case "github.com/Yakwilik/go-yamlvalidator":
 			return "yamlvalidator." + t.Name()
+		case "github.com/Yakwilik/go-yamlvalidator/genruntime/spec":
+			return "spec." + t.Name()
 		case "encoding/json":
 			return "json." + t.Name()
 		}

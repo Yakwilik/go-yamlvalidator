@@ -4,28 +4,30 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+
+	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 )
 
-func generatedTestRules(t *testing.T, source string) []GeneratedRule {
+func generatedTestRules(t *testing.T, source string) []genspec.Rule {
 	t.Helper()
 	rules, err := parseTagRules(source)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var convertValue func(tagValue) GeneratedRuleValue
-	var convertRules func([]tagRule) []GeneratedRule
-	convertValue = func(v tagValue) GeneratedRuleValue {
-		out := GeneratedRuleValue{Kind: v.kind, Text: v.text}
+	var convertValue func(tagValue) genspec.RuleValue
+	var convertRules func([]tagRule) []genspec.Rule
+	convertValue = func(v tagValue) genspec.RuleValue {
+		out := genspec.RuleValue{Kind: v.kind, Text: v.text}
 		for _, child := range v.list {
 			out.List = append(out.List, convertValue(child))
 		}
 		out.Rules = convertRules(v.rules)
 		return out
 	}
-	convertRules = func(rs []tagRule) []GeneratedRule {
-		out := make([]GeneratedRule, len(rs))
+	convertRules = func(rs []tagRule) []genspec.Rule {
+		out := make([]genspec.Rule, len(rs))
 		for i, r := range rs {
-			out[i] = GeneratedRule{Key: r.key, Value: convertValue(r.value), HasValue: r.hasValue, Offset: r.offset}
+			out[i] = genspec.Rule{Key: r.key, Value: convertValue(r.value), HasValue: r.hasValue, Offset: r.offset}
 		}
 		return out
 	}
@@ -33,15 +35,15 @@ func generatedTestRules(t *testing.T, source string) []GeneratedRule {
 }
 
 func TestGeneratedNormalizedGraphContainsLoweredConstraints(t *testing.T) {
-	graph := GeneratedSchemaGraph{Nodes: []GeneratedSchemaNode{
-		{Type: TypeMap, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1, Fields: []GeneratedSchemaField{
+	graph := genspec.SourceGraph{Nodes: []genspec.SourceNode{
+		{Type: genspec.NodeType(TypeMap), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1, Fields: []genspec.SourceField{
 			{Key: "mode", Node: 1, FieldName: "Mode", Rules: generatedTestRules(t, "when={field=mode,eq=on,require=[items]}")},
 			{Key: "count", Node: 2, FieldName: "Count", Rules: generatedTestRules(t, "min=1,max=3")},
 			{Key: "items", Node: 3, FieldName: "Items", Rules: generatedTestRules(t, "minItems=1,items={enum=[red,blue]}")},
 		}},
-		{Type: TypeString, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
-		{Type: TypeInt, NumberKind: reflect.Int, NumberBits: strconv.IntSize, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
-		{Type: TypeSequence, Nullable: true, Item: 1, AliasOf: -1, Value: -1, ArrayLen: -1},
+		{Type: genspec.NodeType(TypeString), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
+		{Type: genspec.NodeType(TypeInt), NumberKind: reflect.Int, NumberBits: strconv.IntSize, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
+		{Type: genspec.NodeType(TypeSequence), Nullable: true, Item: 1, AliasOf: -1, Value: -1, ArrayLen: -1},
 	}}
 	lowered, err := LowerGeneratedSchema(graph, 0)
 	if err != nil {
@@ -73,9 +75,9 @@ func TestGeneratedNormalizedGraphContainsLoweredConstraints(t *testing.T) {
 }
 
 func TestGeneratedNormalizedGraphResolvesNamedAlternatives(t *testing.T) {
-	graph := GeneratedSchemaGraph{Nodes: []GeneratedSchemaNode{
-		{Type: TypeMap, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1, Fields: []GeneratedSchemaField{{Key: "value", Node: 1, FieldName: "Value", Rules: generatedTestRules(t, "oneOfSchemas=[named]")}}},
-		{Type: TypeString, AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
+	graph := genspec.SourceGraph{Nodes: []genspec.SourceNode{
+		{Type: genspec.NodeType(TypeMap), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1, Fields: []genspec.SourceField{{Key: "value", Node: 1, FieldName: "Value", Rules: generatedTestRules(t, "oneOfSchemas=[named]")}}},
+		{Type: genspec.NodeType(TypeString), AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1},
 	}}
 	lowered, err := LowerGeneratedSchema(graph, 0)
 	if err != nil {

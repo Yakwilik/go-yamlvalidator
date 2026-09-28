@@ -3,58 +3,11 @@ package yamlvalidator
 import (
 	"fmt"
 	"reflect"
+
+	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 )
 
-// GeneratedRuleValue is an input to source-time schema lowering. Generated
-// programs do not contain this representation.
-type GeneratedRuleValue struct {
-	Kind  byte
-	Text  string
-	List  []GeneratedRuleValue
-	Rules []GeneratedRule
-}
-
-// GeneratedRule is one parsed declaration passed to the generator's lowering step.
-type GeneratedRule struct {
-	Key      string
-	Value    GeneratedRuleValue
-	HasValue bool
-	Offset   int
-}
-
-// GeneratedSchemaField connects a statically known struct field to its schema.
-type GeneratedSchemaField struct {
-	Key       string
-	Node      int
-	Inline    bool
-	Rules     []GeneratedRule
-	FieldName string
-}
-
-// GeneratedSchemaNode describes one statically known Go type. Node indexes
-// permit recursive graphs without requiring an acyclic declaration order.
-type GeneratedSchemaNode struct {
-	Type       NodeType
-	Nullable   bool
-	GoType     reflect.Type
-	NumberKind reflect.Kind
-	NumberBits int
-	ArrayLen   int // -1 for non-arrays
-	AliasOf    int // -1 unless this is a pointer to another node
-	Item       int // -1 unless sequence
-	Value      int // -1 unless map
-	Fields     []GeneratedSchemaField
-	Opaque     bool
-	ByteSlice  bool
-}
-
-// GeneratedSchemaGraph is the generator's source-time type graph.
-type GeneratedSchemaGraph struct {
-	Nodes []GeneratedSchemaNode
-	Root  int
-}
-
-func (g GeneratedSchemaGraph) lower(rootID int) (*FieldSchema, error) {
+func lowerGeneratedSourceGraph(g genspec.SourceGraph, rootID int) (*FieldSchema, error) {
 	registry, encode, symbolic := (*Registry)(nil), false, true
 	g.Root = rootID
 	if g.Root < 0 || g.Root >= len(g.Nodes) {
@@ -79,8 +32,8 @@ func (g GeneratedSchemaGraph) lower(rootID int) (*FieldSchema, error) {
 	nodes := make([]*FieldSchema, len(g.Nodes))
 	bound := make([]bool, len(nodes))
 	for i, spec := range g.Nodes {
-		nodes[i] = &FieldSchema{Type: spec.Type, Nullable: spec.Nullable, generatedSourceIndex: i + 1}
-		if spec.Type == TypeMap && spec.Fields != nil {
+		nodes[i] = &FieldSchema{Type: NodeType(spec.Type), Nullable: spec.Nullable, generatedSourceIndex: i + 1}
+		if NodeType(spec.Type) == TypeMap && spec.Fields != nil {
 			nodes[i].AllowedKeys = make(map[string]*FieldSchema, len(spec.Fields))
 		}
 		if spec.NumberKind != reflect.Invalid {
@@ -246,7 +199,7 @@ func (g GeneratedSchemaGraph) lower(rootID int) (*FieldSchema, error) {
 	return nodes[g.Root], nil
 }
 
-func generatedTagRules(rules []GeneratedRule) []tagRule {
+func generatedTagRules(rules []genspec.Rule) []tagRule {
 	out := make([]tagRule, len(rules))
 	for i, rule := range rules {
 		out[i] = tagRule{key: rule.Key, value: generatedTagValue(rule.Value), hasValue: rule.HasValue, offset: rule.Offset}
@@ -254,7 +207,7 @@ func generatedTagRules(rules []GeneratedRule) []tagRule {
 	return out
 }
 
-func generatedTagValue(value GeneratedRuleValue) tagValue {
+func generatedTagValue(value genspec.RuleValue) tagValue {
 	out := tagValue{kind: value.Kind, text: value.Text, rules: generatedTagRules(value.Rules)}
 	for _, item := range value.List {
 		out.list = append(out.list, generatedTagValue(item))

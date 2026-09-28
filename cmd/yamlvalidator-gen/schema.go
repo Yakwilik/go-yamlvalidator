@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	yamlvalidator "github.com/Yakwilik/go-yamlvalidator"
+	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 	"github.com/Yakwilik/go-yamlvalidator/internal/taglang"
 )
 
@@ -18,7 +19,7 @@ type schemaField struct {
 
 func (g *generator) schemaGraphSource() (string, error) {
 	var b strings.Builder
-	graph := yamlvalidator.GeneratedSchemaGraph{Nodes: make([]yamlvalidator.GeneratedSchemaNode, len(g.types))}
+	graph := genspec.SourceGraph{Nodes: make([]genspec.SourceNode, len(g.types))}
 	for id, typ := range g.types {
 		spec, err := g.schemaNodeSpec(id, typ)
 		if err != nil {
@@ -41,23 +42,23 @@ func (g *generator) schemaGraphSource() (string, error) {
 	return b.String(), nil
 }
 
-func (g *generator) schemaNodeSpec(id int, typ types.Type) (yamlvalidator.GeneratedSchemaNode, error) {
-	s := yamlvalidator.GeneratedSchemaNode{AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1}
+func (g *generator) schemaNodeSpec(id int, typ types.Type) (genspec.SourceNode, error) {
+	s := genspec.SourceNode{AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1}
 	base := types.Unalias(typ)
 	if named, ok := base.(*types.Named); ok {
 		if named.Obj().Pkg() != nil && named.Obj().Pkg().Path() == "time" && (named.Obj().Name() == "Time" || named.Obj().Name() == "Duration") {
-			s.Type = yamlvalidator.TypeString
+			s.Type = genspec.NodeType(yamlvalidator.TypeString)
 			s.Opaque = true
 			return s, nil
 		}
 		if named.Obj().Pkg() != nil && named.Obj().Pkg().Path() == "gopkg.in/yaml.v3" && named.Obj().Name() == "Node" {
-			s.Type = yamlvalidator.TypeAny
+			s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 			s.Nullable = true
 			s.Opaque = true
 			return s, nil
 		}
 		if customCodec(typ) && !g.rootType(typ) {
-			s.Type = yamlvalidator.TypeAny
+			s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 			s.Opaque = true
 			return s, nil
 		}
@@ -65,33 +66,33 @@ func (g *generator) schemaNodeSpec(id int, typ types.Type) (yamlvalidator.Genera
 	}
 	switch u := base.(type) {
 	case *types.Pointer:
-		s.Type = yamlvalidator.TypeAny
+		s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 		s.Nullable = true
 		s.AliasOf = g.schemaID(u.Elem())
 	case *types.Basic:
 		switch u.Kind() {
 		case types.String:
-			s.Type = yamlvalidator.TypeString
+			s.Type = genspec.NodeType(yamlvalidator.TypeString)
 		case types.Bool:
-			s.Type = yamlvalidator.TypeBool
+			s.Type = genspec.NodeType(yamlvalidator.TypeBool)
 		case types.Int, types.Int8, types.Int16, types.Int32, types.Int64, types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64:
-			s.Type = yamlvalidator.TypeInt
+			s.Type = genspec.NodeType(yamlvalidator.TypeInt)
 			s.NumberKind = basicReflectKindValue(u.Kind())
 			s.NumberBits = basicBitsValue(u.Kind())
 		case types.Float32, types.Float64:
-			s.Type = yamlvalidator.TypeFloat
+			s.Type = genspec.NodeType(yamlvalidator.TypeFloat)
 			s.NumberKind = basicReflectKindValue(u.Kind())
 			s.NumberBits = basicBitsValue(u.Kind())
 		default:
-			s.Type = yamlvalidator.TypeAny
+			s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 			s.Opaque = true
 		}
 	case *types.Struct:
-		s.Type = yamlvalidator.TypeMap
-		s.Fields = []yamlvalidator.GeneratedSchemaField{}
+		s.Type = genspec.NodeType(yamlvalidator.TypeMap)
+		s.Fields = []genspec.SourceField{}
 		for _, entry := range g.schemaFields[id] {
 			f := entry.field
-			field := yamlvalidator.GeneratedSchemaField{Key: f.key, Node: f.id, Inline: f.inline, FieldName: f.name}
+			field := genspec.SourceField{Key: f.key, Node: f.id, Inline: f.inline, FieldName: f.name}
 			if entry.tag != "" {
 				rules, err := taglang.Parse(entry.tag)
 				if err != nil {
@@ -102,11 +103,11 @@ func (g *generator) schemaNodeSpec(id int, typ types.Type) (yamlvalidator.Genera
 			s.Fields = append(s.Fields, field)
 		}
 	case *types.Map:
-		s.Type = yamlvalidator.TypeMap
+		s.Type = genspec.NodeType(yamlvalidator.TypeMap)
 		s.Nullable = true
 		s.Value = g.schemaID(u.Elem())
 	case *types.Slice:
-		s.Type = yamlvalidator.TypeSequence
+		s.Type = genspec.NodeType(yamlvalidator.TypeSequence)
 		s.Nullable = true
 		if basic, ok := types.Unalias(u.Elem()).(*types.Basic); ok && basic.Kind() == types.Byte {
 			s.ByteSlice = true
@@ -114,29 +115,29 @@ func (g *generator) schemaNodeSpec(id int, typ types.Type) (yamlvalidator.Genera
 			s.Item = g.schemaID(u.Elem())
 		}
 	case *types.Array:
-		s.Type = yamlvalidator.TypeSequence
+		s.Type = genspec.NodeType(yamlvalidator.TypeSequence)
 		s.Item = g.schemaID(u.Elem())
 		s.ArrayLen = int(u.Len())
 	case *types.Interface:
-		s.Type = yamlvalidator.TypeAny
+		s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 		s.Nullable = true
 	default:
-		s.Type = yamlvalidator.TypeAny
+		s.Type = genspec.NodeType(yamlvalidator.TypeAny)
 		s.Opaque = true
 	}
 	return s, nil
 }
 
-func convertGeneratedRules(rules []taglang.Rule) []yamlvalidator.GeneratedRule {
-	out := make([]yamlvalidator.GeneratedRule, len(rules))
+func convertGeneratedRules(rules []taglang.Rule) []genspec.Rule {
+	out := make([]genspec.Rule, len(rules))
 	for i, r := range rules {
-		out[i] = yamlvalidator.GeneratedRule{Key: r.Key, HasValue: r.HasValue, Offset: r.Offset, Value: convertGeneratedValue(r.Value)}
+		out[i] = genspec.Rule{Key: r.Key, HasValue: r.HasValue, Offset: r.Offset, Value: convertGeneratedValue(r.Value)}
 	}
 	return out
 }
 
-func convertGeneratedValue(value taglang.Value) yamlvalidator.GeneratedRuleValue {
-	out := yamlvalidator.GeneratedRuleValue{Kind: byte(value.Kind), Text: value.Text, Rules: convertGeneratedRules(value.Rules)}
+func convertGeneratedValue(value taglang.Value) genspec.RuleValue {
+	out := genspec.RuleValue{Kind: byte(value.Kind), Text: value.Text, Rules: convertGeneratedRules(value.Rules)}
 	for _, item := range value.List {
 		out.List = append(out.List, convertGeneratedValue(item))
 	}

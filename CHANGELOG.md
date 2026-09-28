@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added optional yamlvalidator-gen with typed YAML node encoding/decoding, standard YAML hooks, Go-native normalized validation schemas, recursive type-graph support, Options-preserving mixed-tree support, per-call decode limits, deterministic regeneration and freshness checks, generated-file ownership protection, checked-in examples, and -all package-wide struct generation.
+- Added optional yamlvalidator-gen with typed YAML node encoding/decoding, standard YAML hooks, Go-native normalized validation schemas, recursive type-graph support, a dedicated genruntime ABI package, Options-preserving mixed-tree support, per-call decode limits, deterministic regeneration and freshness checks, generated-file ownership protection, checked-in examples, and -all package-wide struct generation.
 - Added validated high-level YAML Marshal and Unmarshal with recursive yamlvalidate tags, native formats and uniqueItems, explicit parent and value mapping groups, per-call limits and diagnostics, and registry-backed native validators and type bindings. The tag grammar and scope rules are shared with the optional source frontend. High-level JSON Schema tags and registry routes were removed. Low-level JSON Schema APIs remain available.
 - Added an optional go-yamlvalidator agent skill and Claude Code plugin, with
   source-checked API references, executable recipes, CLI fixtures, package

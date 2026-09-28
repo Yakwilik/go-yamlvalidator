@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 
+	genspec "github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -28,72 +29,15 @@ type generatedKeySymbol struct {
 
 func (generatedKeySymbol) ValidateKey(string, *yaml.Node, string, *ValidationContext) {}
 
-type GeneratedValidatorSpec struct {
-	Kind       string         `json:"kind"`
-	Name       string         `json:"name,omitempty"`
-	Text       string         `json:"text,omitempty"`
-	Number     int            `json:"number,omitempty"`
-	Minimum    bool           `json:"minimum,omitempty"`
-	Properties bool           `json:"properties,omitempty"`
-	Names      []string       `json:"names,omitempty"`
-	Args       map[string]any `json:"args,omitempty"`
-	Factory    bool           `json:"factory,omitempty"`
-}
-
-type GeneratedNormalizedNode struct {
-	Type                 NodeType                 `json:"type"`
-	AllowedTypes         []NodeType               `json:"allowedTypes,omitempty"`
-	Required             bool                     `json:"required,omitempty"`
-	Nullable             bool                     `json:"nullable,omitempty"`
-	Deprecated           string                   `json:"deprecated,omitempty"`
-	Description          string                   `json:"description,omitempty"`
-	Default              any                      `json:"default,omitempty"`
-	DefaultPresent       bool                     `json:"defaultPresent,omitempty"`
-	SourceIndex          int                      `json:"sourceIndex,omitempty"`
-	FieldRules           bool                     `json:"fieldRules,omitempty"`
-	Ref                  string                   `json:"ref,omitempty"`
-	AllowedKeys          map[string]int           `json:"allowedKeys,omitempty"`
-	HasAllowedKeys       bool                     `json:"hasAllowedKeys,omitempty"`
-	AdditionalProperties *int                     `json:"additionalProperties,omitempty"`
-	ValueSchema          *int                     `json:"valueSchema,omitempty"`
-	InlineCapture        *int                     `json:"inlineCapture,omitempty"`
-	ItemSchema           *int                     `json:"itemSchema,omitempty"`
-	ExtraSchemas         []int                    `json:"extraSchemas,omitempty"`
-	OneOfSchemas         []int                    `json:"oneOfSchemas,omitempty"`
-	AnyOfSchemas         []int                    `json:"anyOfSchemas,omitempty"`
-	UnknownKeyPolicy     UnknownKeyPolicy         `json:"unknownKeyPolicy,omitempty"`
-	MinItems             *int                     `json:"minItems,omitempty"`
-	MaxItems             *int                     `json:"maxItems,omitempty"`
-	Validators           []GeneratedValidatorSpec `json:"validators,omitempty"`
-	KeyValidators        []GeneratedValidatorSpec `json:"keyValidators,omitempty"`
-	AnyOf                [][]string               `json:"anyOf,omitempty"`
-	ExactlyOneOf         []string                 `json:"exactlyOneOf,omitempty"`
-	MutuallyExclusive    []string                 `json:"mutuallyExclusive,omitempty"`
-	Conditions           []ConditionalRule        `json:"conditions,omitempty"`
-	OneOfRequired        [][]string               `json:"oneOfRequired,omitempty"`
-	ForbiddenTogether    [][]string               `json:"forbiddenTogether,omitempty"`
-	DependentRequired    map[string][]string      `json:"dependentRequired,omitempty"`
-	ExactlyGroups        [][]string               `json:"exactlyGroups,omitempty"`
-	MutuallyGroups       [][]string               `json:"mutuallyGroups,omitempty"`
-	AnyClauses           [][][]string             `json:"anyClauses,omitempty"`
-	OneClauses           [][][]string             `json:"oneClauses,omitempty"`
-	RequiredNames        []string                 `json:"requiredNames,omitempty"`
-}
-
-type GeneratedNormalizedGraph struct {
-	Root  int                       `json:"root"`
-	Nodes []GeneratedNormalizedNode `json:"nodes"`
-}
-
 // LowerGeneratedSchema runs tag normalization during source generation. The
 // returned graph contains only native schema properties, edges and validator
 // specifications; generated programs never receive tag language declarations.
-func LowerGeneratedSchema(graph GeneratedSchemaGraph, root int) (GeneratedNormalizedGraph, error) {
-	schema, err := graph.lower(root)
+func LowerGeneratedSchema(graph genspec.SourceGraph, root int) (genspec.Graph, error) {
+	schema, err := lowerGeneratedSourceGraph(graph, root)
 	if err != nil {
-		return GeneratedNormalizedGraph{}, err
+		return genspec.Graph{}, err
 	}
-	result := GeneratedNormalizedGraph{}
+	result := genspec.Graph{}
 	ids := map[*FieldSchema]int{}
 	var visit func(*FieldSchema) (int, error)
 	visit = func(s *FieldSchema) (int, error) {
@@ -105,15 +49,15 @@ func LowerGeneratedSchema(graph GeneratedSchemaGraph, root int) (GeneratedNormal
 		}
 		id := len(result.Nodes)
 		ids[s] = id
-		result.Nodes = append(result.Nodes, GeneratedNormalizedNode{})
-		n := GeneratedNormalizedNode{
-			Type: s.Type, AllowedTypes: s.AllowedTypes, Required: s.Required, Nullable: s.Nullable,
+		result.Nodes = append(result.Nodes, genspec.Node{})
+		n := genspec.Node{
+			Type: genspec.NodeType(s.Type), AllowedTypes: toGeneratedSpecNodeTypes(s.AllowedTypes), Required: s.Required, Nullable: s.Nullable,
 			Deprecated: s.Deprecated, Description: s.Description, Default: s.Default,
 			DefaultPresent: s.defaultPresent, SourceIndex: s.generatedSourceIndex, FieldRules: s.generatedFieldRules, Ref: s.generatedRef,
-			HasAllowedKeys: s.AllowedKeys != nil, UnknownKeyPolicy: s.UnknownKeyPolicy,
+			HasAllowedKeys: s.AllowedKeys != nil, UnknownKeyPolicy: genspec.UnknownKeyPolicy(s.UnknownKeyPolicy),
 			MinItems: s.MinItems, MaxItems: s.MaxItems, AnyOf: s.AnyOf,
 			ExactlyOneOf: s.ExactlyOneOf, MutuallyExclusive: s.MutuallyExclusive,
-			Conditions: s.Conditions, OneOfRequired: s.OneOfRequired,
+			Conditions: toGeneratedSpecConditions(s.Conditions), OneOfRequired: s.OneOfRequired,
 			ForbiddenTogether: s.ForbiddenTogether, DependentRequired: s.DependentRequired,
 			ExactlyGroups: s.exactlyGroups, MutuallyGroups: s.mutuallyGroups,
 			AnyClauses: s.anyClauses, OneClauses: s.oneClauses, RequiredNames: s.requiredNames,
@@ -189,75 +133,75 @@ func LowerGeneratedSchema(graph GeneratedSchemaGraph, root int) (GeneratedNormal
 	}
 	result.Root, err = visit(schema)
 	if err != nil {
-		return GeneratedNormalizedGraph{}, err
+		return genspec.Graph{}, err
 	}
 	return result, nil
 }
 
-func generatedValueSpec(v ValueValidator) (GeneratedValidatorSpec, error) {
+func generatedValueSpec(v ValueValidator) (genspec.ValidatorSpec, error) {
 	switch x := v.(type) {
 	case representableValidator:
-		return GeneratedValidatorSpec{Kind: "representable", Number: x.bits, Text: x.kind.String()}, nil
+		return genspec.ValidatorSpec{Kind: "representable", Number: x.bits, Text: x.kind.String()}, nil
 	case byteRepresentationValidator:
-		return GeneratedValidatorSpec{Kind: "bytes"}, nil
+		return genspec.ValidatorSpec{Kind: "bytes"}, nil
 	case mappingShapeRule:
-		return GeneratedValidatorSpec{Kind: "mapping"}, nil
+		return genspec.ValidatorSpec{Kind: "mapping"}, nil
 	case notNullRule:
-		return GeneratedValidatorSpec{Kind: "notnull"}, nil
+		return genspec.ValidatorSpec{Kind: "notnull"}, nil
 	case nonemptyRule:
-		return GeneratedValidatorSpec{Kind: "nonempty"}, nil
+		return genspec.ValidatorSpec{Kind: "nonempty"}, nil
 	case uniqueItemsRule:
-		return GeneratedValidatorSpec{Kind: "uniqueItems"}, nil
+		return genspec.ValidatorSpec{Kind: "uniqueItems"}, nil
 	case rangeRule:
-		return GeneratedValidatorSpec{Kind: "range", Text: x.bound.RatString(), Minimum: x.minimum}, nil
+		return genspec.ValidatorSpec{Kind: "range", Text: x.bound.RatString(), Minimum: x.minimum}, nil
 	case lengthRule:
-		return GeneratedValidatorSpec{Kind: "length", Number: x.bound, Minimum: x.minimum, Properties: x.properties}, nil
+		return genspec.ValidatorSpec{Kind: "length", Number: x.bound, Minimum: x.minimum, Properties: x.properties}, nil
 	case enumRule:
-		return GeneratedValidatorSpec{Kind: "enum", Names: []string(x)}, nil
+		return genspec.ValidatorSpec{Kind: "enum", Names: []string(x)}, nil
 	case patternRule:
-		return GeneratedValidatorSpec{Kind: "pattern", Text: x.re.String()}, nil
+		return genspec.ValidatorSpec{Kind: "pattern", Text: x.re.String()}, nil
 	case urlRule:
-		return GeneratedValidatorSpec{Kind: "url", Minimum: x.requireScheme, Names: x.schemes}, nil
+		return genspec.ValidatorSpec{Kind: "url", Minimum: x.requireScheme, Names: x.schemes}, nil
 	case nativeFormatRule:
-		return GeneratedValidatorSpec{Kind: "format", Name: x.name}, nil
+		return genspec.ValidatorSpec{Kind: "format", Name: x.name}, nil
 	case generatedValueSymbol:
-		return GeneratedValidatorSpec{Kind: "check", Name: x.Name, Args: x.Args, Factory: x.Factory}, nil
+		return genspec.ValidatorSpec{Kind: "check", Name: x.Name, Args: x.Args, Factory: x.Factory}, nil
 	default:
-		return GeneratedValidatorSpec{}, fmt.Errorf("unsupported generated value validator %T", v)
+		return genspec.ValidatorSpec{}, fmt.Errorf("unsupported generated value validator %T", v)
 	}
 }
 
-func generatedKeySpec(v KeyValidator) (GeneratedValidatorSpec, error) {
+func generatedKeySpec(v KeyValidator) (genspec.ValidatorSpec, error) {
 	switch x := v.(type) {
 	case keyPatternRule:
-		return GeneratedValidatorSpec{Kind: "pattern", Text: x.re.String()}, nil
+		return genspec.ValidatorSpec{Kind: "pattern", Text: x.re.String()}, nil
 	case keyLengthRule:
-		return GeneratedValidatorSpec{Kind: "length", Number: x.bound, Minimum: x.minimum}, nil
+		return genspec.ValidatorSpec{Kind: "length", Number: x.bound, Minimum: x.minimum}, nil
 	case nativeKeyFormatRule:
-		return GeneratedValidatorSpec{Kind: "format", Name: x.name}, nil
+		return genspec.ValidatorSpec{Kind: "format", Name: x.name}, nil
 	case generatedKeySymbol:
-		return GeneratedValidatorSpec{Kind: "check", Name: x.Name, Args: x.Args, Factory: x.Factory}, nil
+		return genspec.ValidatorSpec{Kind: "check", Name: x.Name, Args: x.Args, Factory: x.Factory}, nil
 	default:
-		return GeneratedValidatorSpec{}, fmt.Errorf("unsupported generated key validator %T", v)
+		return genspec.ValidatorSpec{}, fmt.Errorf("unsupported generated key validator %T", v)
 	}
 }
 
 // BuildGeneratedSchema allocates a normalized graph, wires its references and
 // resolves registry symbols. typeIDs are identity tokens emitted by the source
 // generator; they are never inspected for fields or tags.
-func BuildGeneratedSchema(graph GeneratedNormalizedGraph, typeIDs []reflect.Type, registry *Registry, encode bool) (*FieldSchema, error) {
+func BuildGeneratedSchema(graph genspec.Graph, typeIDs []reflect.Type, registry *Registry, encode bool) (*FieldSchema, error) {
 	if graph.Root < 0 || graph.Root >= len(graph.Nodes) {
 		return nil, fmt.Errorf("invalid generated root")
 	}
 	nodes := make([]*FieldSchema, len(graph.Nodes))
 	for i, n := range graph.Nodes {
 		s := &FieldSchema{
-			Type: n.Type, AllowedTypes: n.AllowedTypes, Required: n.Required, Nullable: n.Nullable,
+			Type: NodeType(n.Type), AllowedTypes: fromGeneratedSpecNodeTypes(n.AllowedTypes), Required: n.Required, Nullable: n.Nullable,
 			Deprecated: n.Deprecated, Description: n.Description, Default: n.Default,
-			defaultPresent: n.DefaultPresent, UnknownKeyPolicy: n.UnknownKeyPolicy,
+			defaultPresent: n.DefaultPresent, UnknownKeyPolicy: UnknownKeyPolicy(n.UnknownKeyPolicy),
 			MinItems: n.MinItems, MaxItems: n.MaxItems, AnyOf: n.AnyOf,
 			ExactlyOneOf: n.ExactlyOneOf, MutuallyExclusive: n.MutuallyExclusive,
-			Conditions: n.Conditions, OneOfRequired: n.OneOfRequired,
+			Conditions: fromGeneratedSpecConditions(n.Conditions), OneOfRequired: n.OneOfRequired,
 			ForbiddenTogether: n.ForbiddenTogether, DependentRequired: n.DependentRequired,
 			exactlyGroups: n.ExactlyGroups, mutuallyGroups: n.MutuallyGroups,
 			anyClauses: n.AnyClauses, oneClauses: n.OneClauses, requiredNames: n.RequiredNames,
@@ -429,7 +373,7 @@ func mergeGeneratedBinding(bound, overlay *FieldSchema) *FieldSchema {
 	return bound
 }
 
-func instantiateGeneratedValue(v GeneratedValidatorSpec, registry *Registry) (ValueValidator, error) {
+func instantiateGeneratedValue(v genspec.ValidatorSpec, registry *Registry) (ValueValidator, error) {
 	switch v.Kind {
 	case "representable":
 		kind := reflectKindByName(v.Text)
@@ -499,7 +443,7 @@ func instantiateGeneratedValue(v GeneratedValidatorSpec, registry *Registry) (Va
 	return nil, fmt.Errorf("unknown generated value validator kind %q", v.Kind)
 }
 
-func instantiateGeneratedKey(v GeneratedValidatorSpec, registry *Registry) (KeyValidator, error) {
+func instantiateGeneratedKey(v genspec.ValidatorSpec, registry *Registry) (KeyValidator, error) {
 	switch v.Kind {
 	case "pattern":
 		re, err := regexp.Compile(v.Text)
@@ -556,5 +500,56 @@ func reflectKindByName(name string) reflect.Kind {
 	return reflect.Invalid
 }
 
-// GeneratedInt supplies pointer-valued bounds in generated Go literals.
-func GeneratedInt(value int) *int { return &value }
+func toGeneratedSpecNodeTypes(values []NodeType) []genspec.NodeType {
+	if values == nil {
+		return nil
+	}
+	out := make([]genspec.NodeType, len(values))
+	for i, value := range values {
+		out[i] = genspec.NodeType(value)
+	}
+	return out
+}
+
+func fromGeneratedSpecNodeTypes(values []genspec.NodeType) []NodeType {
+	if values == nil {
+		return nil
+	}
+	out := make([]NodeType, len(values))
+	for i, value := range values {
+		out[i] = NodeType(value)
+	}
+	return out
+}
+
+func toGeneratedSpecConditions(values []ConditionalRule) []genspec.ConditionalRule {
+	if values == nil {
+		return nil
+	}
+	out := make([]genspec.ConditionalRule, len(values))
+	for i, value := range values {
+		out[i] = genspec.ConditionalRule{
+			ConditionField: value.ConditionField,
+			ConditionValue: value.ConditionValue,
+			ThenRequired:   append([]string(nil), value.ThenRequired...),
+			ThenForbidden:  append([]string(nil), value.ThenForbidden...),
+		}
+	}
+	return out
+}
+
+func fromGeneratedSpecConditions(values []genspec.ConditionalRule) []ConditionalRule {
+	if values == nil {
+		return nil
+	}
+	out := make([]ConditionalRule, len(values))
+	for i, value := range values {
+		out[i] = ConditionalRule{
+			ConditionField: value.ConditionField,
+			ConditionValue: value.ConditionValue,
+			ThenRequired:   append([]string(nil), value.ThenRequired...),
+			ThenForbidden:  append([]string(nil), value.ThenForbidden...),
+		}
+	}
+	return out
+}

@@ -120,7 +120,7 @@ func run(namesText string, all bool, output string, check bool) error {
 		g.roots = append(g.roots, root{name: name, id: id})
 	}
 	var source strings.Builder
-	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"strconv\"\n\"github.com/Yakwilik/go-yamlvalidator\"\n\"gopkg.in/yaml.v3\"\n")
+	source.WriteString(marker + "\n\npackage " + pkg.Name + "\n\nimport (\n\"fmt\"\n\"reflect\"\n\"sort\"\n\"strconv\"\n\"github.com/Yakwilik/go-yamlvalidator\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime\"\n\"github.com/Yakwilik/go-yamlvalidator/genruntime/spec\"\n\"gopkg.in/yaml.v3\"\n")
 	paths := make([]string, 0, len(g.imports))
 	for path := range g.imports {
 		paths = append(paths, path)
@@ -132,11 +132,11 @@ func run(namesText string, all bool, output string, check bool) error {
 	source.WriteString(")\n\nvar _ = fmt.Sprintf\nvar _ = sort.Strings\nvar _ = strconv.IntSize\n\n")
 	for _, r := range g.roots {
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[%s]() }\n", r.name, r.name)
-		fmt.Fprintf(&source, "func (value %s) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error { return yamlvalidatorCycle%d(value,yamlvalidator.NewGeneratedCycleContext(limits),0) }\n", r.name, r.id)
+		fmt.Fprintf(&source, "func (value %s) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error { return yamlvalidatorCycle%d(value,genruntime.NewCycleContext(genruntime.Limits{MaxDepth:limits.MaxDepth,MaxNodeVisits:limits.MaxNodeVisits}),0) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema,error) { return yamlvalidatorGeneratedSchema%d(registry,encode) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) YAMLValidatorEncode() (*yaml.Node,error) { return yamlvalidatorEncode%d(value) }\n", r.name, r.id)
-		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecode(node *yaml.Node) error { return value.YAMLValidatorDecodeWithContext(node,yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{},false)) }\n", r.name)
-		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecodeWithContext(node *yaml.Node,ctx *yamlvalidator.GeneratedDecodeContext) error { return yamlvalidatorDecode%d(node,value,ctx) }\n", r.name, r.id)
+		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecode(node *yaml.Node) error { return value.YAMLValidatorDecodeWithContext(node,genruntime.NewDecodeContext(genruntime.Limits{},false)) }\n", r.name)
+		fmt.Fprintf(&source, "func (value *%s) YAMLValidatorDecodeWithContext(node *yaml.Node,ctx *genruntime.DecodeContext) error { return yamlvalidatorDecode%d(node,value,ctx) }\n", r.name, r.id)
 		fmt.Fprintf(&source, "func (value %s) MarshalYAML() (any,error) { return yamlvalidator.MarshalGenerated(value) }\n", r.name)
 		fmt.Fprintf(&source, "func (value *%s) UnmarshalYAML(node *yaml.Node) error { return yamlvalidator.UnmarshalGenerated(node,value) }\n\n", r.name)
 	}
@@ -241,12 +241,12 @@ func generatedStubs(old []byte, packageName string, selected []string) (string, 
 		}
 	}
 	var b strings.Builder
-	b.WriteString("package " + packageName + "\nimport (\"reflect\";yamlvalidator \"github.com/Yakwilik/go-yamlvalidator\";\"gopkg.in/yaml.v3\")\n")
+	b.WriteString("package " + packageName + "\nimport (\"reflect\";yamlvalidator \"github.com/Yakwilik/go-yamlvalidator\";genruntime \"github.com/Yakwilik/go-yamlvalidator/genruntime\";\"gopkg.in/yaml.v3\")\n")
 	for _, name := range selected {
 		if !oldRoots[name] {
 			continue
 		}
-		fmt.Fprintf(&b, "func (value %s) YAMLValidatorGeneratedType() reflect.Type{return nil}\nfunc (value %s) YAMLValidatorCheckCycles(yamlvalidator.Limits)error{return nil}\nfunc (value %s) YAMLValidatorSchema(*yamlvalidator.Registry,bool)(*yamlvalidator.FieldSchema,error){return nil,nil}\nfunc (value %s) YAMLValidatorEncode()(*yaml.Node,error){return nil,nil}\nfunc (value *%s) YAMLValidatorDecode(*yaml.Node)error{return nil}\nfunc (value *%s) YAMLValidatorDecodeWithContext(*yaml.Node,*yamlvalidator.GeneratedDecodeContext)error{return nil}\nfunc (value %s) MarshalYAML()(any,error){return nil,nil}\nfunc (value *%s) UnmarshalYAML(*yaml.Node)error{return nil}\n", name, name, name, name, name, name, name, name)
+		fmt.Fprintf(&b, "func (value %s) YAMLValidatorGeneratedType() reflect.Type{return nil}\nfunc (value %s) YAMLValidatorCheckCycles(yamlvalidator.Limits)error{return nil}\nfunc (value %s) YAMLValidatorSchema(*yamlvalidator.Registry,bool)(*yamlvalidator.FieldSchema,error){return nil,nil}\nfunc (value %s) YAMLValidatorEncode()(*yaml.Node,error){return nil,nil}\nfunc (value *%s) YAMLValidatorDecode(*yaml.Node)error{return nil}\nfunc (value *%s) YAMLValidatorDecodeWithContext(*yaml.Node,*genruntime.DecodeContext)error{return nil}\nfunc (value %s) MarshalYAML()(any,error){return nil,nil}\nfunc (value *%s) UnmarshalYAML(*yaml.Node)error{return nil}\n", name, name, name, name, name, name, name, name)
 	}
 	if len(oldRoots) == 0 {
 		return "package " + packageName + "\n", nil
@@ -301,22 +301,22 @@ func (g *generator) makeBody(t types.Type, id int) (string, error) {
 		base = named.Underlying()
 	}
 	if customCodec(t) && !g.rootOrPointerType(t) {
-		b.WriteString("return yamlvalidator.GeneratedFallbackEncode(value)\n}\n")
-		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return yamlvalidator.GeneratedFallbackDecodeWithContext(node,dst,ctx) }\n", id, typeName)
+		b.WriteString("return genruntime.FallbackEncode(value)\n}\n")
+		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return genruntime.FallbackDecodeWithContext(node,dst,ctx) }\n", id, typeName)
 		return b.String(), nil
 	}
 	switch u := base.(type) {
 	case *types.Basic:
 		under := g.typeText(u)
 		if typeName == under {
-			b.WriteString("return yamlvalidator.GeneratedScalarEncode(value)\n}\n")
+			b.WriteString("return genruntime.ScalarEncode(value)\n}\n")
 		} else {
-			fmt.Fprintf(&b, "return yamlvalidator.GeneratedScalarEncode(%s(value))\n}\n", under)
+			fmt.Fprintf(&b, "return genruntime.ScalarEncode(%s(value))\n}\n", under)
 		}
 		if typeName == under {
-			fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return yamlvalidator.GeneratedScalarDecode(node,dst)}\n", id, typeName)
+			fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return genruntime.ScalarDecode(node,dst)}\n", id, typeName)
 		} else {
-			fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();scalar:=%s(*dst); if err:=yamlvalidator.GeneratedScalarDecode(node,&scalar);err!=nil{return err}; *dst=%s(scalar);return nil }\n", id, typeName, under, typeName)
+			fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();scalar:=%s(*dst); if err:=genruntime.ScalarDecode(node,&scalar);err!=nil{return err}; *dst=%s(scalar);return nil }\n", id, typeName, under, typeName)
 		}
 		return b.String(), nil
 	case *types.Pointer:
@@ -324,8 +324,8 @@ func (g *generator) makeBody(t types.Type, id int) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		fmt.Fprintf(&b, "if value==nil{return yamlvalidator.GeneratedScalarEncode[any](nil)};return yamlvalidatorEncode%d(*value)\n}\n", child)
-		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};if node.Tag==\"!!null\" {*dst=nil;return nil};if *dst==nil {*dst=new(%s)};return yamlvalidatorDecode%d(node,*dst,ctx) }\n", id, typeName, g.typeText(u.Elem()), child)
+		fmt.Fprintf(&b, "if value==nil{return genruntime.ScalarEncode[any](nil)};return yamlvalidatorEncode%d(*value)\n}\n", child)
+		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};if node.Tag==\"!!null\" {*dst=nil;return nil};if *dst==nil {*dst=new(%s)};return yamlvalidatorDecode%d(node,*dst,ctx) }\n", id, typeName, g.typeText(u.Elem()), child)
 		return b.String(), nil
 	case *types.Slice:
 		if basic, ok := types.Unalias(u.Elem()).(*types.Basic); ok && basic.Kind() == types.Byte {
@@ -345,7 +345,7 @@ func (g *generator) makeBody(t types.Type, id int) (string, error) {
 		}
 		b.WriteString("node:=&yaml.Node{Kind:yaml.MappingNode,Tag:\"!!map\"}\n")
 		fmt.Fprintf(&b, "keys:=make([]%s,0,len(value));for key:=range value {keys=append(keys,key)};sort.Slice(keys,func(i,j int)bool{return keys[i]<keys[j]});for _,key:=range keys { child,err:=yamlvalidatorEncode%d(value[key]);if err!=nil{return nil,err};node.Content=append(node.Content,&yaml.Node{Kind:yaml.ScalarNode,Tag:\"!!str\",Value:string(key)},child) };return node,nil\n}\n", g.typeText(u.Key()), child)
-		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};if node.Tag==\"!!null\" {*dst=nil;return nil};pairs,err:=ctx.MappingPairs(node);if err!=nil{return err};if *dst==nil {*dst=make(%s,len(pairs))};for _,pair:=range pairs {var item %s;if err:=yamlvalidatorDecode%d(pair.Value,&item,ctx);err!=nil{return fmt.Errorf(\"key %%q: %%w\",pair.Key,err)};(*dst)[%s(pair.Key)]=item};return nil }\n", id, typeName, typeName, g.typeText(u.Elem()), child, g.typeText(u.Key()))
+		fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};if node.Tag==\"!!null\" {*dst=nil;return nil};pairs,err:=ctx.MappingPairs(node);if err!=nil{return err};if *dst==nil {*dst=make(%s,len(pairs))};for _,pair:=range pairs {var item %s;if err:=yamlvalidatorDecode%d(pair.Value,&item,ctx);err!=nil{return fmt.Errorf(\"key %%q: %%w\",pair.Key,err)};(*dst)[%s(pair.Key)]=item};return nil }\n", id, typeName, typeName, g.typeText(u.Elem()), child, g.typeText(u.Key()))
 		return b.String(), nil
 	case *types.Struct:
 		return g.structBody(t, id, u)
@@ -392,7 +392,7 @@ func customCodec(t types.Type) bool {
 
 func (g *generator) fallbackBody(t types.Type, id int) (string, error) {
 	typeName := g.typeText(t)
-	return fmt.Sprintf("func yamlvalidatorEncode%d(value %s) (*yaml.Node,error) { return yamlvalidator.GeneratedFallbackEncode(value) }\nfunc yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return yamlvalidator.GeneratedFallbackDecodeWithContext(node,dst,ctx)}\n", id, typeName, id, typeName), nil
+	return fmt.Sprintf("func yamlvalidatorEncode%d(value %s) (*yaml.Node,error) { return genruntime.FallbackEncode(value) }\nfunc yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext) error {if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();return genruntime.FallbackDecodeWithContext(node,dst,ctx)}\n", id, typeName, id, typeName), nil
 }
 
 func (g *generator) sequenceBody(t types.Type, id int, elem types.Type, length int) (string, error) {
@@ -404,7 +404,7 @@ func (g *generator) sequenceBody(t types.Type, id int, elem types.Type, length i
 	var b strings.Builder
 	fmt.Fprintf(&b, "func yamlvalidatorEncode%d(value %s)(*yaml.Node,error){", id, typeName)
 	fmt.Fprintf(&b, "node:=&yaml.Node{Kind:yaml.SequenceNode,Tag:\"!!seq\"};for _,item:=range value {child,err:=yamlvalidatorEncode%d(item);if err!=nil{return nil,err};node.Content=append(node.Content,child)};return node,nil}\n", child)
-	fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext)error{if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};", id, typeName)
+	fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext)error{if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();var err error;node,err=ctx.Resolve(node);if err!=nil{return err};", id, typeName)
 	if length < 0 {
 		b.WriteString("if node.Tag==\"!!null\" {*dst=nil;return nil};")
 	}
@@ -623,7 +623,7 @@ func (g *generator) structBody(t types.Type, id int, u *types.Struct) (string, e
 			b.WriteString("child.Style|=yaml.FlowStyle;")
 		}
 		if f.inline {
-			b.WriteString("if err:=yamlvalidator.GeneratedAppendInline(node,child);err!=nil{return nil,err};")
+			b.WriteString("if err:=genruntime.AppendInline(node,child);err!=nil{return nil,err};")
 		} else {
 			fmt.Fprintf(&b, "node.Content=append(node.Content,&yaml.Node{Kind:yaml.ScalarNode,Tag:\"!!str\",Value:%q},child);", f.key)
 		}
@@ -632,7 +632,7 @@ func (g *generator) structBody(t types.Type, id int, u *types.Struct) (string, e
 		}
 	}
 	b.WriteString("return node,nil}\n")
-	fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *yamlvalidator.GeneratedDecodeContext)error{if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();pairs,err:=ctx.MappingPairs(node);if err!=nil{return err};for _,pair:=range pairs {switch pair.Key {\n", id, typeName)
+	fmt.Fprintf(&b, "func yamlvalidatorDecode%d(node *yaml.Node,dst *%s,ctx *genruntime.DecodeContext)error{if err:=ctx.Enter();err!=nil{return err};defer ctx.Leave();pairs,err:=ctx.MappingPairs(node);if err!=nil{return err};for _,pair:=range pairs {switch pair.Key {\n", id, typeName)
 	for _, f := range fields {
 		if !f.inline {
 			fmt.Fprintf(&b, "case %q:if err:=yamlvalidatorDecode%d(pair.Value,&dst.%s,ctx);err!=nil{return fmt.Errorf(\"field %s: %%w\",err)}\n", f.key, f.id, f.name, f.name)

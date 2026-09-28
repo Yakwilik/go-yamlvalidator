@@ -43,7 +43,7 @@ func (g *generator) emptyCycleSource() string {
 			b.WriteString("return false")
 		}
 		b.WriteString("}\n")
-		fmt.Fprintf(&b, "func yamlvalidatorCycle%d(value %s,ctx *yamlvalidator.GeneratedCycleContext,depth int)error{done,err:=ctx.Enter(value,depth);if err!=nil{return err};defer done();", id, name)
+		fmt.Fprintf(&b, "func yamlvalidatorCycle%d(value %s,ctx *genruntime.CycleContext,depth int)error{done,err:=ctx.Enter(value,depth);if err!=nil{return err};defer done();", id, name)
 		if customCodec(typ) && !g.rootOrPointerType(typ) {
 			b.WriteString("return nil}\n")
 			continue

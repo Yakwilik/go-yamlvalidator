@@ -5,6 +5,8 @@ package model
 import (
 	"fmt"
 	"github.com/Yakwilik/go-yamlvalidator"
+	"github.com/Yakwilik/go-yamlvalidator/genruntime"
+	"github.com/Yakwilik/go-yamlvalidator/genruntime/spec"
 	"gopkg.in/yaml.v3"
 	"reflect"
 	"sort"
@@ -17,7 +19,7 @@ var _ = strconv.IntSize
 
 func (value Config) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Config]() }
 func (value Config) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d0(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d0(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Config) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d0(registry, encode)
@@ -26,9 +28,9 @@ func (value Config) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d0(value)
 }
 func (value *Config) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Config) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Config) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d0(node, value, ctx)
 }
 func (value Config) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -40,7 +42,7 @@ func (value Containers) YAMLValidatorGeneratedType() reflect.Type {
 	return reflect.TypeFor[Containers]()
 }
 func (value Containers) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d6(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d6(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Containers) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d6(registry, encode)
@@ -49,9 +51,9 @@ func (value Containers) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d6(value)
 }
 func (value *Containers) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Containers) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Containers) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d6(node, value, ctx)
 }
 func (value Containers) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -61,7 +63,7 @@ func (value *Containers) UnmarshalYAML(node *yaml.Node) error {
 
 func (value Dynamic) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Dynamic]() }
 func (value Dynamic) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d9(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d9(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Dynamic) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d9(registry, encode)
@@ -70,9 +72,9 @@ func (value Dynamic) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d9(value)
 }
 func (value *Dynamic) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Dynamic) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Dynamic) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d9(node, value, ctx)
 }
 func (value Dynamic) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -82,7 +84,7 @@ func (value *Dynamic) UnmarshalYAML(node *yaml.Node) error {
 
 func (value Link) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Link]() }
 func (value Link) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d11(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d11(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Link) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d11(registry, encode)
@@ -91,9 +93,9 @@ func (value Link) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d11(value)
 }
 func (value *Link) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Link) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Link) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d11(node, value, ctx)
 }
 func (value Link) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -103,7 +105,7 @@ func (value *Link) UnmarshalYAML(node *yaml.Node) error {
 
 func (value Node) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Node]() }
 func (value Node) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d13(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d13(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Node) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d13(registry, encode)
@@ -112,9 +114,9 @@ func (value Node) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d13(value)
 }
 func (value *Node) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Node) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Node) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d13(node, value, ctx)
 }
 func (value Node) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -126,7 +128,7 @@ func (value Registered) YAMLValidatorGeneratedType() reflect.Type {
 	return reflect.TypeFor[Registered]()
 }
 func (value Registered) YAMLValidatorCheckCycles(limits yamlvalidator.Limits) error {
-	return yamlvalidatorCycle_28ba702d15(value, yamlvalidator.NewGeneratedCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d15(value, genruntime.NewCycleContext(genruntime.Limits{MaxDepth: limits.MaxDepth, MaxNodeVisits: limits.MaxNodeVisits}), 0)
 }
 func (value Registered) YAMLValidatorSchema(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
 	return yamlvalidatorGeneratedSchema_28ba702d15(registry, encode)
@@ -135,9 +137,9 @@ func (value Registered) YAMLValidatorEncode() (*yaml.Node, error) {
 	return yamlvalidatorEncode_28ba702d15(value)
 }
 func (value *Registered) YAMLValidatorDecode(node *yaml.Node) error {
-	return value.YAMLValidatorDecodeWithContext(node, yamlvalidator.NewGeneratedDecodeContext(yamlvalidator.Limits{}, false))
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
-func (value *Registered) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func (value *Registered) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
 	return yamlvalidatorDecode_28ba702d15(node, value, ctx)
 }
 func (value Registered) MarshalYAML() (any, error) { return yamlvalidator.MarshalGenerated(value) }
@@ -148,7 +150,7 @@ func (value *Registered) UnmarshalYAML(node *yaml.Node) error {
 var yamlvalidatorGeneratedTypes_28ba702d = []reflect.Type{reflect.TypeFor[Config](), reflect.TypeFor[string](), reflect.TypeFor[[]Item](), reflect.TypeFor[Item](), reflect.TypeFor[map[string]int](), reflect.TypeFor[int](), reflect.TypeFor[Containers](), reflect.TypeFor[[]string](), reflect.TypeFor[map[string]string](), reflect.TypeFor[Dynamic](), reflect.TypeFor[any](), reflect.TypeFor[Link](), reflect.TypeFor[*Link](), reflect.TypeFor[Node](), reflect.TypeFor[[]Node](), reflect.TypeFor[Registered]()}
 
 func yamlvalidatorGeneratedSchema_28ba702d0(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 1,
 		AllowedKeys: map[string]int{"extra": 1,
 			"items": 4,
@@ -156,94 +158,94 @@ func yamlvalidatorGeneratedSchema_28ba702d0(registry *yamlvalidator.Registry, en
 		},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+		spec.Node{Type: spec.NodeType(6),
 			Nullable:             true,
 			SourceIndex:          5,
-			AdditionalProperties: yamlvalidator.GeneratedInt(2),
-			ValueSchema:          yamlvalidator.GeneratedInt(3),
+			AdditionalProperties: spec.Int(2),
+			ValueSchema:          spec.Int(3),
 		},
-		yamlvalidator.GeneratedNormalizedNode{},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(3),
+		spec.Node{},
+		spec.Node{Type: spec.NodeType(3),
 			SourceIndex: 6,
-			Validators: []yamlvalidator.GeneratedValidatorSpec{yamlvalidator.GeneratedValidatorSpec{Kind: "representable",
+			Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "representable",
 				Text:   "int",
 				Number: 64,
 			},
 			},
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(7),
+		spec.Node{Type: spec.NodeType(7),
 			Nullable:    true,
 			SourceIndex: 3,
 			FieldRules:  true,
-			ItemSchema:  yamlvalidator.GeneratedInt(5),
-			Conditions:  []yamlvalidator.ConditionalRule{},
+			ItemSchema:  spec.Int(5),
+			Conditions:  []spec.ConditionalRule{},
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			SourceIndex: 4,
-			Validators: []yamlvalidator.GeneratedValidatorSpec{yamlvalidator.GeneratedValidatorSpec{Kind: "nonempty"},
+			Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"},
 			},
-			Conditions: []yamlvalidator.ConditionalRule{},
+			Conditions: []spec.ConditionalRule{},
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			Required:    true,
 			SourceIndex: 2,
 			FieldRules:  true,
-			Validators: []yamlvalidator.GeneratedValidatorSpec{yamlvalidator.GeneratedValidatorSpec{Kind: "nonempty"},
+			Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"},
 			},
-			Conditions: []yamlvalidator.ConditionalRule{},
+			Conditions: []spec.ConditionalRule{},
 		},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
 func yamlvalidatorGeneratedSchema_28ba702d6(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 7,
 		AllowedKeys: map[string]int{"items": 1,
 			"values": 3,
 		},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(7),
+		spec.Node{Type: spec.NodeType(7),
 			Nullable:    true,
 			SourceIndex: 8,
-			ItemSchema:  yamlvalidator.GeneratedInt(2),
+			ItemSchema:  spec.Int(2),
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			SourceIndex: 2,
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+		spec.Node{Type: spec.NodeType(6),
 			Nullable:             true,
 			SourceIndex:          9,
-			AdditionalProperties: yamlvalidator.GeneratedInt(4),
-			ValueSchema:          yamlvalidator.GeneratedInt(2),
+			AdditionalProperties: spec.Int(4),
+			ValueSchema:          spec.Int(2),
 		},
-		yamlvalidator.GeneratedNormalizedNode{},
+		spec.Node{},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
 func yamlvalidatorGeneratedSchema_28ba702d9(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex:    10,
 		AllowedKeys:    map[string]int{"value": 1},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Nullable: true,
+		spec.Node{Nullable: true,
 			SourceIndex: 11,
 			FieldRules:  true,
-			Conditions:  []yamlvalidator.ConditionalRule{},
+			Conditions:  []spec.ConditionalRule{},
 		},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
 func yamlvalidatorGeneratedSchema_28ba702d11(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 12,
 		AllowedKeys: map[string]int{"next": 1,
 			"value": 2,
 		},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+		spec.Node{Type: spec.NodeType(6),
 			Nullable:    true,
 			SourceIndex: 13,
 			AllowedKeys: map[string]int{"next": 1,
@@ -251,51 +253,51 @@ func yamlvalidatorGeneratedSchema_28ba702d11(registry *yamlvalidator.Registry, e
 			},
 			HasAllowedKeys: true,
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			SourceIndex: 2,
 		},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
 func yamlvalidatorGeneratedSchema_28ba702d13(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 14,
 		AllowedKeys: map[string]int{"children": 1,
 			"name": 2,
 		},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(7),
+		spec.Node{Type: spec.NodeType(7),
 			Nullable:    true,
 			SourceIndex: 15,
-			ItemSchema:  yamlvalidator.GeneratedInt(0),
+			ItemSchema:  spec.Int(0),
 		},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			Required:    true,
 			SourceIndex: 2,
 			FieldRules:  true,
-			Conditions:  []yamlvalidator.ConditionalRule{},
+			Conditions:  []spec.ConditionalRule{},
 		},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
 func yamlvalidatorGeneratedSchema_28ba702d15(registry *yamlvalidator.Registry, encode bool) (*yamlvalidator.FieldSchema, error) {
-	return yamlvalidator.BuildGeneratedSchema(yamlvalidator.GeneratedNormalizedGraph{Nodes: []yamlvalidator.GeneratedNormalizedNode{yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(6),
+	return yamlvalidator.BuildGeneratedSchema(spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex:    16,
 		AllowedKeys:    map[string]int{"value": 1},
 		HasAllowedKeys: true,
 	},
-		yamlvalidator.GeneratedNormalizedNode{Type: yamlvalidator.NodeType(2),
+		spec.Node{Type: spec.NodeType(2),
 			SourceIndex:  2,
 			FieldRules:   true,
 			ExtraSchemas: []int{2},
-			Validators: []yamlvalidator.GeneratedValidatorSpec{yamlvalidator.GeneratedValidatorSpec{Kind: "check",
+			Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "check",
 				Name: "registered",
 			},
 			},
-			Conditions: []yamlvalidator.ConditionalRule{},
+			Conditions: []spec.ConditionalRule{},
 		},
-		yamlvalidator.GeneratedNormalizedNode{Ref: "registeredSchema"},
+		spec.Node{Ref: "registeredSchema"},
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d, registry, encode)
 }
@@ -326,7 +328,7 @@ func yamlvalidatorEncode_28ba702d0(value Config) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d0(node *yaml.Node, dst *Config, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d0(node *yaml.Node, dst *Config, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -354,14 +356,14 @@ func yamlvalidatorDecode_28ba702d0(node *yaml.Node, dst *Config, ctx *yamlvalida
 	return nil
 }
 func yamlvalidatorEncode_28ba702d1(value string) (*yaml.Node, error) {
-	return yamlvalidator.GeneratedScalarEncode(value)
+	return genruntime.ScalarEncode(value)
 }
-func yamlvalidatorDecode_28ba702d1(node *yaml.Node, dst *string, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d1(node *yaml.Node, dst *string, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
 	defer ctx.Leave()
-	return yamlvalidator.GeneratedScalarDecode(node, dst)
+	return genruntime.ScalarDecode(node, dst)
 }
 func yamlvalidatorEncode_28ba702d2(value []Item) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
@@ -374,7 +376,7 @@ func yamlvalidatorEncode_28ba702d2(value []Item) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d2(node *yaml.Node, dst *[]Item, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d2(node *yaml.Node, dst *[]Item, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -401,15 +403,15 @@ func yamlvalidatorDecode_28ba702d2(node *yaml.Node, dst *[]Item, ctx *yamlvalida
 	return nil
 }
 func yamlvalidatorEncode_28ba702d3(value Item) (*yaml.Node, error) {
-	return yamlvalidator.GeneratedScalarEncode(string(value))
+	return genruntime.ScalarEncode(string(value))
 }
-func yamlvalidatorDecode_28ba702d3(node *yaml.Node, dst *Item, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d3(node *yaml.Node, dst *Item, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
 	defer ctx.Leave()
 	scalar := string(*dst)
-	if err := yamlvalidator.GeneratedScalarDecode(node, &scalar); err != nil {
+	if err := genruntime.ScalarDecode(node, &scalar); err != nil {
 		return err
 	}
 	*dst = Item(scalar)
@@ -431,7 +433,7 @@ func yamlvalidatorEncode_28ba702d4(value map[string]int) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d4(node *yaml.Node, dst *map[string]int, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d4(node *yaml.Node, dst *map[string]int, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -462,14 +464,14 @@ func yamlvalidatorDecode_28ba702d4(node *yaml.Node, dst *map[string]int, ctx *ya
 	return nil
 }
 func yamlvalidatorEncode_28ba702d5(value int) (*yaml.Node, error) {
-	return yamlvalidator.GeneratedScalarEncode(value)
+	return genruntime.ScalarEncode(value)
 }
-func yamlvalidatorDecode_28ba702d5(node *yaml.Node, dst *int, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d5(node *yaml.Node, dst *int, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
 	defer ctx.Leave()
-	return yamlvalidator.GeneratedScalarDecode(node, dst)
+	return genruntime.ScalarDecode(node, dst)
 }
 
 // yamlvalidator source fingerprint: 56f7e9d20392a142fe7f79ce
@@ -489,7 +491,7 @@ func yamlvalidatorEncode_28ba702d6(value Containers) (*yaml.Node, error) {
 	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "values"}, child)
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d6(node *yaml.Node, dst *Containers, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d6(node *yaml.Node, dst *Containers, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -523,7 +525,7 @@ func yamlvalidatorEncode_28ba702d7(value []string) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d7(node *yaml.Node, dst *[]string, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d7(node *yaml.Node, dst *[]string, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -565,7 +567,7 @@ func yamlvalidatorEncode_28ba702d8(value map[string]string) (*yaml.Node, error) 
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d8(node *yaml.Node, dst *map[string]string, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d8(node *yaml.Node, dst *map[string]string, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -608,7 +610,7 @@ func yamlvalidatorEncode_28ba702d9(value Dynamic) (*yaml.Node, error) {
 	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"}, child)
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -628,14 +630,14 @@ func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *yamlvalid
 	return nil
 }
 func yamlvalidatorEncode_28ba702d10(value any) (*yaml.Node, error) {
-	return yamlvalidator.GeneratedFallbackEncode(value)
+	return genruntime.FallbackEncode(value)
 }
-func yamlvalidatorDecode_28ba702d10(node *yaml.Node, dst *any, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d10(node *yaml.Node, dst *any, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
 	defer ctx.Leave()
-	return yamlvalidator.GeneratedFallbackDecodeWithContext(node, dst, ctx)
+	return genruntime.FallbackDecodeWithContext(node, dst, ctx)
 }
 
 // yamlvalidator source fingerprint: 28c47568402d05f9a8d07de3
@@ -657,7 +659,7 @@ func yamlvalidatorEncode_28ba702d11(value Link) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *Link, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *Link, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -682,11 +684,11 @@ func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *Link, ctx *yamlvalidat
 }
 func yamlvalidatorEncode_28ba702d12(value *Link) (*yaml.Node, error) {
 	if value == nil {
-		return yamlvalidator.GeneratedScalarEncode[any](nil)
+		return genruntime.ScalarEncode[any](nil)
 	}
 	return yamlvalidatorEncode_28ba702d11(*value)
 }
-func yamlvalidatorDecode_28ba702d12(node *yaml.Node, dst **Link, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d12(node *yaml.Node, dst **Link, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -725,7 +727,7 @@ func yamlvalidatorEncode_28ba702d13(value Node) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d13(node *yaml.Node, dst *Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d13(node *yaml.Node, dst *Node, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -759,7 +761,7 @@ func yamlvalidatorEncode_28ba702d14(value []Node) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d14(node *yaml.Node, dst *[]Node, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d14(node *yaml.Node, dst *[]Node, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -798,7 +800,7 @@ func yamlvalidatorEncode_28ba702d15(value Registered) (*yaml.Node, error) {
 	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"}, child)
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d15(node *yaml.Node, dst *Registered, ctx *yamlvalidator.GeneratedDecodeContext) error {
+func yamlvalidatorDecode_28ba702d15(node *yaml.Node, dst *Registered, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -832,7 +834,7 @@ func yamlvalidatorEmpty_28ba702d0(value Config) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d0(value Config, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d0(value Config, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -859,7 +861,7 @@ func yamlvalidatorEmpty_28ba702d1(value string) bool {
 	}
 	return value == ""
 }
-func yamlvalidatorCycle_28ba702d1(value string, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d1(value string, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -873,7 +875,7 @@ func yamlvalidatorEmpty_28ba702d2(value []Item) bool {
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d2(value []Item, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d2(value []Item, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -892,7 +894,7 @@ func yamlvalidatorEmpty_28ba702d3(value Item) bool {
 	}
 	return value == ""
 }
-func yamlvalidatorCycle_28ba702d3(value Item, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d3(value Item, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -906,7 +908,7 @@ func yamlvalidatorEmpty_28ba702d4(value map[string]int) bool {
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d4(value map[string]int, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d4(value map[string]int, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -925,7 +927,7 @@ func yamlvalidatorEmpty_28ba702d5(value int) bool {
 	}
 	return value == 0
 }
-func yamlvalidatorCycle_28ba702d5(value int, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d5(value int, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -945,7 +947,7 @@ func yamlvalidatorEmpty_28ba702d6(value Containers) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d6(value Containers, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d6(value Containers, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -965,7 +967,7 @@ func yamlvalidatorEmpty_28ba702d7(value []string) bool {
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d7(value []string, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d7(value []string, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -984,7 +986,7 @@ func yamlvalidatorEmpty_28ba702d8(value map[string]string) bool {
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d8(value map[string]string, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d8(value map[string]string, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1006,7 +1008,7 @@ func yamlvalidatorEmpty_28ba702d9(value Dynamic) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d9(value Dynamic, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d9(value Dynamic, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1023,7 +1025,7 @@ func yamlvalidatorEmpty_28ba702d10(value any) bool {
 	}
 	return value == nil
 }
-func yamlvalidatorCycle_28ba702d10(value any, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d10(value any, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1043,7 +1045,7 @@ func yamlvalidatorEmpty_28ba702d11(value Link) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d11(value Link, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d11(value Link, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1068,7 +1070,7 @@ func yamlvalidatorEmpty_28ba702d12(value *Link) bool {
 	}
 	return value == nil
 }
-func yamlvalidatorCycle_28ba702d12(value *Link, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d12(value *Link, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1091,7 +1093,7 @@ func yamlvalidatorEmpty_28ba702d13(value Node) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d13(value Node, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d13(value Node, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1113,7 +1115,7 @@ func yamlvalidatorEmpty_28ba702d14(value []Node) bool {
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d14(value []Node, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d14(value []Node, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1135,7 +1137,7 @@ func yamlvalidatorEmpty_28ba702d15(value Registered) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d15(value Registered, ctx *yamlvalidator.GeneratedCycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d15(value Registered, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err

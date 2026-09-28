@@ -110,8 +110,6 @@ func newJSONNumber(s string) (json.Number, bool) {
 	return n, err == nil
 }
 
-// GeneratedNumber preserves an exact numeric default in generated schema code.
-func GeneratedNumber(text string) json.Number { return json.Number(text) }
 func parseRuleType(s string) (NodeType, error) {
 	switch s {
 	case "any":
