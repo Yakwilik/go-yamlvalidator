@@ -28,10 +28,10 @@ func NewCycleContext(limits Limits) *CycleContext {
 func (c *CycleContext) Enter(value any, depth int) (func(), error) {
 	c.visits++
 	if c.visits > c.limits.MaxNodeVisits {
-		return nil, fmt.Errorf("Go value exceeds %d visits", c.limits.MaxNodeVisits)
+		return nil, fmt.Errorf("cannot encode Go value: exceeds %d visits", c.limits.MaxNodeVisits)
 	}
 	if depth > c.limits.MaxDepth {
-		return nil, fmt.Errorf("Go value exceeds depth %d", c.limits.MaxDepth)
+		return nil, fmt.Errorf("cannot encode Go value: exceeds depth %d", c.limits.MaxDepth)
 	}
 	v := reflect.ValueOf(value)
 	if !v.IsValid() {
@@ -64,7 +64,7 @@ func (c *CycleContext) Enter(value any, depth int) (func(), error) {
 
 func (c *CycleContext) CheckDynamic(value any, depth int) error {
 	if depth > c.limits.MaxDepth {
-		return fmt.Errorf("Go value exceeds depth %d", c.limits.MaxDepth)
+		return fmt.Errorf("cannot encode Go value: exceeds depth %d", c.limits.MaxDepth)
 	}
 	return RejectCycles(value, c.limits)
 }
@@ -88,10 +88,10 @@ func RejectCycles(value any, limits Limits) error {
 		}
 		visits++
 		if visits > limits.MaxNodeVisits {
-			return fmt.Errorf("Go value exceeds %d visits", limits.MaxNodeVisits)
+			return fmt.Errorf("cannot encode Go value: exceeds %d visits", limits.MaxNodeVisits)
 		}
 		if depth > limits.MaxDepth {
-			return fmt.Errorf("Go value exceeds depth %d", limits.MaxDepth)
+			return fmt.Errorf("cannot encode Go value: exceeds depth %d", limits.MaxDepth)
 		}
 		for v.Kind() == reflect.Interface {
 			if v.IsNil() {

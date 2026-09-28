@@ -325,9 +325,7 @@ func canonicalNode(node *yaml.Node, visiting map[*yaml.Node]bool, ctx *Validatio
 				return prefix + "nan", nil
 			}
 			if strings.Contains(lower, ".inf") {
-				if strings.HasPrefix(lower, "+") {
-					lower = lower[1:]
-				}
+				lower = strings.TrimPrefix(lower, "+")
 				return prefix + lower, nil
 			}
 		}

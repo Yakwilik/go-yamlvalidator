@@ -4,6 +4,8 @@ on:
   push:
     branches: ["master"]
   pull_request:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -50,7 +52,7 @@ jobs:
           format: golang
 
   agent-skill:
-    name: Agent skill examples (published API)
+    name: Agent skill examples (candidate or published API)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -58,8 +60,12 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: true
+      - name: Check standalone recipes against this candidate
+        if: github.event_name != 'release'
+        run: bash skills/go-yamlvalidator/scripts/check-examples.sh --local .
       - name: Check standalone recipes against the published module
-        run: bash skills/go-yamlvalidator/scripts/check-examples.sh
+        if: github.event_name == 'release'
+        run: bash skills/go-yamlvalidator/scripts/check-examples.sh --version "${{ github.event.release.tag_name }}"
 
   quality:
     name: Static analysis and vulnerabilities
@@ -123,7 +129,9 @@ jobs:
             FuzzHighLevelYAML \
             FuzzHighLevelReflectShape
           do
-            go test . -run '^$' -fuzz="^${target}$" -fuzztime=2s
+            package=.
+            case "$target" in FuzzHighLevel*) package=./internal/engine ;; esac
+            go test "$package" -run '^$' -fuzz="^${target}$" -fuzztime=2s
           done
 
   json-schema-conformance:

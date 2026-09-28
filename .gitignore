@@ -42,3 +42,6 @@ go.work.sum
 Icon?
 .Spotlight-V100
 .Trashes
+
+# Local implementation and verification workspace
+.work-generated-schema/

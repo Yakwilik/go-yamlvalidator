@@ -46,7 +46,7 @@ The root and standard-hook paths share one plan cache and preserve their existin
 
 ## Regeneration
 
-This generated ABI has not been released. Regenerate local output after updating the generator:
+The generated ABI is introduced in v1.1.0. Regenerate any output produced by development snapshots when updating the generator:
 
 ~~~sh
 go generate ./examples/codegen/model ./benchmarks/model

@@ -365,10 +365,10 @@ func rejectGoCycles(value reflect.Value, limits Limits) error {
 		}
 		visits++
 		if visits > limits.MaxNodeVisits {
-			return fmt.Errorf("Go value exceeds %d visits", limits.MaxNodeVisits)
+			return fmt.Errorf("cannot encode Go value: exceeds %d visits", limits.MaxNodeVisits)
 		}
 		if depth > limits.MaxDepth {
-			return fmt.Errorf("Go value exceeds depth %d", limits.MaxDepth)
+			return fmt.Errorf("cannot encode Go value: exceeds depth %d", limits.MaxDepth)
 		}
 		for v.Kind() == reflect.Interface {
 			if v.IsNil() {

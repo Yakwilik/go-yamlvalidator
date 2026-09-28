@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.0 — 2026-09-28
 
 - Removed the four generation-specific bridge functions from the application-facing root API. Generated hooks now use genruntime adapters and return data-only schema specs; source-time lowering and schema materialization are internal.
 - Split shared validation and codec implementations behind the root and generated facades. Root type names and source-level call sites remain available through aliases; canonical reflection package paths now identify internal/engine. This reflection-only identity migration is documented in docs/generated-runtime-architecture.md and is accepted for v1.1.

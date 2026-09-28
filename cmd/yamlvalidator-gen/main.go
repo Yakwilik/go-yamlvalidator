@@ -66,7 +66,9 @@ func run(namesText string, all bool, output string, check bool) error {
 	for _, name := range names {
 		seen[name] = true
 	}
-	config := &packages.Config{Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo, Dir: ".", Tests: false}
+	// Type-check dependency source as well: compiler export formats can evolve
+	// independently of the x/tools version supported by our minimum Go version.
+	config := &packages.Config{Mode: packages.LoadAllSyntax, Dir: ".", Tests: false}
 	if readErr == nil {
 		file, err := parser.ParseFile(token.NewFileSet(), path, old, parser.PackageClauseOnly)
 		if err != nil {
@@ -162,6 +164,12 @@ func run(namesText string, all bool, output string, check bool) error {
 	formatted, err := format.Source([]byte(raw))
 	if err != nil {
 		return fmt.Errorf("format generated source: %w\n%s", err, raw)
+	}
+	// Reparse once: go/printer can simplify a multiline nested literal only
+	// after its first layout pass. The checked-in output must be gofmt-stable.
+	formatted, err = format.Source(formatted)
+	if err != nil {
+		return fmt.Errorf("normalize generated source: %w", err)
 	}
 	if bytes.Equal(old, formatted) {
 		return nil
