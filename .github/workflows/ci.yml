@@ -42,6 +42,8 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: true
+      - name: Test measured coverage badge
+        run: python3 -B -m unittest discover -s scripts -p 'test_coverage_badge.py' -v
       - name: Enforce 80% coverage for public library packages
         run: ./scripts/check-library-coverage.sh coverage.out
       - name: Preserve coverage report in GitHub
@@ -66,6 +68,32 @@ jobs:
         run: |
           echo '::warning::Coveralls upload failed. Required coverage gate passed; report is preserved in GitHub artifacts.'
           echo 'Coveralls upload failed; the required 80% gate passed. Download the coverage artifact from this run.' >> "$GITHUB_STEP_SUMMARY"
+
+  coverage-badge:
+    name: Publish measured coverage badge
+    needs: coverage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    concurrency:
+      group: coverage-badge-master
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the measured coverage artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          artifact="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '[.artifacts[] | select(.name | startswith("coverage-")) | select(.expired == false)] | sort_by(.created_at) | last | .name')"
+          test -n "$artifact" && test "$artifact" != null
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "$RUNNER_TEMP/coverage-profile"
+      - name: Render badge and source-linked report
+        run: |
+          python3 -B scripts/coverage_badge.py "$RUNNER_TEMP/coverage-profile/coverage.out" "$RUNNER_TEMP/coverage-badge" --repository "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+      - name: Publish only the current master measurement
+        run: bash scripts/publish-coverage-badge.sh "$RUNNER_TEMP/coverage-badge" "$GITHUB_SHA"
 
   agent-skill:
     name: Agent skill examples (candidate or published API)
