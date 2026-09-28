@@ -71,20 +71,21 @@ func TestCodec(t *testing.T) {
 `)
 	cmd := exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	// Inherit GOPROXY: fresh CI caches may need transitive module metadata.
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generator: %v\n%s", err, out)
 	}
 	write("use.go", "package fixture\nimport \"gopkg.in/yaml.v3\"\nvar _ yaml.Marshaler = Config{}\n")
 	cmd = exec.Command("go", "test", "-mod=mod", "./...")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("fixture: %v\n%s", err, out)
 	}
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("check: %v\n%s", err, out)
 	}
@@ -120,27 +121,27 @@ func TestCodec(t *testing.T) {
 	}
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Empty", "-output=zz_empty.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("second output: %v\n%s", err, out)
 	}
 	cmd = exec.Command("go", "test", "-mod=mod", "./...")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("two outputs: %v\n%s", err, out)
 	}
 	write("owned.go", "package fixture\n")
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Empty", "-output=owned.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "user-owned") {
 		t.Fatalf("ownership: %v\n%s", err, out)
 	}
 	write("hidden.go", "//go:build never\n\npackage fixture\ntype Hidden struct{}\n")
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Hidden", "-output=zz_hidden.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "Hidden") {
 		t.Fatalf("build constraint: %v\n%s", err, out)
 	}
@@ -152,7 +153,7 @@ func TestCodec(t *testing.T) {
 	write("types.go", changed)
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "stale") {
 		t.Fatalf("stale check: %v\n%s", err, out)
 	}
@@ -165,7 +166,7 @@ func TestCodec(t *testing.T) {
 	}
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("regenerate: %v\n%s", err, out)
 	}
@@ -173,14 +174,14 @@ func TestCodec(t *testing.T) {
 	write("types.go", tagChanged)
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go", "-check")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "stale") {
 		t.Fatalf("tag staleness: %v\n%s", err, out)
 	}
 	write("types.go", changed+"\nfunc (Config) MarshalYAML() (any,error) {return nil,nil}\n")
 	cmd = exec.Command("go", "run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen", "-type=Child,Config,InlineConfig,NativeKind", "-output=zz_generated.go")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "MarshalYAML already declared") {
 		t.Fatalf("method collision: %v\n%s", err, out)
 	}

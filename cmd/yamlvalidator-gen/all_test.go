@@ -52,7 +52,8 @@ func (Manual) MarshalYAML() (any, error) { return "manual", nil }
 		cmdArgs := append([]string{"run", "github.com/Yakwilik/go-yamlvalidator/cmd/yamlvalidator-gen"}, args...)
 		cmd := exec.Command("go", cmdArgs...)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOFLAGS=-mod=mod")
+		// Inherit GOPROXY: fresh CI caches may need transitive module metadata.
+		cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 		return cmd.CombinedOutput()
 	}
 	if out, err := runGen("-all", "-output=zz_generated.go"); err != nil {
@@ -96,7 +97,7 @@ func (Manual) MarshalYAML() (any, error) { return "manual", nil }
 	}
 	cmd := exec.Command("go", "test", "-mod=mod", "./...")
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated package: %v\n%s", err, out)
 	}
