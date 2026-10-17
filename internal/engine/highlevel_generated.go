@@ -29,11 +29,20 @@ type generatedSchemaProvider interface {
 	YAMLValidatorSchemaSpec() (genspec.Graph, []reflect.Type)
 }
 
-func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, bool, error) {
+func generatedPlan(value any, registry *Registry, encode bool, modes ...FieldNaming) (*highLevelPlan, bool, error) {
 	provider, ok := value.(generatedSchemaProvider)
 	marker, hasMarker := value.(interface{ YAMLValidatorGeneratedType() reflect.Type })
 	if !ok || !hasMarker {
 		return nil, false, nil
+	}
+	naming := FieldNamingYAML
+	if len(modes) > 0 {
+		naming = modes[0]
+	}
+	if naming == FieldNamingGo {
+		if _, ok := value.(generatedNamingSchemaProvider); !ok {
+			return nil, false, nil
+		}
 	}
 	typ := marker.YAMLValidatorGeneratedType()
 	if !exactGeneratedType(value, typ) {
@@ -43,9 +52,9 @@ func generatedPlan(value any, registry *Registry, encode bool) (*highLevelPlan, 
 	if registry != nil {
 		cache = &registry.cache
 	}
-	plan, err := cache.getOrCompile(planKey{typ: typ, encode: encode}, func() (*highLevelPlan, error) {
-		graph, typeIDs := provider.YAMLValidatorSchemaSpec()
-		schema, err := buildGeneratedSchema(graph, typeIDs, registry, encode)
+	plan, err := cache.getOrCompile(planKey{typ: typ, encode: encode, naming: naming}, func() (*highLevelPlan, error) {
+		graph, typeIDs, _ := generatedSchemaForNaming(provider, value, naming)
+		schema, err := buildGeneratedSchema(graph, typeIDs, registry, encode, naming)
 		if err != nil {
 			return nil, err
 		}

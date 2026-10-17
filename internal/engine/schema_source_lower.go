@@ -71,7 +71,7 @@ func lowerGeneratedSourceGraph(g genspec.SourceGraph, rootID int) (*FieldSchema,
 			}
 			fields[i][j] = &FieldSchema{}
 			if !field.Inline {
-				if _, exists := nodes[i].AllowedKeys[field.Key]; exists {
+				if _, exists := nodes[i].AllowedKeys[field.Key]; exists && reachable[i] {
 					return nil, fmt.Errorf("duplicate YAML key %q", field.Key)
 				}
 				nodes[i].AllowedKeys[field.Key] = fields[i][j]

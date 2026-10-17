@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 — 2026-10-18
+
+- Added per-call `FieldNamingYAML` and `FieldNamingGo` options for high-level Marshal/Unmarshal. Exact Go names work recursively without adding YAML tags; explicit YAML names take priority, map keys remain data, and zero-value options preserve standard YAML naming.
+- Unified field-name selection across inferred schemas, reflection codecs, typed generated codecs, inline fields and registry-specific caches. Invalid modes and field-name conflicts fail before destination writes, including with SkipValidation.
+- Added mode-aware generated schemas and typed codec metadata. Older generated files safely use reflection fallback in Go mode; regeneration is optional for correctness. Direct yaml.v3 hooks keep standard YAML naming.
+- Preserved custom YAML/text codecs, key-node source metadata, aliases and merge behavior across mixed trees; added regression coverage for null sequences, custom map keys and special yaml.Node/time.Duration representations.
+- Updated the agent skill and Claude Code plugin to 0.3.0 for library v1.2.0, including field-naming guidance, executable recipes and version-aware evaluation scenarios.
+
 ## v1.1.0 — 2026-09-28
 
 - Removed the four generation-specific bridge functions from the application-facing root API. Generated hooks now use genruntime adapters and return data-only schema specs; source-time lowering and schema materialization are internal.

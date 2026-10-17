@@ -7,6 +7,9 @@ or silently disabling unknown-key checks.
 | Symptom | Check / correct action |
 | --- | --- |
 | yamlvalidate is ignored by yaml.Unmarshal | Without generated/user YAML hooks this is ordinary yaml.v3 behavior; use yamlvalidator.Unmarshal or generate hooks |
+| Exported Go-name keys are unknown or fields remain empty | On v1.2.0+, use FieldNamingGo on the high-level UnmarshalOptions and matching MarshalOptions; preserve explicit yaml names and do not lowercase input |
+| FieldNaming does not compile | Inspect the selected module: this option is new in v1.2.0; do not claim it exists in v1.1.0 |
+| Go naming disappears through direct yaml.v3 calls | Standard hooks receive no Options and use FieldNamingYAML; call the high-level Options API |
 | Generated file is stale after changing tags/fields | Regenerate with yamlvalidator-gen or run the same command with -check in CI |
 | Unknown keys do not make HasErrors true | Native inherited policy defaults to warning; set UnknownKeyError or StrictKeys |
 | Every map key is unknown | TypeMap without AllowedKeys is not an arbitrary-map schema; use AdditionalProperties |
@@ -33,7 +36,7 @@ or silently disabling unknown-key checks.
 ## Migration from older library versions
 
 Inspect the exact selected version with go list -m, not an old README or copied
-snippet. This skill targets v1.1.0. In v1.1:
+snippet. This skill targets v1.2.0. In v1.2 (including the existing v1.1 APIs):
 
 - For typed config structs, yamlvalidator.Unmarshal/Marshal can validate yamlvalidate tags directly.
 - yamlvalidator-gen -all adds typed codecs and ordinary yaml.v3 validation hooks; use -check for freshness.

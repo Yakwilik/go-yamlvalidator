@@ -34,3 +34,45 @@ type Link struct {
 type Registered struct {
 	Value string `yaml:"value" yamlvalidate:"check=registered,ref=registeredSchema"`
 }
+
+// FieldNames exercises both operation-scoped naming modes without adding tags
+// to fields whose YAML spelling follows the selected mode.
+type FieldNames struct {
+	ImageName    string `yamlvalidate:"required,nonempty"`
+	OptionalName string `yaml:",omitempty"`
+	LiteralName  string `yaml:"literal_name"`
+	JSONName     string `json:"json_name"`
+	Child        *NamingChild
+	Children     []NamingChild
+	Array        [1]NamingChild
+	Workers      map[string]*NamingChild
+	NamingInline `yaml:",inline"`
+	Extra        map[string]string `yaml:",inline"`
+	Hidden       string            `yaml:"-"`
+}
+
+type NamingChild struct {
+	ImageName string
+}
+
+type NamingInline struct {
+	InlineName string
+}
+
+// GoRuleNames has literal validation references that are valid in Go mode.
+type GoRuleNames struct {
+	Mode  string `yamlvalidate:"when={field=Mode,eq=prod,require=[Token]}"`
+	Token string
+}
+
+// GoNamingCollision is valid in YAML mode and conflicts in Go mode.
+type GoNamingCollision struct {
+	Field    string
+	Explicit string `yaml:"Field"`
+}
+
+// YAMLCollision is valid in Go mode and conflicts in standard YAML mode.
+type YAMLCollision struct {
+	ID string
+	Id string
+}

@@ -20,13 +20,16 @@ type schemaField struct {
 
 func (g *generator) schemaGraphSource() (string, error) {
 	var b strings.Builder
-	graph := genspec.SourceGraph{Nodes: make([]genspec.SourceNode, len(g.types))}
-	for id, typ := range g.types {
-		spec, err := g.schemaNodeSpec(id, typ)
-		if err != nil {
-			return "", err
+	graphs := [2]genspec.SourceGraph{}
+	for mode := range graphs {
+		graphs[mode].Nodes = make([]genspec.SourceNode, len(g.types))
+		for id, typ := range g.types {
+			spec, err := g.schemaNodeSpec(id, typ, mode == 1)
+			if err != nil {
+				return "", err
+			}
+			graphs[mode].Nodes[id] = spec
 		}
-		graph.Nodes[id] = spec
 	}
 	b.WriteString("var yamlvalidatorGeneratedTypes = []reflect.Type{")
 	for _, typ := range g.types {
@@ -34,16 +37,141 @@ func (g *generator) schemaGraphSource() (string, error) {
 	}
 	b.WriteString("}\n")
 	for _, root := range g.roots {
-		lowered, err := schemacompiler.Lower(graph, root.id)
-		if err != nil {
-			return "", fmt.Errorf("type %s: lower schema: %w", root.name, err)
+		var lowered [2]genspec.Graph
+		var errors [2]error
+		for mode := range graphs {
+			lowered[mode], errors[mode] = schemacompiler.Lower(graphs[mode], root.id)
+			if errors[mode] != nil {
+				lowered[mode] = genspec.Graph{Error: errors[mode].Error()}
+			}
 		}
-		fmt.Fprintf(&b, "func yamlvalidatorGeneratedSchema%d() (spec.Graph,[]reflect.Type) { return %s,yamlvalidatorGeneratedTypes }\n", root.id, renderGeneratedLiteral(reflect.ValueOf(lowered)))
+		if errors[0] != nil && errors[1] != nil {
+			return "", fmt.Errorf("type %s: lower schema: %w", root.name, errors[0])
+		}
+		fmt.Fprintf(&b, "func yamlvalidatorGeneratedSchema%d() (spec.Graph,[]reflect.Type) { return yamlvalidatorGeneratedSchema%dWithNaming(genruntime.FieldNamingYAML) }\n", root.id, root.id)
+		fmt.Fprintf(&b, "func yamlvalidatorGeneratedSchema%dWithNaming(naming genruntime.FieldNaming) (spec.Graph,[]reflect.Type) { if naming==genruntime.FieldNamingGo {return %s,yamlvalidatorGeneratedTypes};return %s,yamlvalidatorGeneratedTypes }\n", root.id, renderGeneratedLiteral(reflect.ValueOf(lowered[1])), renderGeneratedLiteral(reflect.ValueOf(lowered[0])))
+		fmt.Fprintf(&b, "func yamlvalidatorGeneratedNaming%d(ctx *genruntime.FieldNamingContext) error {", root.id)
+		for mode, graph := range graphs {
+			if err := sourceFieldNamingError(graph, root.id); err != nil {
+				comparison := "!="
+				if mode == 1 {
+					comparison = "=="
+				}
+				fmt.Fprintf(&b, "if ctx.Naming%sgenruntime.FieldNamingGo{return fmt.Errorf(\"%%s\",%q)};", comparison, err.Error())
+			}
+		}
+		if opaque := sourceOpaqueNodes(graphs[0], root.id); len(opaque) > 0 {
+			for _, id := range opaque {
+				fmt.Fprintf(&b, "if err:=ctx.Validate(yamlvalidatorGeneratedTypes[%d]);err!=nil{return err};", id)
+			}
+		}
+		b.WriteString("return nil}\n")
 	}
 	return b.String(), nil
 }
 
-func (g *generator) schemaNodeSpec(id int, typ types.Type) (genspec.SourceNode, error) {
+// sourceOpaqueNodes identifies fallback boundaries that must retain the
+// directional priority of user codecs during naming preflight.
+func sourceOpaqueNodes(graph genspec.SourceGraph, root int) []int {
+	var out []int
+	visited := map[int]bool{}
+	var visit func(int)
+	visit = func(id int) {
+		if id < 0 || visited[id] {
+			return
+		}
+		visited[id] = true
+		node := graph.Nodes[id]
+		if node.Opaque {
+			out = append(out, id)
+			return
+		}
+		for _, child := range []int{node.AliasOf, node.Item, node.Value} {
+			visit(child)
+		}
+		for _, field := range node.Fields {
+			visit(field.Node)
+		}
+	}
+	visit(root)
+	return out
+}
+
+// sourceFieldNamingError checks only name metadata, so SkipValidation never
+// evaluates validation rules or registry bindings while rejecting collisions.
+func sourceFieldNamingError(graph genspec.SourceGraph, root int) error {
+	visited := map[int]bool{}
+	var keys func(int, map[int]bool) ([]string, int, error)
+	keys = func(id int, active map[int]bool) ([]string, int, error) {
+		if active[id] {
+			return nil, 0, nil
+		}
+		active[id] = true
+		defer delete(active, id)
+		node := graph.Nodes[id]
+		if node.AliasOf >= 0 {
+			return keys(node.AliasOf, active)
+		}
+		if node.Fields == nil {
+			if node.Value >= 0 {
+				return nil, 1, nil
+			}
+			return nil, 0, nil
+		}
+		var out []string
+		maps := 0
+		for _, field := range node.Fields {
+			if !field.Inline {
+				out = append(out, field.Key)
+				continue
+			}
+			child, count, err := keys(field.Node, active)
+			if err != nil {
+				return nil, 0, err
+			}
+			out = append(out, child...)
+			maps += count
+		}
+		seen := map[string]bool{}
+		for _, key := range out {
+			if seen[key] {
+				return nil, 0, fmt.Errorf("duplicate YAML key %q", key)
+			}
+			seen[key] = true
+		}
+		if maps > 1 {
+			return nil, 0, fmt.Errorf("multiple inline maps are unsupported")
+		}
+		return out, maps, nil
+	}
+	var visit func(int) error
+	visit = func(id int) error {
+		if id < 0 || visited[id] {
+			return nil
+		}
+		visited[id] = true
+		node := graph.Nodes[id]
+		if node.Fields != nil {
+			if _, _, err := keys(id, map[int]bool{}); err != nil {
+				return err
+			}
+		}
+		for _, child := range []int{node.AliasOf, node.Item, node.Value} {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		for _, field := range node.Fields {
+			if err := visit(field.Node); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return visit(root)
+}
+
+func (g *generator) schemaNodeSpec(id int, typ types.Type, goNaming bool) (genspec.SourceNode, error) {
 	s := genspec.SourceNode{AliasOf: -1, Item: -1, Value: -1, ArrayLen: -1}
 	base := types.Unalias(typ)
 	if named, ok := base.(*types.Named); ok {
@@ -94,6 +222,9 @@ func (g *generator) schemaNodeSpec(id int, typ types.Type) (genspec.SourceNode, 
 		for _, entry := range g.schemaFields[id] {
 			f := entry.field
 			field := genspec.SourceField{Key: f.key, Node: f.id, Inline: f.inline, FieldName: f.name}
+			if goNaming && f.yamlName == "" {
+				field.Key = f.name
+			}
 			if entry.tag != "" {
 				rules, err := taglang.Parse(entry.tag)
 				if err != nil {

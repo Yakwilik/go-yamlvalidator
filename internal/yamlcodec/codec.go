@@ -204,6 +204,9 @@ func FallbackDecode[T any](node *yaml.Node, dst *T) error {
 }
 
 func FallbackDecodeWithContext[T any](node *yaml.Node, dst *T, ctx *DecodeContext) error {
+	if ctx.FieldNaming == FieldNamingGo {
+		return DecodeMixedWithContext(node, reflect.ValueOf(dst).Elem(), ctx)
+	}
 	if decoder, ok := any(dst).(generatedContextDecoder); ok && exactGeneratedType(dst, decoder.YAMLValidatorGeneratedType()) {
 		return decoder.YAMLValidatorDecodeWithContext(node, ctx)
 	}
@@ -283,6 +286,14 @@ func FallbackEncode[T any](value T) (*yaml.Node, error) {
 	return &node, nil
 }
 
+// FallbackEncodeWithNaming preserves the operation mode at opaque typed boundaries.
+func FallbackEncodeWithNaming[T any](value T, naming FieldNaming) (*yaml.Node, error) {
+	if naming == FieldNamingYAML {
+		return FallbackEncode(value)
+	}
+	return EncodeMixedWithNaming(reflect.ValueOf(value), naming)
+}
+
 func AppendInline(parent, child *yaml.Node) error {
 	if child == nil || child.Kind == yaml.ScalarNode && child.Tag == "!!null" {
 		return nil
@@ -310,15 +321,20 @@ func MappingPairs(node *yaml.Node) ([]Pair, error) {
 }
 
 func IsEmpty(value any) bool {
-	v := reflect.ValueOf(value)
+	return isEmptyValue(reflect.ValueOf(value))
+}
+
+func isEmptyValue(v reflect.Value) bool {
 	if !v.IsValid() {
 		return true
 	}
 	if v.Kind() == reflect.Pointer && v.IsNil() {
 		return true
 	}
-	if z, ok := value.(interface{ IsZero() bool }); ok {
-		return z.IsZero()
+	if v.CanInterface() {
+		if z, ok := v.Interface().(interface{ IsZero() bool }); ok {
+			return z.IsZero()
+		}
 	}
 	switch v.Kind() {
 	case reflect.Map, reflect.Slice, reflect.String:
@@ -338,7 +354,7 @@ func IsEmpty(value any) bool {
 			if v.Type().Field(i).PkgPath != "" {
 				continue
 			}
-			if !IsEmpty(v.Field(i).Interface()) {
+			if !isEmptyValue(v.Field(i)) {
 				return false
 			}
 		}

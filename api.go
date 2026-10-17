@@ -67,6 +67,16 @@ type SchemaError = engine.SchemaError
 // ValidationErrors groups the final diagnostics from one high-level operation.
 type ValidationErrors = engine.ValidationErrors
 
+// FieldNaming selects the default name of exported Go fields in YAML.
+type FieldNaming = engine.FieldNaming
+
+const (
+	// FieldNamingYAML uses yaml.v3's lowercase default names.
+	FieldNamingYAML = engine.FieldNamingYAML
+	// FieldNamingGo preserves Go field names unless a YAML tag names the field.
+	FieldNamingGo = engine.FieldNamingGo
+)
+
 // UnmarshalOptions controls validated YAML decoding. Its zero value enables validation.
 type UnmarshalOptions = engine.UnmarshalOptions
 

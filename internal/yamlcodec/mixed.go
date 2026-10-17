@@ -45,37 +45,6 @@ func HasGenerated(typ reflect.Type, visiting map[reflect.Type]bool) bool {
 	return false
 }
 
-func mixedYAMLKeys(typ reflect.Type, visiting map[reflect.Type]bool) []string {
-	if typ == nil || visiting[typ] {
-		return nil
-	}
-	visiting[typ] = true
-	defer delete(visiting, typ)
-	for typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
-	if typ.Kind() != reflect.Struct {
-		return nil
-	}
-	var out []string
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		if !field.IsExported() {
-			continue
-		}
-		name, inline, excluded, err := parseYAMLFieldTag(field, field.Tag.Get("yaml"))
-		if err != nil || excluded {
-			continue
-		}
-		if inline {
-			out = append(out, mixedYAMLKeys(field.Type, visiting)...)
-		} else {
-			out = append(out, name)
-		}
-	}
-	return out
-}
-
 func DecodeMixed(node *yaml.Node, dst reflect.Value) error {
 	return DecodeMixedWithContext(node, dst, NewDecodeContext(Limits{}, false))
 }
@@ -91,41 +60,52 @@ func DecodeMixedWithContext(node *yaml.Node, dst reflect.Value, ctx *DecodeConte
 	if node == nil {
 		return fmt.Errorf("nil YAML node")
 	}
-	if dst.Kind() == reflect.Pointer {
-		if node.Tag == "!!null" {
+	if dst.Type() == nodeType {
+		return node.Decode(dst.Addr().Interface())
+	}
+	resolved, err := ctx.Resolve(node)
+	if err != nil {
+		return err
+	}
+	if resolved.Tag == "!!null" {
+		switch dst.Kind() {
+		case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Interface:
 			dst.SetZero()
-			return nil
 		}
+		return nil
+	}
+	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
 		}
-		if decoder, ok := dst.Interface().(generatedContextDecoder); ok && exactGeneratedType(dst.Interface(), decoder.YAMLValidatorGeneratedType()) {
-			return decoder.YAMLValidatorDecodeWithContext(node, ctx)
+		if handled, err := decodeGenerated(node, dst.Interface(), ctx); handled {
+			return err
 		}
-		if codec, ok := dst.Interface().(generatedCodec); ok && exactGeneratedType(dst.Interface(), codec.YAMLValidatorGeneratedType()) {
-			return codec.YAMLValidatorDecode(node)
-		}
-		if dst.Type().Implements(yamlUnmarshalerType) || dst.Type().Implements(textUnmarshalerType) {
+		if !hasGeneratedMarker(dst.Interface()) && IsCustomUnmarshaler(dst.Type()) {
 			return node.Decode(dst.Interface())
 		}
 		return DecodeMixedWithContext(node, dst.Elem(), ctx)
 	}
 	if dst.CanAddr() {
-		if decoder, ok := dst.Addr().Interface().(generatedContextDecoder); ok && exactGeneratedType(dst.Addr().Interface(), decoder.YAMLValidatorGeneratedType()) {
-			return decoder.YAMLValidatorDecodeWithContext(node, ctx)
+		candidate := dst.Addr().Interface()
+		if handled, err := decodeGenerated(node, candidate, ctx); handled {
+			return err
 		}
-		if codec, ok := dst.Addr().Interface().(generatedCodec); ok && exactGeneratedType(dst.Addr().Interface(), codec.YAMLValidatorGeneratedType()) {
-			return codec.YAMLValidatorDecode(node)
+		if !hasGeneratedMarker(candidate) && IsCustomUnmarshaler(dst.Type()) {
+			return node.Decode(candidate)
 		}
 	}
-	if !HasGenerated(dst.Type(), map[reflect.Type]bool{}) {
+	if specialRepresentation(dst.Type()) || ctx.FieldNaming == FieldNamingYAML && !HasGenerated(dst.Type(), map[reflect.Type]bool{}) {
 		return node.Decode(dst.Addr().Interface())
 	}
-	for node.Kind == yaml.AliasNode {
-		if node.Alias == nil {
-			return fmt.Errorf("invalid YAML alias")
+	node = resolved
+	switch dst.Kind() {
+	case reflect.Struct, reflect.Map, reflect.Slice, reflect.Array:
+		leave, err := ctx.EnterMixedNode(node)
+		if err != nil {
+			return err
 		}
-		node = node.Alias
+		defer leave()
 	}
 	switch dst.Kind() {
 	case reflect.Struct:
@@ -133,67 +113,77 @@ func DecodeMixedWithContext(node *yaml.Node, dst reflect.Value, ctx *DecodeConte
 		if err != nil {
 			return err
 		}
-		fields := map[string]int{}
-		var inline []int
-		known := map[string]bool{}
-		for i := 0; i < dst.NumField(); i++ {
-			f := dst.Type().Field(i)
-			if !f.IsExported() {
-				continue
-			}
-			name, isInline, excluded, err := parseYAMLFieldTag(f, f.Tag.Get("yaml"))
+		metadata, err := structFields(dst.Type(), ctx.FieldNaming, map[reflect.Type]bool{}, false)
+		if err != nil {
+			return err
+		}
+		fields := map[string][]int{}
+		for _, field := range metadata.fields {
+			fields[field.name] = field.index
+		}
+		for _, index := range metadata.inlineCodecs {
+			field, err := fieldByIndex(dst, index, true)
 			if err != nil {
 				return err
 			}
-			if excluded {
-				continue
-			}
-			if isInline {
-				inline = append(inline, i)
-				for _, key := range mixedYAMLKeys(f.Type, map[reflect.Type]bool{}) {
-					known[key] = true
+			if field.Kind() == reflect.Pointer && field.IsNil() {
+				if !field.CanSet() {
+					return fmt.Errorf("cannot set inline YAML pointer")
 				}
-			} else {
-				fields[name] = i
-				known[name] = true
+				field.Set(reflect.New(field.Type().Elem()))
 			}
-		}
-		for _, pair := range pairs {
-			if i, ok := fields[pair.Key]; ok {
-				if err := DecodeMixedWithContext(pair.Value, dst.Field(i), ctx); err != nil {
-					return fmt.Errorf("field %s: %w", dst.Type().Field(i).Name, err)
+			inlineNode := node
+			candidate := interfaceValue(field)
+			if field.Kind() != reflect.Pointer && field.CanAddr() {
+				candidate = interfaceValue(field.Addr())
+			}
+			if generated, ok := candidate.(generatedFieldNames); ok && exactGeneratedType(candidate, generated.YAMLValidatorGeneratedType()) {
+				own := map[string]bool{}
+				for _, key := range generated.YAMLValidatorFieldNamesWithNaming(ctx.FieldNaming) {
+					own[key] = true
 				}
-			}
-		}
-		for _, i := range inline {
-			f := dst.Field(i)
-			mapNode := node
-			base := f.Type()
-			for base.Kind() == reflect.Pointer {
-				base = base.Elem()
-			}
-			if base.Kind() == reflect.Map {
-				mapNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+				// Exclude sibling fields before an inline generated map captures extras.
+				// Keep every original node untouched, including key positions and styles.
+				inlineNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Line: node.Line, Column: node.Column}
 				for _, pair := range pairs {
-					if known[pair.Key] {
+					if _, known := fields[pair.Key]; known && !own[pair.Key] {
 						continue
 					}
-					mapNode.Content = append(mapNode.Content,
-						&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: pair.Key},
-						pair.Value,
-					)
+					inlineNode.Content = append(inlineNode.Content, pair.KeyNode, pair.Value)
 				}
 			}
-			if err := DecodeMixedWithContext(mapNode, f, ctx); err != nil {
-				return fmt.Errorf("inline field %s: %w", dst.Type().Field(i).Name, err)
+			if err := DecodeMixedWithContext(inlineNode, field, ctx); err != nil {
+				return err
 			}
+		}
+		var extra []*yaml.Node
+		for _, pair := range pairs {
+			if index, ok := fields[pair.Key]; ok {
+				if len(index) == 0 {
+					continue
+				}
+				field, err := fieldByIndex(dst, index, true)
+				if err != nil {
+					return err
+				}
+				if err := DecodeMixedWithContext(pair.Value, field, ctx); err != nil {
+					return fmt.Errorf("field %s: %w", pair.Key, err)
+				}
+				continue
+			}
+			if len(metadata.inlineMap) > 0 {
+				extra = append(extra, pair.KeyNode, pair.Value)
+			}
+		}
+		if len(extra) > 0 {
+			field, err := fieldByIndex(dst, metadata.inlineMap, true)
+			if err != nil {
+				return err
+			}
+			return DecodeMixedWithContext(&yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: extra}, field, ctx)
 		}
 		return nil
 	case reflect.Slice, reflect.Array:
-		if node.Tag == "!!null" && dst.Kind() == reflect.Slice {
-			dst.SetZero()
-			return nil
-		}
 		if node.Kind != yaml.SequenceNode {
 			return fmt.Errorf("expected YAML sequence")
 		}
@@ -203,34 +193,73 @@ func DecodeMixedWithContext(node *yaml.Node, dst reflect.Value, ctx *DecodeConte
 		if dst.Kind() == reflect.Slice {
 			dst.Set(reflect.MakeSlice(dst.Type(), len(node.Content), len(node.Content)))
 		}
+		count := 0
 		for i, child := range node.Content {
-			if err := DecodeMixedWithContext(child, dst.Index(i), ctx); err != nil {
+			resolved, err := ctx.Resolve(child)
+			if err != nil {
+				return err
+			}
+			if resolved.Tag == "!!null" && !keepsNull(dst.Type().Elem()) {
+				err := ctx.Enter()
+				ctx.Leave()
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			if err := DecodeMixedWithContext(child, dst.Index(count), ctx); err != nil {
 				return fmt.Errorf("item %d: %w", i, err)
 			}
+			count++
+		}
+		if dst.Kind() == reflect.Slice {
+			dst.SetLen(count)
 		}
 		return nil
 	case reflect.Map:
-		if node.Tag == "!!null" {
-			dst.SetZero()
-			return nil
+		var pairs []Pair
+		var err error
+		if IsCustomUnmarshaler(dst.Type().Key()) {
+			pairs, err = ctx.MappingPairsWithKeyDecoder(node, func(keyNode *yaml.Node) (string, error) {
+				key := reflect.New(dst.Type().Key()).Elem()
+				if err := keyNode.Decode(key.Addr().Interface()); err != nil {
+					return "", err
+				}
+				return key.String(), nil
+			})
+		} else {
+			pairs, err = ctx.MappingPairs(node)
 		}
-		pairs, err := ctx.MappingPairs(node)
 		if err != nil {
 			return err
 		}
 		if dst.Type().Key().Kind() != reflect.String {
 			return fmt.Errorf("map key must be string")
 		}
-		if dst.IsNil() {
+		newMap := dst.IsNil()
+		if newMap {
 			dst.Set(reflect.MakeMapWithSize(dst.Type(), len(pairs)))
 		}
 		for _, pair := range pairs {
+			resolved, err := ctx.Resolve(pair.Value)
+			if err != nil {
+				return err
+			}
+			key := reflect.New(dst.Type().Key()).Elem()
+			key.SetString(pair.Key)
+			kind := dst.Type().Elem().Kind()
+			if resolved.Tag == "!!null" && !newMap && dst.MapIndex(key).IsValid() && kind != reflect.Pointer && kind != reflect.Map && kind != reflect.Slice && kind != reflect.Interface {
+				err := ctx.Enter()
+				ctx.Leave()
+				if err != nil {
+					return err
+				}
+				continue
+			}
 			item := reflect.New(dst.Type().Elem()).Elem()
 			if err := DecodeMixedWithContext(pair.Value, item, ctx); err != nil {
 				return fmt.Errorf("key %q: %w", pair.Key, err)
 			}
-			key := reflect.New(dst.Type().Key()).Elem()
-			key.SetString(pair.Key)
 			dst.SetMapIndex(key, item)
 		}
 		return nil
@@ -238,7 +267,38 @@ func DecodeMixedWithContext(node *yaml.Node, dst reflect.Value, ctx *DecodeConte
 	return node.Decode(dst.Addr().Interface())
 }
 
+func hasGeneratedMarker(value any) bool {
+	_, ok := value.(interface{ YAMLValidatorGeneratedType() reflect.Type })
+	return ok
+}
+
+func decodeGenerated(node *yaml.Node, value any, ctx *DecodeContext) (bool, error) {
+	marker, ok := value.(interface{ YAMLValidatorGeneratedType() reflect.Type })
+	if !ok || !exactGeneratedType(value, marker.YAMLValidatorGeneratedType()) {
+		return false, nil
+	}
+	if ctx.FieldNaming == FieldNamingGo {
+		// Old generated decoders have a context but hard-code YAML names.
+		if _, ok := value.(generatedNamingEncoder); !ok {
+			return false, nil
+		}
+	}
+	if decoder, ok := value.(generatedContextDecoder); ok {
+		return true, decoder.YAMLValidatorDecodeWithContext(node, ctx)
+	}
+	if ctx.FieldNaming == FieldNamingYAML {
+		if codec, ok := value.(generatedCodec); ok {
+			return true, codec.YAMLValidatorDecode(node)
+		}
+	}
+	return false, nil
+}
+
 func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
+	return EncodeMixedWithNaming(value, FieldNamingYAML)
+}
+
+func EncodeMixedWithNaming(value reflect.Value, naming FieldNaming) (*yaml.Node, error) {
 	if !value.IsValid() {
 		return FallbackEncode[any](nil)
 	}
@@ -246,30 +306,40 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 		if value.IsNil() {
 			return FallbackEncode[any](nil)
 		}
-		return EncodeMixed(value.Elem())
+		return EncodeMixedWithNaming(value.Elem(), naming)
 	}
 	if value.Kind() == reflect.Pointer {
 		if value.IsNil() {
 			return FallbackEncode[any](nil)
 		}
-		if codec, ok := value.Interface().(generatedEncoder); ok && exactGeneratedType(value.Interface(), codec.YAMLValidatorGeneratedType()) {
-			return codec.YAMLValidatorEncode()
+		if codec, ok := interfaceValue(value).(generatedEncoder); ok && exactGeneratedType(interfaceValue(value), codec.YAMLValidatorGeneratedType()) {
+			if naming == FieldNamingYAML {
+				return codec.YAMLValidatorEncode()
+			}
+			if named, ok := value.Interface().(generatedNamingEncoder); ok {
+				return named.YAMLValidatorEncodeWithNaming(naming)
+			}
 		}
-		if value.Type().Implements(yamlMarshalerType) || value.Type().Implements(textMarshalerType) {
+		if !hasGeneratedMarker(interfaceValue(value)) && (value.Type().Implements(yamlMarshalerType) || value.Type().Implements(textMarshalerType)) {
 			var node yaml.Node
 			if err := node.Encode(value.Interface()); err != nil {
 				return nil, err
 			}
 			return &node, nil
 		}
-		return EncodeMixed(value.Elem())
+		return EncodeMixedWithNaming(value.Elem(), naming)
 	}
 	if value.CanInterface() {
-		if codec, ok := value.Interface().(generatedEncoder); ok && exactGeneratedType(value.Interface(), codec.YAMLValidatorGeneratedType()) {
-			return codec.YAMLValidatorEncode()
+		if codec, ok := interfaceValue(value).(generatedEncoder); ok && exactGeneratedType(interfaceValue(value), codec.YAMLValidatorGeneratedType()) {
+			if naming == FieldNamingYAML {
+				return codec.YAMLValidatorEncode()
+			}
+			if named, ok := value.Interface().(generatedNamingEncoder); ok {
+				return named.YAMLValidatorEncodeWithNaming(naming)
+			}
 		}
 	}
-	if !HasGenerated(value.Type(), map[reflect.Type]bool{}) {
+	if value.CanInterface() && (specialRepresentation(value.Type()) || naming == FieldNamingYAML && !HasGenerated(value.Type(), map[reflect.Type]bool{}) || !hasGeneratedMarker(value.Interface()) && (value.Type().Implements(yamlMarshalerType) || value.Type().Implements(textMarshalerType))) {
 		var node yaml.Node
 		if err := node.Encode(value.Interface()); err != nil {
 			return nil, err
@@ -278,13 +348,16 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 	}
 	switch value.Kind() {
 	case reflect.Struct:
+		if _, err := structFields(value.Type(), naming, map[reflect.Type]bool{}, true); err != nil {
+			return nil, err
+		}
 		node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 		for i := 0; i < value.NumField(); i++ {
 			f := value.Type().Field(i)
-			if !f.IsExported() {
+			if !includeField(f) {
 				continue
 			}
-			name, inline, excluded, err := parseYAMLFieldTag(f, f.Tag.Get("yaml"))
+			name, inline, excluded, err := parseYAMLFieldTag(f, f.Tag.Get("yaml"), naming)
 			if err != nil {
 				return nil, err
 			}
@@ -292,10 +365,10 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 				continue
 			}
 			tag := f.Tag.Get("yaml")
-			if strings.Contains(","+tag+",", ",omitempty,") && IsEmpty(value.Field(i).Interface()) {
+			if strings.Contains(","+tag+",", ",omitempty,") && isEmptyValue(value.Field(i)) {
 				continue
 			}
-			child, err := EncodeMixed(value.Field(i))
+			child, err := EncodeMixedWithNaming(value.Field(i), naming)
 			if err != nil {
 				return nil, fmt.Errorf("field %s: %w", f.Name, err)
 			}
@@ -308,16 +381,18 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 				}
 				continue
 			}
-			node.Content = append(node.Content,
-				&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: name},
-				child,
-			)
+			if err := AppendInline(node, &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{{Kind: yaml.ScalarNode, Tag: "!!str", Value: name}, child}}); err != nil {
+				return nil, err
+			}
 		}
 		return node, nil
 	case reflect.Slice, reflect.Array:
+		if value.Kind() == reflect.Slice && value.IsNil() {
+			return FallbackEncode[any](nil)
+		}
 		node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 		for i := 0; i < value.Len(); i++ {
-			child, err := EncodeMixed(value.Index(i))
+			child, err := EncodeMixedWithNaming(value.Index(i), naming)
 			if err != nil {
 				return nil, err
 			}
@@ -325,6 +400,9 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 		}
 		return node, nil
 	case reflect.Map:
+		if value.IsNil() {
+			return FallbackEncode[any](nil)
+		}
 		if value.Type().Key().Kind() != reflect.String {
 			return nil, fmt.Errorf("map key must be string")
 		}
@@ -332,14 +410,15 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 		keys := value.MapKeys()
 		sort.Slice(keys, func(i, j int) bool { return keys[i].String() < keys[j].String() })
 		for _, key := range keys {
-			child, err := EncodeMixed(value.MapIndex(key))
+			child, err := EncodeMixedWithNaming(value.MapIndex(key), naming)
 			if err != nil {
 				return nil, err
 			}
-			node.Content = append(node.Content,
-				&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key.String()},
-				child,
-			)
+			keyNode, err := FallbackEncode(key.Interface())
+			if err != nil {
+				return nil, err
+			}
+			node.Content = append(node.Content, keyNode, child)
 		}
 		return node, nil
 	}
@@ -350,11 +429,15 @@ func EncodeMixed(value reflect.Value) (*yaml.Node, error) {
 	return &node, nil
 }
 
-func parseYAMLFieldTag(field reflect.StructField, text string) (name string, inline, excluded bool, err error) {
+func parseYAMLFieldTag(field reflect.StructField, text string, modes ...FieldNaming) (name string, inline, excluded bool, err error) {
 	parts := strings.Split(text, ",")
 	name = parts[0]
 	if name == "" {
-		name = strings.ToLower(field.Name)
+		naming := FieldNamingYAML
+		if len(modes) > 0 {
+			naming = modes[0]
+		}
+		name = FieldName(field.Name, "", naming)
 	}
 	if name == "-" {
 		return name, false, true, nil
@@ -377,4 +460,22 @@ func parseYAMLFieldTag(field reflect.StructField, text string) (name string, inl
 		return "", false, false, fmt.Errorf("inline field cannot have a YAML name")
 	}
 	return name, inline, false, nil
+}
+
+func interfaceValue(value reflect.Value) any {
+	if value.CanInterface() {
+		return value.Interface()
+	}
+	return nil
+}
+
+func keepsNull(typ reflect.Type) bool {
+	if typ == nodeType {
+		return true
+	}
+	switch typ.Kind() {
+	case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Interface:
+		return true
+	}
+	return false
 }

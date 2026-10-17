@@ -38,13 +38,14 @@ compile and execute these exact Go blocks rather than a separately maintained co
 | [19. Understand required together with omitempty during Marshal](#omitempty) | Validation checks what is actually emitted, not the original Go field |
 | [20. Handle recursive models and bound validation work](#recursion-limits) | Recursive types are supported for finite data without generation |
 | [21. Opt out explicitly without losing the single-document boundary](#skip-validation) | SkipValidation is an explicit escape hatch |
+| [22. Preserve exported Go field names](#field-naming) | Per-call naming works without tags or generation |
 
 <a id="quick-start"></a>
 
 ### 1. Load and serialize a typed configuration
 
 This complete program needs only the root package. In an existing module, run
-<code>go get github.com/Yakwilik/go-yamlvalidator@v1.1.0</code> first. No generation
+<code>go get github.com/Yakwilik/go-yamlvalidator@v1.2.0</code> first. No generation
 step or separately constructed schema is required.
 
 <!-- highlevel-example: quick-start -->
@@ -1215,6 +1216,79 @@ API enforces its own complete-document policy.
 For more focused parent/current-value group examples with YAML blocks, see
 [cross-field rule examples](tag-rules-examples.ru.md).
 
+<a id="field-naming"></a>
+
+### 22. Preserve exported Go field names
+
+In v1.2.0, choose `FieldNamingGo` for an existing configuration whose keys exactly match Go
+field names. Both operations use the same mode, independently of other calls.
+
+<!-- highlevel-example: field-naming -->
+~~~go
+package main
+
+import (
+    "fmt"
+    v "github.com/Yakwilik/go-yamlvalidator"
+)
+
+type Config struct {
+    SkipValidateSanPortsForceUPTask bool
+    ImageName string `json:"image_name"`
+    Host string `yaml:"server_host"`
+}
+
+func main() {
+    input := []byte("SkipValidateSanPortsForceUPTask: true\nImageName: task-image\nserver_host: api\n")
+    var config Config
+    options := v.UnmarshalOptions{
+        FieldNaming: v.FieldNamingGo,
+        WarningsAsErrors: true,
+    }
+    if err := options.Unmarshal(input, &config); err != nil {
+        panic(err)
+    }
+    encoded, err := (v.MarshalOptions{FieldNaming: v.FieldNamingGo, Indent: 2}).Marshal(config)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Print(string(encoded))
+}
+~~~
+
+Expected output:
+~~~text
+SkipValidateSanPortsForceUPTask: true
+ImageName: task-image
+server_host: api
+~~~
+
+An explicit nonempty `yaml` name wins in both modes. A tag containing only flags,
+such as `yaml:",omitempty"` or `yaml:",flow"`, uses the selected default name and
+keeps its flags. Excluded and unexported fields keep their usual behavior. `json`
+tags do not affect YAML. Matching is case-sensitive: `imagename` and `image_name`
+do not populate `ImageName` in Go mode; `UnknownKeyPolicy` handles them as unknown
+keys. Ignoring an unknown key does not create an alias.
+
+The mode applies recursively through pointers, slices, arrays, map values and
+inline structs. Map keys stay literal: `product_UP` and `product_up` remain
+separate entries. Custom YAML/text codecs retain control of their own
+representation, and validation diagnostics retain the original YAML keys and
+source positions. Group and conditional rules refer to literal YAML keys in the
+chosen mode; rule arguments, external `Schema` keys and Registry bindings are
+never renamed.
+
+`FieldNamingYAML` is the zero value and retains yaml.v3's lowercase defaults.
+Package `Marshal`/`Unmarshal` and zero-value Options remain unchanged.
+`SkipValidation` still uses the chosen names and rejects name conflicts before
+decoding. An unknown `FieldNaming` value fails before user codecs run, even when
+validation is skipped. Calls in different modes can safely share a Registry.
+
+New generated codecs support per-call naming through typed code. Older generated
+files fall back to the existing reflection traversal in Go mode; regeneration is
+optional for correctness and restores the typed path. Standard `yaml.v3` hooks
+always use `FieldNamingYAML` because they receive no Options.
+
 ## Tags and scopes
 
 The yaml tag controls field names, inline flattening, and codec flags. The yamlvalidate tag declares validation. A blank _ field with yamlvalidate is a SchemaError, as is yamljsonschema. Unexported and YAML-excluded fields cannot carry validation declarations. Unknown directives, including jsonschema, fail compilation.
@@ -1282,11 +1356,11 @@ Factories receive structured arguments. Numeric arguments are json.Number values
 
 ## Options and limits
 
-UnmarshalOptions and MarshalOptions include UnknownKeyPolicy, WarningsAsErrors, OnDiagnostic, StopOnFirst, Limits, Registry, Schema, and SkipValidation. MarshalOptions also has Indent. The default unknown key policy is error. OnDiagnostic runs synchronously for final diagnostics. WarningsAsErrors turns warnings into one public ValidationErrors return; validation failure does not decode into the destination.
+UnmarshalOptions and MarshalOptions include FieldNaming, UnknownKeyPolicy, WarningsAsErrors, OnDiagnostic, StopOnFirst, Limits, Registry, Schema, and SkipValidation. MarshalOptions also has Indent. The default unknown key policy is error. OnDiagnostic runs synchronously for final diagnostics. WarningsAsErrors turns warnings into one public ValidationErrors return; validation failure does not decode into the destination.
 
 Default limits are 8 MiB input/output, depth 128, 100 diagnostics, and 1,000,000 node visits. Zero selects the default; negative values are errors. Truncated validation fails closed. These limits do not bound all allocations inside yaml.v3 or the execution time and allocations of custom hooks. ValidationErrors offers Diagnostics and FormatWithSource; GeneratedSource indicates that coordinates refer to Marshal output. SchemaError identifies the offending type, field, tag, byte offset, and reason.
 
-SkipValidation bypasses tag compilation and schema checks while keeping option sanity, byte limits, one-document parsing for Unmarshal, and yaml.v3 decoding. Marshal still rejects ordinary cyclic Go values. A custom YAML or text codec with unknown shape needs a registry type binding or an explicit type=any rule. Compilation never invokes codec hooks.
+SkipValidation bypasses tag compilation and schema checks while keeping option sanity, byte limits, one-document parsing for Unmarshal, and the selected field naming mode. Field-name conflicts are still rejected before destination writes. Marshal still rejects ordinary cyclic Go values. A custom YAML or text codec with unknown shape needs a registry type binding or an explicit type=any rule. Compilation never invokes codec hooks.
 
 The runtime supports strings, booleans, integers, floats, structs, slices, arrays, string-keyed maps, pointers, interfaces, time.Time, time.Duration, and byte slices. Arrays require exact item counts. Numeric destination representability is checked before decode. Recursive Go type graphs are supported when each schema recursion descends into a YAML child value; non-string map keys remain schema errors. Streaming and default interpolation are not implemented. The optional source frontend and typed generated codecs are documented separately. Reflection-path cycle preflight does not execute custom IsZero methods; it can conservatively reject a cyclic field that a custom IsZero would omit during encoding.
 

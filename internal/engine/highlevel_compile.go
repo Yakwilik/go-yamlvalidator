@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Yakwilik/go-yamlvalidator/internal/taglang"
+	"github.com/Yakwilik/go-yamlvalidator/internal/yamlcodec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,21 +23,23 @@ var yamlNodeType = reflect.TypeFor[yaml.Node]()
 var timeType = reflect.TypeFor[time.Time]()
 var durationType = reflect.TypeFor[time.Duration]()
 var textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
-var textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 var yamlMarshalerType = reflect.TypeFor[yaml.Marshaler]()
-var yamlUnmarshalerType = reflect.TypeFor[yaml.Unmarshaler]()
 var reflectSchemaCompileCalls atomic.Uint64
 var generatedStructReflectionCalls atomic.Uint64
 
-func compileHighLevel(typ reflect.Type, encode bool, registry *Registry) (*highLevelPlan, error) {
+func compileHighLevel(typ reflect.Type, encode bool, registry *Registry, modes ...FieldNaming) (*highLevelPlan, error) {
 	reflectSchemaCompileCalls.Add(1)
-	key := planKey{typ, encode}
+	naming := FieldNamingYAML
+	if len(modes) > 0 {
+		naming = modes[0]
+	}
+	key := planKey{typ: typ, encode: encode, naming: naming}
 	cache := &defaultPlanCache
 	if registry != nil {
 		cache = &registry.cache
 	}
 	return cache.getOrCompile(key, func() (*highLevelPlan, error) {
-		compiler := &highLevelCompiler{encode: encode, registry: registry, visiting: make(map[reflect.Type]bool), schemas: make(map[reflect.Type]*FieldSchema)}
+		compiler := &highLevelCompiler{encode: encode, naming: naming, registry: registry, visiting: make(map[reflect.Type]bool), schemas: make(map[reflect.Type]*FieldSchema)}
 		schema, err := compiler.infer(typ)
 		if err != nil {
 			return nil, err
@@ -49,6 +52,7 @@ func compileHighLevel(typ reflect.Type, encode bool, registry *Registry) (*highL
 }
 
 type highLevelCompiler struct {
+	naming        FieldNaming
 	encode        bool
 	registry      *Registry
 	symbolic      bool
@@ -102,13 +106,15 @@ func (c *highLevelCompiler) infer(typ reflect.Type) (*FieldSchema, error) {
 		candidate := reflect.New(typ).Interface()
 		if provider, ok := candidate.(generatedSchemaProvider); ok {
 			if marker, ok := candidate.(interface{ YAMLValidatorGeneratedType() reflect.Type }); ok && marker.YAMLValidatorGeneratedType() == typ {
-				graph, typeIDs := provider.YAMLValidatorSchemaSpec()
-				schema, err := buildGeneratedSchema(graph, typeIDs, c.registry, c.encode)
-				if err != nil {
-					return nil, err
+				graph, typeIDs, supported := generatedSchemaForNaming(provider, candidate, c.naming)
+				if supported {
+					schema, err := buildGeneratedSchema(graph, typeIDs, c.registry, c.encode, c.naming)
+					if err != nil {
+						return nil, err
+					}
+					schema.Nullable = schema.Nullable || nullable
+					return schema, nil
 				}
-				schema.Nullable = schema.Nullable || nullable
-				return schema, nil
 			}
 		}
 	}
@@ -209,7 +215,7 @@ func isCustomCodec(typ reflect.Type, encode bool) bool {
 	if encode {
 		return typ.Implements(yamlMarshalerType) || reflect.PointerTo(typ).Implements(yamlMarshalerType) || typ.Implements(textMarshalerType) || reflect.PointerTo(typ).Implements(textMarshalerType)
 	}
-	return typ.Implements(yamlUnmarshalerType) || reflect.PointerTo(typ).Implements(yamlUnmarshalerType) || typ.Implements(textUnmarshalerType) || reflect.PointerTo(typ).Implements(textUnmarshalerType)
+	return yamlcodec.IsCustomUnmarshaler(typ)
 }
 
 func (c *highLevelCompiler) compileStruct(typ reflect.Type, schema *FieldSchema) error {
@@ -242,7 +248,7 @@ func (c *highLevelCompiler) compileStruct(typ reflect.Type, schema *FieldSchema)
 			}
 			continue
 		}
-		name, inline, excluded, err := parseYAMLFieldTag(field, tags["yaml"])
+		name, inline, excluded, err := parseYAMLFieldTag(field, tags["yaml"], c.naming)
 		if err != nil {
 			return &SchemaError{Type: typ, Field: field.Name, Tag: tags["yaml"], Reason: err.Error()}
 		}
@@ -574,11 +580,15 @@ func schemaErrorOffset(err error) int {
 	return 0
 }
 
-func parseYAMLFieldTag(field reflect.StructField, text string) (name string, inline, excluded bool, err error) {
+func parseYAMLFieldTag(field reflect.StructField, text string, modes ...FieldNaming) (name string, inline, excluded bool, err error) {
 	parts := strings.Split(text, ",")
 	name = parts[0]
 	if name == "" {
-		name = strings.ToLower(field.Name)
+		naming := FieldNamingYAML
+		if len(modes) > 0 {
+			naming = modes[0]
+		}
+		name = yamlcodec.FieldName(field.Name, "", naming)
 	}
 	if name == "-" {
 		return name, false, true, nil

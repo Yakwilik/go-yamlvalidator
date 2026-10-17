@@ -69,6 +69,22 @@ encoded, err := yamlvalidator.Marshal(config)
 
 `Unmarshal` parses one YAML document, validates the source tree, and only then decodes into the destination. A validation failure does not mutate the destination. Unknown struct fields are errors by default. `Marshal` validates the YAML representation it actually emits, so `omitempty`, inline fields, and custom codecs affect validation exactly as they affect output.
 
+In v1.2.0, use `FieldNamingGo` when existing YAML keys match exported Go field names, including case:
+
+~~~go
+options := yamlvalidator.UnmarshalOptions{
+    FieldNaming:      yamlvalidator.FieldNamingGo,
+    WarningsAsErrors: true,
+}
+err := options.Unmarshal(data, &config)
+encoded, err := (yamlvalidator.MarshalOptions{
+    FieldNaming: yamlvalidator.FieldNamingGo,
+    Indent:      2,
+}).Marshal(config)
+~~~
+
+Explicit `yaml` names take priority; `json` tags do not affect YAML names. The mode applies recursively, including inline structs, while map keys remain literal data. It still applies with `SkipValidation: true`. Zero-value options and package Marshal/Unmarshal keep standard lowercase YAML names. See the [complete field-naming example](docs/high-level-api.md#field-naming).
+
 Object rules have explicit scopes. A bare group such as `exactlyOneOf=[file,url]` on a real struct field constrains sibling keys in the containing mapping, even when the carrier field is absent. The `Keys` form, such as `exactlyOneOfKeys=[file,url]`, constrains the mapping value of the current field.
 
 See [the high-level API guide](docs/high-level-api.md) for the complete tag language, registry bindings, diagnostics, limits, nested `items`/`values`, and recursive types. The [runnable example](examples/highlevel/main.go) defines a complete configuration.

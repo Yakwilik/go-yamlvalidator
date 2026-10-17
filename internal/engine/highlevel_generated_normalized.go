@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	genspec "github.com/Yakwilik/go-yamlvalidator/internal/genspec"
+	"github.com/Yakwilik/go-yamlvalidator/internal/yamlcodec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -189,7 +190,10 @@ func generatedKeySpec(v KeyValidator) (genspec.ValidatorSpec, error) {
 // buildGeneratedSchema allocates a normalized graph, wires its references and
 // resolves registry symbols. typeIDs are identity tokens emitted by the source
 // generator; they are never inspected for fields or tags.
-func buildGeneratedSchema(graph genspec.Graph, typeIDs []reflect.Type, registry *Registry, encode bool) (*FieldSchema, error) {
+func buildGeneratedSchema(graph genspec.Graph, typeIDs []reflect.Type, registry *Registry, encode bool, _ ...yamlcodec.FieldNaming) (*FieldSchema, error) {
+	if graph.Error != "" {
+		return nil, fmt.Errorf("%s", graph.Error)
+	}
 	if graph.Root < 0 || graph.Root >= len(graph.Nodes) {
 		return nil, fmt.Errorf("invalid generated root")
 	}

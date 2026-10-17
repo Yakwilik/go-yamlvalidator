@@ -100,6 +100,7 @@ func (e *ValidationErrors) Truncated() bool { return e != nil && e.truncated }
 
 // UnmarshalOptions controls validated YAML decoding. Its zero value enables validation.
 type UnmarshalOptions struct {
+	FieldNaming      FieldNaming
 	UnknownKeyPolicy UnknownKeyPolicy
 	WarningsAsErrors bool
 	OnDiagnostic     func(ValidationError)
@@ -112,6 +113,7 @@ type UnmarshalOptions struct {
 
 // MarshalOptions controls validated YAML encoding. Its zero value enables validation.
 type MarshalOptions struct {
+	FieldNaming      FieldNaming
 	UnknownKeyPolicy UnknownKeyPolicy
 	WarningsAsErrors bool
 	OnDiagnostic     func(ValidationError)
@@ -156,6 +158,9 @@ func validateHighLevelPolicy(policy UnknownKeyPolicy) error {
 }
 
 func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
+	if err := yamlcodec.ValidateFieldNaming(o.FieldNaming); err != nil {
+		return err
+	}
 	limits, err := normalizeLimits(o.Limits)
 	if err != nil {
 		return err
@@ -170,12 +175,17 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 	if len(data) > limits.MaxBytes {
 		return fmt.Errorf("YAML input exceeds %d bytes", limits.MaxBytes)
 	}
+	if o.FieldNaming == FieldNamingGo || o.SkipValidation {
+		if err := yamlcodec.ValidateFieldNames(dst.Elem().Type(), o.FieldNaming, false); err != nil {
+			return &SchemaError{Type: dst.Elem().Type(), Reason: err.Error()}
+		}
+	}
 	var plan *highLevelPlan
 	if !o.SkipValidation {
 		var generated bool
-		plan, generated, err = generatedPlan(out, o.Registry, false)
+		plan, generated, err = generatedPlan(out, o.Registry, false, o.FieldNaming)
 		if !generated && err == nil {
-			plan, err = compileHighLevel(dst.Elem().Type(), false, o.Registry)
+			plan, err = compileHighLevel(dst.Elem().Type(), false, o.Registry, o.FieldNaming)
 		}
 		if err != nil {
 			return err
@@ -190,6 +200,11 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 		if err := validateHighLevelDocument(root, plan, data, opts); err != nil {
 			return err
 		}
+	}
+	if o.FieldNaming == FieldNamingGo {
+		ctx := yamlcodec.NewDecodeContext(toGeneratedLimits(limits), o.SkipValidation)
+		ctx.FieldNaming = o.FieldNaming
+		return yamlcodec.DecodeMixedWithContext(root.Content[0], dst.Elem(), ctx)
 	}
 	if codec, ok := out.(generatedCodec); ok && exactGeneratedType(out, codec.YAMLValidatorGeneratedType()) {
 		if withContext, ok := out.(interface {
@@ -209,6 +224,9 @@ func (o UnmarshalOptions) Unmarshal(data []byte, out any) error {
 }
 
 func (o MarshalOptions) Marshal(in any) ([]byte, error) {
+	if err := yamlcodec.ValidateFieldNaming(o.FieldNaming); err != nil {
+		return nil, err
+	}
 	limits, err := normalizeLimits(o.Limits)
 	if err != nil {
 		return nil, err
@@ -219,12 +237,17 @@ func (o MarshalOptions) Marshal(in any) ([]byte, error) {
 	if o.Indent < 0 {
 		return nil, fmt.Errorf("YAML indentation must be non-negative")
 	}
+	if (o.FieldNaming == FieldNamingGo || o.SkipValidation) && in != nil {
+		if err := yamlcodec.ValidateFieldNames(reflect.TypeOf(in), o.FieldNaming, true); err != nil {
+			return nil, &SchemaError{Type: reflect.TypeOf(in), Reason: err.Error()}
+		}
+	}
 	var plan *highLevelPlan
 	if !o.SkipValidation && in != nil {
 		var generated bool
-		plan, generated, err = generatedPlan(in, o.Registry, true)
+		plan, generated, err = generatedPlan(in, o.Registry, true, o.FieldNaming)
 		if !generated && err == nil {
-			plan, err = compileHighLevel(reflect.TypeOf(in), true, o.Registry)
+			plan, err = compileHighLevel(reflect.TypeOf(in), true, o.Registry, o.FieldNaming)
 		}
 		if err != nil {
 			return nil, err
@@ -239,7 +262,13 @@ func (o MarshalOptions) Marshal(in any) ([]byte, error) {
 		encoder.SetIndent(o.Indent)
 	}
 	encodeValue := in
-	if codec, ok := in.(generatedEncoder); ok && !nilInterface(in) && exactGeneratedType(in, codec.YAMLValidatorGeneratedType()) {
+	if o.FieldNaming == FieldNamingGo {
+		node, encodeErr := yamlcodec.EncodeMixedWithNaming(reflect.ValueOf(in), o.FieldNaming)
+		if encodeErr != nil {
+			return nil, encodeErr
+		}
+		encodeValue = node
+	} else if codec, ok := in.(generatedEncoder); ok && !nilInterface(in) && exactGeneratedType(in, codec.YAMLValidatorGeneratedType()) {
 		node, encodeErr := codec.YAMLValidatorEncode()
 		if encodeErr != nil {
 			return nil, encodeErr

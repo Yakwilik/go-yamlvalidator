@@ -23,8 +23,24 @@ func (value Config) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
 func (value Config) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
 	return yamlvalidatorGeneratedSchema_28ba702d0()
 }
+func (value Config) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d0WithNaming(naming)
+}
+func (value Config) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Config](), naming, encode)
+}
+func (value Config) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d0(ctx)
+}
+func (value Config) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Name", "name", naming), genruntime.FieldName("Items", "items", naming), genruntime.FieldName("Extra", "extra", naming)}
+}
 func (value Config) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d0(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Config) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d0(value, naming)
 }
 func (value *Config) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
@@ -46,8 +62,24 @@ func (value Containers) YAMLValidatorCheckCycles(limits genruntime.Limits) error
 func (value Containers) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
 	return yamlvalidatorGeneratedSchema_28ba702d6()
 }
+func (value Containers) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d6WithNaming(naming)
+}
+func (value Containers) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Containers](), naming, encode)
+}
+func (value Containers) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d6(ctx)
+}
+func (value Containers) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Items", "items", naming), genruntime.FieldName("Values", "values", naming)}
+}
 func (value Containers) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d6(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Containers) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d6(value, naming)
 }
 func (value *Containers) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
@@ -67,8 +99,24 @@ func (value Dynamic) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
 func (value Dynamic) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
 	return yamlvalidatorGeneratedSchema_28ba702d9()
 }
+func (value Dynamic) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d9WithNaming(naming)
+}
+func (value Dynamic) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Dynamic](), naming, encode)
+}
+func (value Dynamic) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d9(ctx)
+}
+func (value Dynamic) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Value", "value", naming)}
+}
 func (value Dynamic) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d9(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Dynamic) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d9(value, naming)
 }
 func (value *Dynamic) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
@@ -81,40 +129,267 @@ func (value *Dynamic) UnmarshalYAML(node *yaml.Node) error {
 	return genruntime.UnmarshalYAML(node, value)
 }
 
-func (value Link) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Link]() }
-func (value Link) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+func (value FieldNames) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[FieldNames]()
+}
+func (value FieldNames) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
 	return yamlvalidatorCycle_28ba702d11(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Link) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+func (value FieldNames) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
 	return yamlvalidatorGeneratedSchema_28ba702d11()
 }
+func (value FieldNames) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d11WithNaming(naming)
+}
+func (value FieldNames) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[FieldNames](), naming, encode)
+}
+func (value FieldNames) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d11(ctx)
+}
+func (value FieldNames) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("ImageName", "", naming), genruntime.FieldName("OptionalName", "", naming), genruntime.FieldName("LiteralName", "literal_name", naming), genruntime.FieldName("JSONName", "", naming), genruntime.FieldName("Child", "", naming), genruntime.FieldName("Children", "", naming), genruntime.FieldName("Array", "", naming), genruntime.FieldName("Workers", "", naming), genruntime.FieldName("InlineName", "", naming)}
+}
+func (value FieldNames) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value FieldNames) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d11(value, naming)
+}
+func (value *FieldNames) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *FieldNames) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d11(node, value, ctx)
+}
+func (value FieldNames) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *FieldNames) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+func (value GoNamingCollision) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[GoNamingCollision]()
+}
+func (value GoNamingCollision) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d18(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value GoNamingCollision) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d18()
+}
+func (value GoNamingCollision) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d18WithNaming(naming)
+}
+func (value GoNamingCollision) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[GoNamingCollision](), naming, encode)
+}
+func (value GoNamingCollision) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d18(ctx)
+}
+func (value GoNamingCollision) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Field", "", naming), genruntime.FieldName("Explicit", "Field", naming)}
+}
+func (value GoNamingCollision) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value GoNamingCollision) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d18(value, naming)
+}
+func (value *GoNamingCollision) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *GoNamingCollision) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d18(node, value, ctx)
+}
+func (value GoNamingCollision) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *GoNamingCollision) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+func (value GoRuleNames) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[GoRuleNames]()
+}
+func (value GoRuleNames) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d19(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value GoRuleNames) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d19()
+}
+func (value GoRuleNames) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d19WithNaming(naming)
+}
+func (value GoRuleNames) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[GoRuleNames](), naming, encode)
+}
+func (value GoRuleNames) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d19(ctx)
+}
+func (value GoRuleNames) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Mode", "", naming), genruntime.FieldName("Token", "", naming)}
+}
+func (value GoRuleNames) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value GoRuleNames) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d19(value, naming)
+}
+func (value *GoRuleNames) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *GoRuleNames) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d19(node, value, ctx)
+}
+func (value GoRuleNames) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *GoRuleNames) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+func (value Link) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Link]() }
+func (value Link) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d20(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value Link) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d20()
+}
+func (value Link) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d20WithNaming(naming)
+}
+func (value Link) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Link](), naming, encode)
+}
+func (value Link) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d20(ctx)
+}
+func (value Link) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Value", "value", naming), genruntime.FieldName("Next", "next", naming)}
+}
 func (value Link) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d11(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Link) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d20(value, naming)
 }
 func (value *Link) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
 func (value *Link) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
-	return yamlvalidatorDecode_28ba702d11(node, value, ctx)
+	return yamlvalidatorDecode_28ba702d20(node, value, ctx)
 }
 func (value Link) MarshalYAML() (any, error)            { return genruntime.MarshalYAML(value) }
 func (value *Link) UnmarshalYAML(node *yaml.Node) error { return genruntime.UnmarshalYAML(node, value) }
 
-func (value Node) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Node]() }
-func (value Node) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+func (value NamingChild) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[NamingChild]()
+}
+func (value NamingChild) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
 	return yamlvalidatorCycle_28ba702d13(value, genruntime.NewCycleContext(limits), 0)
 }
-func (value Node) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+func (value NamingChild) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
 	return yamlvalidatorGeneratedSchema_28ba702d13()
 }
+func (value NamingChild) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d13WithNaming(naming)
+}
+func (value NamingChild) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[NamingChild](), naming, encode)
+}
+func (value NamingChild) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d13(ctx)
+}
+func (value NamingChild) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("ImageName", "", naming)}
+}
+func (value NamingChild) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value NamingChild) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d13(value, naming)
+}
+func (value *NamingChild) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *NamingChild) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d13(node, value, ctx)
+}
+func (value NamingChild) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *NamingChild) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+func (value NamingInline) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[NamingInline]()
+}
+func (value NamingInline) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d17(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value NamingInline) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d17()
+}
+func (value NamingInline) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d17WithNaming(naming)
+}
+func (value NamingInline) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[NamingInline](), naming, encode)
+}
+func (value NamingInline) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d17(ctx)
+}
+func (value NamingInline) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("InlineName", "", naming)}
+}
+func (value NamingInline) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value NamingInline) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d17(value, naming)
+}
+func (value *NamingInline) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *NamingInline) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d17(node, value, ctx)
+}
+func (value NamingInline) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *NamingInline) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+func (value Node) YAMLValidatorGeneratedType() reflect.Type { return reflect.TypeFor[Node]() }
+func (value Node) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d22(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value Node) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d22()
+}
+func (value Node) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d22WithNaming(naming)
+}
+func (value Node) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Node](), naming, encode)
+}
+func (value Node) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d22(ctx)
+}
+func (value Node) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Name", "name", naming), genruntime.FieldName("Children", "children", naming)}
+}
 func (value Node) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d13(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Node) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d22(value, naming)
 }
 func (value *Node) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
 func (value *Node) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
-	return yamlvalidatorDecode_28ba702d13(node, value, ctx)
+	return yamlvalidatorDecode_28ba702d22(node, value, ctx)
 }
 func (value Node) MarshalYAML() (any, error)            { return genruntime.MarshalYAML(value) }
 func (value *Node) UnmarshalYAML(node *yaml.Node) error { return genruntime.UnmarshalYAML(node, value) }
@@ -123,28 +398,132 @@ func (value Registered) YAMLValidatorGeneratedType() reflect.Type {
 	return reflect.TypeFor[Registered]()
 }
 func (value Registered) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
-	return yamlvalidatorCycle_28ba702d15(value, genruntime.NewCycleContext(limits), 0)
+	return yamlvalidatorCycle_28ba702d24(value, genruntime.NewCycleContext(limits), 0)
 }
 func (value Registered) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
-	return yamlvalidatorGeneratedSchema_28ba702d15()
+	return yamlvalidatorGeneratedSchema_28ba702d24()
+}
+func (value Registered) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d24WithNaming(naming)
+}
+func (value Registered) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[Registered](), naming, encode)
+}
+func (value Registered) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d24(ctx)
+}
+func (value Registered) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("Value", "value", naming)}
 }
 func (value Registered) YAMLValidatorEncode() (*yaml.Node, error) {
-	return yamlvalidatorEncode_28ba702d15(value)
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value Registered) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d24(value, naming)
 }
 func (value *Registered) YAMLValidatorDecode(node *yaml.Node) error {
 	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
 }
 func (value *Registered) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
-	return yamlvalidatorDecode_28ba702d15(node, value, ctx)
+	return yamlvalidatorDecode_28ba702d24(node, value, ctx)
 }
 func (value Registered) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
 func (value *Registered) UnmarshalYAML(node *yaml.Node) error {
 	return genruntime.UnmarshalYAML(node, value)
 }
 
-var yamlvalidatorGeneratedTypes_28ba702d = []reflect.Type{reflect.TypeFor[Config](), reflect.TypeFor[string](), reflect.TypeFor[[]Item](), reflect.TypeFor[Item](), reflect.TypeFor[map[string]int](), reflect.TypeFor[int](), reflect.TypeFor[Containers](), reflect.TypeFor[[]string](), reflect.TypeFor[map[string]string](), reflect.TypeFor[Dynamic](), reflect.TypeFor[any](), reflect.TypeFor[Link](), reflect.TypeFor[*Link](), reflect.TypeFor[Node](), reflect.TypeFor[[]Node](), reflect.TypeFor[Registered]()}
+func (value YAMLCollision) YAMLValidatorGeneratedType() reflect.Type {
+	return reflect.TypeFor[YAMLCollision]()
+}
+func (value YAMLCollision) YAMLValidatorCheckCycles(limits genruntime.Limits) error {
+	return yamlvalidatorCycle_28ba702d25(value, genruntime.NewCycleContext(limits), 0)
+}
+func (value YAMLCollision) YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d25()
+}
+func (value YAMLCollision) YAMLValidatorSchemaSpecWithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d25WithNaming(naming)
+}
+func (value YAMLCollision) YAMLValidatorValidateFieldNaming(naming genruntime.FieldNaming, encodeModes ...bool) error {
+	encode := len(encodeModes) > 0 && encodeModes[0]
+	return genruntime.ValidateFieldNames(reflect.TypeFor[YAMLCollision](), naming, encode)
+}
+func (value YAMLCollision) YAMLValidatorValidateFieldNamingWithContext(ctx *genruntime.FieldNamingContext) error {
+	return yamlvalidatorGeneratedNaming_28ba702d25(ctx)
+}
+func (value YAMLCollision) YAMLValidatorFieldNamesWithNaming(naming genruntime.FieldNaming) []string {
+	return []string{genruntime.FieldName("ID", "", naming), genruntime.FieldName("Id", "", naming)}
+}
+func (value YAMLCollision) YAMLValidatorEncode() (*yaml.Node, error) {
+	return value.YAMLValidatorEncodeWithNaming(genruntime.FieldNamingYAML)
+}
+func (value YAMLCollision) YAMLValidatorEncodeWithNaming(naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return yamlvalidatorEncode_28ba702d25(value, naming)
+}
+func (value *YAMLCollision) YAMLValidatorDecode(node *yaml.Node) error {
+	return value.YAMLValidatorDecodeWithContext(node, genruntime.NewDecodeContext(genruntime.Limits{}, false))
+}
+func (value *YAMLCollision) YAMLValidatorDecodeWithContext(node *yaml.Node, ctx *genruntime.DecodeContext) error {
+	return yamlvalidatorDecode_28ba702d25(node, value, ctx)
+}
+func (value YAMLCollision) MarshalYAML() (any, error) { return genruntime.MarshalYAML(value) }
+func (value *YAMLCollision) UnmarshalYAML(node *yaml.Node) error {
+	return genruntime.UnmarshalYAML(node, value)
+}
+
+var yamlvalidatorGeneratedTypes_28ba702d = []reflect.Type{reflect.TypeFor[Config](), reflect.TypeFor[string](), reflect.TypeFor[[]Item](), reflect.TypeFor[Item](), reflect.TypeFor[map[string]int](), reflect.TypeFor[int](), reflect.TypeFor[Containers](), reflect.TypeFor[[]string](), reflect.TypeFor[map[string]string](), reflect.TypeFor[Dynamic](), reflect.TypeFor[any](), reflect.TypeFor[FieldNames](), reflect.TypeFor[*NamingChild](), reflect.TypeFor[NamingChild](), reflect.TypeFor[[]NamingChild](), reflect.TypeFor[[1]NamingChild](), reflect.TypeFor[map[string]*NamingChild](), reflect.TypeFor[NamingInline](), reflect.TypeFor[GoNamingCollision](), reflect.TypeFor[GoRuleNames](), reflect.TypeFor[Link](), reflect.TypeFor[*Link](), reflect.TypeFor[Node](), reflect.TypeFor[[]Node](), reflect.TypeFor[Registered](), reflect.TypeFor[YAMLCollision]()}
 
 func yamlvalidatorGeneratedSchema_28ba702d0() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d0WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d0WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 1,
+			AllowedKeys: map[string]int{"extra": 1,
+				"items": 4,
+				"name":  6,
+			},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:             true,
+				SourceIndex:          5,
+				AdditionalProperties: spec.Int(2),
+				ValueSchema:          spec.Int(3),
+			},
+			spec.Node{},
+			spec.Node{Type: spec.NodeType(3),
+				SourceIndex: 6,
+				Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "representable",
+					Text:   "int",
+					Number: 64,
+				},
+				},
+			},
+			spec.Node{Type: spec.NodeType(7),
+				Nullable:    true,
+				SourceIndex: 3,
+				FieldRules:  true,
+				ItemSchema:  spec.Int(5),
+				Conditions:  []spec.ConditionalRule{},
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 4,
+				Validators:  []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"}},
+				Conditions:  []spec.ConditionalRule{},
+			},
+			spec.Node{Type: spec.NodeType(2),
+				Required:    true,
+				SourceIndex: 2,
+				FieldRules:  true,
+				Validators:  []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"}},
+				Conditions:  []spec.ConditionalRule{},
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 1,
 		AllowedKeys: map[string]int{"extra": 1,
@@ -190,7 +569,37 @@ func yamlvalidatorGeneratedSchema_28ba702d0() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
+func yamlvalidatorGeneratedNaming_28ba702d0(ctx *genruntime.FieldNamingContext) error { return nil }
 func yamlvalidatorGeneratedSchema_28ba702d6() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d6WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d6WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 7,
+			AllowedKeys: map[string]int{"items": 1,
+				"values": 3,
+			},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(7),
+				Nullable:    true,
+				SourceIndex: 8,
+				ItemSchema:  spec.Int(2),
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:             true,
+				SourceIndex:          9,
+				AdditionalProperties: spec.Int(4),
+				ValueSchema:          spec.Int(2),
+			},
+			spec.Node{},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 7,
 		AllowedKeys: map[string]int{"items": 1,
@@ -216,7 +625,25 @@ func yamlvalidatorGeneratedSchema_28ba702d6() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
+func yamlvalidatorGeneratedNaming_28ba702d6(ctx *genruntime.FieldNamingContext) error { return nil }
 func yamlvalidatorGeneratedSchema_28ba702d9() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d9WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d9WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex:    10,
+			AllowedKeys:    map[string]int{"value": 1},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Nullable: true,
+				SourceIndex: 11,
+				FieldRules:  true,
+				Conditions:  []spec.ConditionalRule{},
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex:    10,
 		AllowedKeys:    map[string]int{"value": 1},
@@ -230,9 +657,276 @@ func yamlvalidatorGeneratedSchema_28ba702d9() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
+func yamlvalidatorGeneratedNaming_28ba702d9(ctx *genruntime.FieldNamingContext) error { return nil }
 func yamlvalidatorGeneratedSchema_28ba702d11() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d11WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d11WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 12,
+			AllowedKeys: map[string]int{"Array": 1,
+				"Child":        4,
+				"Children":     5,
+				"ImageName":    6,
+				"InlineName":   7,
+				"JSONName":     8,
+				"OptionalName": 9,
+				"Workers":      10,
+				"literal_name": 13,
+			},
+			HasAllowedKeys:       true,
+			AdditionalProperties: spec.Int(14),
+			InlineCapture:        spec.Int(15),
+		},
+			spec.Node{Type: spec.NodeType(7),
+				SourceIndex: 16,
+				ItemSchema:  spec.Int(2),
+				MinItems:    spec.Int(1),
+				MaxItems:    spec.Int(1),
+			},
+			spec.Node{Type: spec.NodeType(6),
+				SourceIndex:    14,
+				AllowedKeys:    map[string]int{"ImageName": 3},
+				HasAllowedKeys: true,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:       true,
+				SourceIndex:    13,
+				AllowedKeys:    map[string]int{"ImageName": 3},
+				HasAllowedKeys: true,
+			},
+			spec.Node{Type: spec.NodeType(7),
+				Nullable:    true,
+				SourceIndex: 15,
+				ItemSchema:  spec.Int(2),
+			},
+			spec.Node{Type: spec.NodeType(2),
+				Required:    true,
+				SourceIndex: 2,
+				FieldRules:  true,
+				Validators:  []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"}},
+				Conditions:  []spec.ConditionalRule{},
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:             true,
+				SourceIndex:          17,
+				AdditionalProperties: spec.Int(11),
+				ValueSchema:          spec.Int(12),
+			},
+			spec.Node{},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:       true,
+				SourceIndex:    13,
+				AllowedKeys:    map[string]int{"ImageName": 3},
+				HasAllowedKeys: true,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:             true,
+				SourceIndex:          9,
+				AdditionalProperties: spec.Int(16),
+				ValueSchema:          spec.Int(17),
+			},
+			spec.Node{},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
 		SourceIndex: 12,
+		AllowedKeys: map[string]int{"array": 1,
+			"child":        4,
+			"children":     5,
+			"imagename":    6,
+			"inlinename":   7,
+			"jsonname":     8,
+			"literal_name": 9,
+			"optionalname": 10,
+			"workers":      11,
+		},
+		HasAllowedKeys:       true,
+		AdditionalProperties: spec.Int(14),
+		InlineCapture:        spec.Int(15),
+	},
+		spec.Node{Type: spec.NodeType(7),
+			SourceIndex: 16,
+			ItemSchema:  spec.Int(2),
+			MinItems:    spec.Int(1),
+			MaxItems:    spec.Int(1),
+		},
+		spec.Node{Type: spec.NodeType(6),
+			SourceIndex:    14,
+			AllowedKeys:    map[string]int{"imagename": 3},
+			HasAllowedKeys: true,
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(6),
+			Nullable:       true,
+			SourceIndex:    13,
+			AllowedKeys:    map[string]int{"imagename": 3},
+			HasAllowedKeys: true,
+		},
+		spec.Node{Type: spec.NodeType(7),
+			Nullable:    true,
+			SourceIndex: 15,
+			ItemSchema:  spec.Int(2),
+		},
+		spec.Node{Type: spec.NodeType(2),
+			Required:    true,
+			SourceIndex: 2,
+			FieldRules:  true,
+			Validators:  []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "nonempty"}},
+			Conditions:  []spec.ConditionalRule{},
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(6),
+			Nullable:             true,
+			SourceIndex:          17,
+			AdditionalProperties: spec.Int(12),
+			ValueSchema:          spec.Int(13),
+		},
+		spec.Node{},
+		spec.Node{Type: spec.NodeType(6),
+			Nullable:       true,
+			SourceIndex:    13,
+			AllowedKeys:    map[string]int{"imagename": 3},
+			HasAllowedKeys: true,
+		},
+		spec.Node{},
+		spec.Node{Type: spec.NodeType(6),
+			Nullable:             true,
+			SourceIndex:          9,
+			AdditionalProperties: spec.Int(16),
+			ValueSchema:          spec.Int(17),
+		},
+		spec.Node{},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+	},
+	}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d11(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d18() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d18WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d18WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Error: "duplicate YAML key \"Field\""}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+		SourceIndex: 19,
+		AllowedKeys: map[string]int{"Field": 1,
+			"field": 2,
+		},
+		HasAllowedKeys: true,
+	},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+	},
+	}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d18(ctx *genruntime.FieldNamingContext) error {
+	if ctx.Naming == genruntime.FieldNamingGo {
+		return fmt.Errorf("%s", "duplicate YAML key \"Field\"")
+	}
+	return nil
+}
+func yamlvalidatorGeneratedSchema_28ba702d19() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d19WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d19WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 20,
+			FieldRules:  true,
+			AllowedKeys: map[string]int{"Mode": 1,
+				"Token": 2,
+			},
+			HasAllowedKeys: true,
+			Conditions: []spec.ConditionalRule{spec.ConditionalRule{ConditionField: "Mode",
+				ConditionValue: "prod",
+				ThenRequired:   []string{"Token"},
+			},
+			},
+		},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+				FieldRules:  true,
+				Conditions:  []spec.ConditionalRule{},
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Error: "field Mode: validation tag byte 0: unknown YAML field \"Mode\" in when"}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d19(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d20() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d20WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d20WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 21,
+			AllowedKeys: map[string]int{"next": 1,
+				"value": 2,
+			},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(6),
+				Nullable:    true,
+				SourceIndex: 22,
+				AllowedKeys: map[string]int{"next": 1,
+					"value": 2,
+				},
+				HasAllowedKeys: true,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+		SourceIndex: 21,
 		AllowedKeys: map[string]int{"next": 1,
 			"value": 2,
 		},
@@ -240,7 +934,7 @@ func yamlvalidatorGeneratedSchema_28ba702d11() (spec.Graph, []reflect.Type) {
 	},
 		spec.Node{Type: spec.NodeType(6),
 			Nullable:    true,
-			SourceIndex: 13,
+			SourceIndex: 22,
 			AllowedKeys: map[string]int{"next": 1,
 				"value": 2,
 			},
@@ -252,9 +946,91 @@ func yamlvalidatorGeneratedSchema_28ba702d11() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
+func yamlvalidatorGeneratedNaming_28ba702d20(ctx *genruntime.FieldNamingContext) error { return nil }
 func yamlvalidatorGeneratedSchema_28ba702d13() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d13WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d13WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex:    14,
+			AllowedKeys:    map[string]int{"ImageName": 1},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
-		SourceIndex: 14,
+		SourceIndex:    14,
+		AllowedKeys:    map[string]int{"imagename": 1},
+		HasAllowedKeys: true,
+	},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+	},
+	}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d13(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d17() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d17WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d17WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex:    18,
+			AllowedKeys:    map[string]int{"InlineName": 1},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+		SourceIndex:    18,
+		AllowedKeys:    map[string]int{"inlinename": 1},
+		HasAllowedKeys: true,
+	},
+		spec.Node{Type: spec.NodeType(2),
+			SourceIndex: 2,
+		},
+	},
+	}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d17(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d22() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d22WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d22WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 23,
+			AllowedKeys: map[string]int{"children": 1,
+				"name": 2,
+			},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(7),
+				Nullable:    true,
+				SourceIndex: 24,
+				ItemSchema:  spec.Int(0),
+			},
+			spec.Node{Type: spec.NodeType(2),
+				Required:    true,
+				SourceIndex: 2,
+				FieldRules:  true,
+				Conditions:  []spec.ConditionalRule{},
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+		SourceIndex: 23,
 		AllowedKeys: map[string]int{"children": 1,
 			"name": 2,
 		},
@@ -262,7 +1038,7 @@ func yamlvalidatorGeneratedSchema_28ba702d13() (spec.Graph, []reflect.Type) {
 	},
 		spec.Node{Type: spec.NodeType(7),
 			Nullable:    true,
-			SourceIndex: 15,
+			SourceIndex: 24,
 			ItemSchema:  spec.Int(0),
 		},
 		spec.Node{Type: spec.NodeType(2),
@@ -274,9 +1050,33 @@ func yamlvalidatorGeneratedSchema_28ba702d13() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
-func yamlvalidatorGeneratedSchema_28ba702d15() (spec.Graph, []reflect.Type) {
+func yamlvalidatorGeneratedNaming_28ba702d22(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d24() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d24WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d24WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex:    25,
+			AllowedKeys:    map[string]int{"value": 1},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex:  2,
+				FieldRules:   true,
+				ExtraSchemas: []int{2},
+				Validators: []spec.ValidatorSpec{spec.ValidatorSpec{Kind: "check",
+					Name: "registered",
+				},
+				},
+				Conditions: []spec.ConditionalRule{},
+			},
+			spec.Node{Ref: "registeredSchema"},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
 	return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
-		SourceIndex:    16,
+		SourceIndex:    25,
 		AllowedKeys:    map[string]int{"value": 1},
 		HasAllowedKeys: true,
 	},
@@ -294,30 +1094,60 @@ func yamlvalidatorGeneratedSchema_28ba702d15() (spec.Graph, []reflect.Type) {
 	},
 	}, yamlvalidatorGeneratedTypes_28ba702d
 }
+func yamlvalidatorGeneratedNaming_28ba702d24(ctx *genruntime.FieldNamingContext) error { return nil }
+func yamlvalidatorGeneratedSchema_28ba702d25() (spec.Graph, []reflect.Type) {
+	return yamlvalidatorGeneratedSchema_28ba702d25WithNaming(genruntime.FieldNamingYAML)
+}
+func yamlvalidatorGeneratedSchema_28ba702d25WithNaming(naming genruntime.FieldNaming) (spec.Graph, []reflect.Type) {
+	if naming == genruntime.FieldNamingGo {
+		return spec.Graph{Nodes: []spec.Node{spec.Node{Type: spec.NodeType(6),
+			SourceIndex: 26,
+			AllowedKeys: map[string]int{"ID": 1,
+				"Id": 2,
+			},
+			HasAllowedKeys: true,
+		},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+			spec.Node{Type: spec.NodeType(2),
+				SourceIndex: 2,
+			},
+		},
+		}, yamlvalidatorGeneratedTypes_28ba702d
+	}
+	return spec.Graph{Error: "duplicate YAML key \"id\""}, yamlvalidatorGeneratedTypes_28ba702d
+}
+func yamlvalidatorGeneratedNaming_28ba702d25(ctx *genruntime.FieldNamingContext) error {
+	if ctx.Naming != genruntime.FieldNamingGo {
+		return fmt.Errorf("%s", "duplicate YAML key \"id\"")
+	}
+	return nil
+}
 
 // yamlvalidator source fingerprint: eb31e75c16de18528ccf57d7
-func yamlvalidatorEncode_28ba702d0(value Config) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d0(value Config, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d1(value.Name)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Name, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Name: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "name"}, child)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Name", "name", naming)}, child)
 	if !yamlvalidatorEmpty_28ba702d2(value.Items) {
-		child, err = yamlvalidatorEncode_28ba702d2(value.Items)
+		child, err = yamlvalidatorEncode_28ba702d2(value.Items, naming)
 		if err != nil {
 			return nil, fmt.Errorf("field Items: %w", err)
 		}
-		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "items"}, child)
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Items", "items", naming)}, child)
 	}
 	if !yamlvalidatorEmpty_28ba702d4(value.Extra) {
-		child, err = yamlvalidatorEncode_28ba702d4(value.Extra)
+		child, err = yamlvalidatorEncode_28ba702d4(value.Extra, naming)
 		if err != nil {
 			return nil, fmt.Errorf("field Extra: %w", err)
 		}
-		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "extra"}, child)
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Extra", "extra", naming)}, child)
 	}
 	return node, nil
 }
@@ -332,15 +1162,15 @@ func yamlvalidatorDecode_28ba702d0(node *yaml.Node, dst *Config, ctx *genruntime
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "name":
+		case genruntime.FieldName("Name", "name", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Name, ctx); err != nil {
 				return fmt.Errorf("field Name: %w", err)
 			}
-		case "items":
+		case genruntime.FieldName("Items", "items", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d2(pair.Value, &dst.Items, ctx); err != nil {
 				return fmt.Errorf("field Items: %w", err)
 			}
-		case "extra":
+		case genruntime.FieldName("Extra", "extra", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d4(pair.Value, &dst.Extra, ctx); err != nil {
 				return fmt.Errorf("field Extra: %w", err)
 			}
@@ -348,7 +1178,7 @@ func yamlvalidatorDecode_28ba702d0(node *yaml.Node, dst *Config, ctx *genruntime
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d1(value string) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d1(value string, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	return genruntime.ScalarEncode(value)
 }
 func yamlvalidatorDecode_28ba702d1(node *yaml.Node, dst *string, ctx *genruntime.DecodeContext) error {
@@ -358,10 +1188,10 @@ func yamlvalidatorDecode_28ba702d1(node *yaml.Node, dst *string, ctx *genruntime
 	defer ctx.Leave()
 	return genruntime.ScalarDecode(node, dst)
 }
-func yamlvalidatorEncode_28ba702d2(value []Item) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d2(value []Item, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	for _, item := range value {
-		child, err := yamlvalidatorEncode_28ba702d3(item)
+		child, err := yamlvalidatorEncode_28ba702d3(item, naming)
 		if err != nil {
 			return nil, err
 		}
@@ -387,15 +1217,29 @@ func yamlvalidatorDecode_28ba702d2(node *yaml.Node, dst *[]Item, ctx *genruntime
 		return fmt.Errorf("expected YAML sequence")
 	}
 	result := make([]Item, len(node.Content))
+	written := 0
 	for i, item := range node.Content {
-		if err := yamlvalidatorDecode_28ba702d3(item, &result[i], ctx); err != nil {
+		resolved, err := ctx.Resolve(item)
+		if err != nil {
 			return fmt.Errorf("item %d: %w", i, err)
 		}
+		if resolved.Tag == "!!null" {
+			if err := ctx.Enter(); err != nil {
+				return fmt.Errorf("item %d: %w", i, err)
+			}
+			ctx.Leave()
+			continue
+		}
+		if err := yamlvalidatorDecode_28ba702d3(item, &result[written], ctx); err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		written++
 	}
+	result = result[:written]
 	*dst = result
 	return nil
 }
-func yamlvalidatorEncode_28ba702d3(value Item) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d3(value Item, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	return genruntime.ScalarEncode(string(value))
 }
 func yamlvalidatorDecode_28ba702d3(node *yaml.Node, dst *Item, ctx *genruntime.DecodeContext) error {
@@ -410,7 +1254,7 @@ func yamlvalidatorDecode_28ba702d3(node *yaml.Node, dst *Item, ctx *genruntime.D
 	*dst = Item(scalar)
 	return nil
 }
-func yamlvalidatorEncode_28ba702d4(value map[string]int) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d4(value map[string]int, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	keys := make([]string, 0, len(value))
 	for key := range value {
@@ -418,7 +1262,7 @@ func yamlvalidatorEncode_28ba702d4(value map[string]int) (*yaml.Node, error) {
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, key := range keys {
-		child, err := yamlvalidatorEncode_28ba702d5(value[key])
+		child, err := yamlvalidatorEncode_28ba702d5(value[key], naming)
 		if err != nil {
 			return nil, err
 		}
@@ -456,7 +1300,7 @@ func yamlvalidatorDecode_28ba702d4(node *yaml.Node, dst *map[string]int, ctx *ge
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d5(value int) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d5(value int, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	return genruntime.ScalarEncode(value)
 }
 func yamlvalidatorDecode_28ba702d5(node *yaml.Node, dst *int, ctx *genruntime.DecodeContext) error {
@@ -468,20 +1312,20 @@ func yamlvalidatorDecode_28ba702d5(node *yaml.Node, dst *int, ctx *genruntime.De
 }
 
 // yamlvalidator source fingerprint: 56f7e9d20392a142fe7f79ce
-func yamlvalidatorEncode_28ba702d6(value Containers) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d6(value Containers, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d7(value.Items)
+	child, err = yamlvalidatorEncode_28ba702d7(value.Items, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Items: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "items"}, child)
-	child, err = yamlvalidatorEncode_28ba702d8(value.Values)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Items", "items", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d8(value.Values, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Values: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "values"}, child)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Values", "values", naming)}, child)
 	return node, nil
 }
 func yamlvalidatorDecode_28ba702d6(node *yaml.Node, dst *Containers, ctx *genruntime.DecodeContext) error {
@@ -495,11 +1339,11 @@ func yamlvalidatorDecode_28ba702d6(node *yaml.Node, dst *Containers, ctx *genrun
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "items":
+		case genruntime.FieldName("Items", "items", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d7(pair.Value, &dst.Items, ctx); err != nil {
 				return fmt.Errorf("field Items: %w", err)
 			}
-		case "values":
+		case genruntime.FieldName("Values", "values", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d8(pair.Value, &dst.Values, ctx); err != nil {
 				return fmt.Errorf("field Values: %w", err)
 			}
@@ -507,10 +1351,10 @@ func yamlvalidatorDecode_28ba702d6(node *yaml.Node, dst *Containers, ctx *genrun
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d7(value []string) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d7(value []string, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	for _, item := range value {
-		child, err := yamlvalidatorEncode_28ba702d1(item)
+		child, err := yamlvalidatorEncode_28ba702d1(item, naming)
 		if err != nil {
 			return nil, err
 		}
@@ -536,15 +1380,29 @@ func yamlvalidatorDecode_28ba702d7(node *yaml.Node, dst *[]string, ctx *genrunti
 		return fmt.Errorf("expected YAML sequence")
 	}
 	result := make([]string, len(node.Content))
+	written := 0
 	for i, item := range node.Content {
-		if err := yamlvalidatorDecode_28ba702d1(item, &result[i], ctx); err != nil {
+		resolved, err := ctx.Resolve(item)
+		if err != nil {
 			return fmt.Errorf("item %d: %w", i, err)
 		}
+		if resolved.Tag == "!!null" {
+			if err := ctx.Enter(); err != nil {
+				return fmt.Errorf("item %d: %w", i, err)
+			}
+			ctx.Leave()
+			continue
+		}
+		if err := yamlvalidatorDecode_28ba702d1(item, &result[written], ctx); err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		written++
 	}
+	result = result[:written]
 	*dst = result
 	return nil
 }
-func yamlvalidatorEncode_28ba702d8(value map[string]string) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d8(value map[string]string, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	keys := make([]string, 0, len(value))
 	for key := range value {
@@ -552,7 +1410,7 @@ func yamlvalidatorEncode_28ba702d8(value map[string]string) (*yaml.Node, error) 
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, key := range keys {
-		child, err := yamlvalidatorEncode_28ba702d1(value[key])
+		child, err := yamlvalidatorEncode_28ba702d1(value[key], naming)
 		if err != nil {
 			return nil, err
 		}
@@ -592,15 +1450,15 @@ func yamlvalidatorDecode_28ba702d8(node *yaml.Node, dst *map[string]string, ctx 
 }
 
 // yamlvalidator source fingerprint: 7108560b1c5344172c6a47c5
-func yamlvalidatorEncode_28ba702d9(value Dynamic) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d9(value Dynamic, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d10(value.Value)
+	child, err = yamlvalidatorEncode_28ba702d10(value.Value, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Value: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"}, child)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Value", "value", naming)}, child)
 	return node, nil
 }
 func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *genruntime.DecodeContext) error {
@@ -614,7 +1472,7 @@ func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *genruntim
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "value":
+		case genruntime.FieldName("Value", "value", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d10(pair.Value, &dst.Value, ctx); err != nil {
 				return fmt.Errorf("field Value: %w", err)
 			}
@@ -622,8 +1480,8 @@ func yamlvalidatorDecode_28ba702d9(node *yaml.Node, dst *Dynamic, ctx *genruntim
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d10(value any) (*yaml.Node, error) {
-	return genruntime.FallbackEncode(value)
+func yamlvalidatorEncode_28ba702d10(value any, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	return genruntime.FallbackEncodeWithNaming(value, naming)
 }
 func yamlvalidatorDecode_28ba702d10(node *yaml.Node, dst *any, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
@@ -633,26 +1491,70 @@ func yamlvalidatorDecode_28ba702d10(node *yaml.Node, dst *any, ctx *genruntime.D
 	return genruntime.FallbackDecodeWithContext(node, dst, ctx)
 }
 
-// yamlvalidator source fingerprint: 28c47568402d05f9a8d07de3
-func yamlvalidatorEncode_28ba702d11(value Link) (*yaml.Node, error) {
+// yamlvalidator source fingerprint: 7ef5aa66987220684b725e68
+func yamlvalidatorEncode_28ba702d11(value FieldNames, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d1(value.Value)
+	child, err = yamlvalidatorEncode_28ba702d1(value.ImageName, naming)
 	if err != nil {
-		return nil, fmt.Errorf("field Value: %w", err)
+		return nil, fmt.Errorf("field ImageName: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"}, child)
-	if !yamlvalidatorEmpty_28ba702d12(value.Next) {
-		child, err = yamlvalidatorEncode_28ba702d12(value.Next)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("ImageName", "", naming)}, child)
+	if !yamlvalidatorEmpty_28ba702d1(value.OptionalName) {
+		child, err = yamlvalidatorEncode_28ba702d1(value.OptionalName, naming)
 		if err != nil {
-			return nil, fmt.Errorf("field Next: %w", err)
+			return nil, fmt.Errorf("field OptionalName: %w", err)
 		}
-		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "next"}, child)
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("OptionalName", "", naming)}, child)
+	}
+	child, err = yamlvalidatorEncode_28ba702d1(value.LiteralName, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field LiteralName: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("LiteralName", "literal_name", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d1(value.JSONName, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field JSONName: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("JSONName", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d12(value.Child, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Child: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Child", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d14(value.Children, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Children: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Children", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d15(value.Array, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Array: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Array", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d16(value.Workers, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Workers: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Workers", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d17(value.NamingInline, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field NamingInline: %w", err)
+	}
+	if err := genruntime.AppendInline(node, child); err != nil {
+		return nil, err
+	}
+	child, err = yamlvalidatorEncode_28ba702d8(value.Extra, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Extra: %w", err)
+	}
+	if err := genruntime.AppendInline(node, child); err != nil {
+		return nil, err
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *Link, ctx *genruntime.DecodeContext) error {
+func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *FieldNames, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -663,25 +1565,433 @@ func yamlvalidatorDecode_28ba702d11(node *yaml.Node, dst *Link, ctx *genruntime.
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "value":
+		case genruntime.FieldName("ImageName", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.ImageName, ctx); err != nil {
+				return fmt.Errorf("field ImageName: %w", err)
+			}
+		case genruntime.FieldName("OptionalName", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.OptionalName, ctx); err != nil {
+				return fmt.Errorf("field OptionalName: %w", err)
+			}
+		case genruntime.FieldName("LiteralName", "literal_name", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.LiteralName, ctx); err != nil {
+				return fmt.Errorf("field LiteralName: %w", err)
+			}
+		case genruntime.FieldName("JSONName", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.JSONName, ctx); err != nil {
+				return fmt.Errorf("field JSONName: %w", err)
+			}
+		case genruntime.FieldName("Child", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d12(pair.Value, &dst.Child, ctx); err != nil {
+				return fmt.Errorf("field Child: %w", err)
+			}
+		case genruntime.FieldName("Children", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d14(pair.Value, &dst.Children, ctx); err != nil {
+				return fmt.Errorf("field Children: %w", err)
+			}
+		case genruntime.FieldName("Array", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d15(pair.Value, &dst.Array, ctx); err != nil {
+				return fmt.Errorf("field Array: %w", err)
+			}
+		case genruntime.FieldName("Workers", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d16(pair.Value, &dst.Workers, ctx); err != nil {
+				return fmt.Errorf("field Workers: %w", err)
+			}
+		}
+	}
+	if err := yamlvalidatorDecode_28ba702d17(node, &dst.NamingInline, ctx); err != nil {
+		return fmt.Errorf("field NamingInline: %w", err)
+	}
+	{
+		inlineNode := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		for _, pair := range pairs {
+			switch pair.Key {
+			case genruntime.FieldName("Array", "", ctx.FieldNaming):
+			case genruntime.FieldName("Child", "", ctx.FieldNaming):
+			case genruntime.FieldName("Children", "", ctx.FieldNaming):
+			case genruntime.FieldName("ImageName", "", ctx.FieldNaming):
+			case genruntime.FieldName("InlineName", "", ctx.FieldNaming):
+			case genruntime.FieldName("JSONName", "", ctx.FieldNaming):
+			case genruntime.FieldName("LiteralName", "literal_name", ctx.FieldNaming):
+			case genruntime.FieldName("OptionalName", "", ctx.FieldNaming):
+			case genruntime.FieldName("Workers", "", ctx.FieldNaming):
+			default:
+				inlineNode.Content = append(inlineNode.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: pair.Key}, pair.Value)
+			}
+		}
+		if err := yamlvalidatorDecode_28ba702d8(inlineNode, &dst.Extra, ctx); err != nil {
+			return fmt.Errorf("field Extra: %w", err)
+		}
+	}
+	return nil
+}
+func yamlvalidatorEncode_28ba702d12(value *NamingChild, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	if value == nil {
+		return genruntime.ScalarEncode[any](nil)
+	}
+	return yamlvalidatorEncode_28ba702d13(*value, naming)
+}
+func yamlvalidatorDecode_28ba702d12(node *yaml.Node, dst **NamingChild, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	var err error
+	node, err = ctx.Resolve(node)
+	if err != nil {
+		return err
+	}
+	if node.Tag == "!!null" {
+		*dst = nil
+		return nil
+	}
+	if *dst == nil {
+		*dst = new(NamingChild)
+	}
+	return yamlvalidatorDecode_28ba702d13(node, *dst, ctx)
+}
+
+// yamlvalidator source fingerprint: 7b538e960deba03bfd559da1
+func yamlvalidatorEncode_28ba702d13(value NamingChild, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.ImageName, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field ImageName: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("ImageName", "", naming)}, child)
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d13(node *yaml.Node, dst *NamingChild, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("ImageName", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.ImageName, ctx); err != nil {
+				return fmt.Errorf("field ImageName: %w", err)
+			}
+		}
+	}
+	return nil
+}
+func yamlvalidatorEncode_28ba702d14(value []NamingChild, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	for _, item := range value {
+		child, err := yamlvalidatorEncode_28ba702d13(item, naming)
+		if err != nil {
+			return nil, err
+		}
+		node.Content = append(node.Content, child)
+	}
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d14(node *yaml.Node, dst *[]NamingChild, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	var err error
+	node, err = ctx.Resolve(node)
+	if err != nil {
+		return err
+	}
+	if node.Tag == "!!null" {
+		*dst = nil
+		return nil
+	}
+	if node.Kind != yaml.SequenceNode {
+		return fmt.Errorf("expected YAML sequence")
+	}
+	result := make([]NamingChild, len(node.Content))
+	written := 0
+	for i, item := range node.Content {
+		resolved, err := ctx.Resolve(item)
+		if err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		if resolved.Tag == "!!null" {
+			if err := ctx.Enter(); err != nil {
+				return fmt.Errorf("item %d: %w", i, err)
+			}
+			ctx.Leave()
+			continue
+		}
+		if err := yamlvalidatorDecode_28ba702d13(item, &result[written], ctx); err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		written++
+	}
+	result = result[:written]
+	*dst = result
+	return nil
+}
+func yamlvalidatorEncode_28ba702d15(value [1]NamingChild, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	for _, item := range value {
+		child, err := yamlvalidatorEncode_28ba702d13(item, naming)
+		if err != nil {
+			return nil, err
+		}
+		node.Content = append(node.Content, child)
+	}
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d15(node *yaml.Node, dst *[1]NamingChild, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	var err error
+	node, err = ctx.Resolve(node)
+	if err != nil {
+		return err
+	}
+	if node.Kind != yaml.SequenceNode {
+		return fmt.Errorf("expected YAML sequence")
+	}
+	if len(node.Content) != 1 {
+		return fmt.Errorf("expected 1 sequence items")
+	}
+	var result [1]NamingChild
+	written := 0
+	for i, item := range node.Content {
+		resolved, err := ctx.Resolve(item)
+		if err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		if resolved.Tag == "!!null" {
+			if err := ctx.Enter(); err != nil {
+				return fmt.Errorf("item %d: %w", i, err)
+			}
+			ctx.Leave()
+			continue
+		}
+		if err := yamlvalidatorDecode_28ba702d13(item, &result[written], ctx); err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		written++
+	}
+	*dst = result
+	return nil
+}
+func yamlvalidatorEncode_28ba702d16(value map[string]*NamingChild, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	keys := make([]string, 0, len(value))
+	for key := range value {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	for _, key := range keys {
+		child, err := yamlvalidatorEncode_28ba702d12(value[key], naming)
+		if err != nil {
+			return nil, err
+		}
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: string(key)}, child)
+	}
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d16(node *yaml.Node, dst *map[string]*NamingChild, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	var err error
+	node, err = ctx.Resolve(node)
+	if err != nil {
+		return err
+	}
+	if node.Tag == "!!null" {
+		*dst = nil
+		return nil
+	}
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	if *dst == nil {
+		*dst = make(map[string]*NamingChild, len(pairs))
+	}
+	for _, pair := range pairs {
+		var item *NamingChild
+		if err := yamlvalidatorDecode_28ba702d12(pair.Value, &item, ctx); err != nil {
+			return fmt.Errorf("key %q: %w", pair.Key, err)
+		}
+		(*dst)[string(pair.Key)] = item
+	}
+	return nil
+}
+
+// yamlvalidator source fingerprint: 909e81b22cf468374da2a908
+func yamlvalidatorEncode_28ba702d17(value NamingInline, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.InlineName, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field InlineName: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("InlineName", "", naming)}, child)
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d17(node *yaml.Node, dst *NamingInline, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("InlineName", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.InlineName, ctx); err != nil {
+				return fmt.Errorf("field InlineName: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// yamlvalidator source fingerprint: 589169e203a26dfc20683c70
+func yamlvalidatorEncode_28ba702d18(value GoNamingCollision, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.Field, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Field: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Field", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Explicit, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Explicit: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Explicit", "Field", naming)}, child)
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d18(node *yaml.Node, dst *GoNamingCollision, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("Field", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Field, ctx); err != nil {
+				return fmt.Errorf("field Field: %w", err)
+			}
+		case genruntime.FieldName("Explicit", "Field", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Explicit, ctx); err != nil {
+				return fmt.Errorf("field Explicit: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// yamlvalidator source fingerprint: a7db97d20497faeeb97e50b8
+func yamlvalidatorEncode_28ba702d19(value GoRuleNames, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.Mode, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Mode: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Mode", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Token, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Token: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Token", "", naming)}, child)
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d19(node *yaml.Node, dst *GoRuleNames, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("Mode", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Mode, ctx); err != nil {
+				return fmt.Errorf("field Mode: %w", err)
+			}
+		case genruntime.FieldName("Token", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Token, ctx); err != nil {
+				return fmt.Errorf("field Token: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// yamlvalidator source fingerprint: 28c47568402d05f9a8d07de3
+func yamlvalidatorEncode_28ba702d20(value Link, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.Value, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Value: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Value", "value", naming)}, child)
+	if !yamlvalidatorEmpty_28ba702d21(value.Next) {
+		child, err = yamlvalidatorEncode_28ba702d21(value.Next, naming)
+		if err != nil {
+			return nil, fmt.Errorf("field Next: %w", err)
+		}
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Next", "next", naming)}, child)
+	}
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d20(node *yaml.Node, dst *Link, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("Value", "value", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Value, ctx); err != nil {
 				return fmt.Errorf("field Value: %w", err)
 			}
-		case "next":
-			if err := yamlvalidatorDecode_28ba702d12(pair.Value, &dst.Next, ctx); err != nil {
+		case genruntime.FieldName("Next", "next", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d21(pair.Value, &dst.Next, ctx); err != nil {
 				return fmt.Errorf("field Next: %w", err)
 			}
 		}
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d12(value *Link) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d21(value *Link, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	if value == nil {
 		return genruntime.ScalarEncode[any](nil)
 	}
-	return yamlvalidatorEncode_28ba702d11(*value)
+	return yamlvalidatorEncode_28ba702d20(*value, naming)
 }
-func yamlvalidatorDecode_28ba702d12(node *yaml.Node, dst **Link, ctx *genruntime.DecodeContext) error {
+func yamlvalidatorDecode_28ba702d21(node *yaml.Node, dst **Link, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -698,29 +2008,29 @@ func yamlvalidatorDecode_28ba702d12(node *yaml.Node, dst **Link, ctx *genruntime
 	if *dst == nil {
 		*dst = new(Link)
 	}
-	return yamlvalidatorDecode_28ba702d11(node, *dst, ctx)
+	return yamlvalidatorDecode_28ba702d20(node, *dst, ctx)
 }
 
 // yamlvalidator source fingerprint: 0f1ba072e28ac3638d729acc
-func yamlvalidatorEncode_28ba702d13(value Node) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d22(value Node, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d1(value.Name)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Name, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Name: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "name"}, child)
-	if !yamlvalidatorEmpty_28ba702d14(value.Children) {
-		child, err = yamlvalidatorEncode_28ba702d14(value.Children)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Name", "name", naming)}, child)
+	if !yamlvalidatorEmpty_28ba702d23(value.Children) {
+		child, err = yamlvalidatorEncode_28ba702d23(value.Children, naming)
 		if err != nil {
 			return nil, fmt.Errorf("field Children: %w", err)
 		}
-		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "children"}, child)
+		node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Children", "children", naming)}, child)
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d13(node *yaml.Node, dst *Node, ctx *genruntime.DecodeContext) error {
+func yamlvalidatorDecode_28ba702d22(node *yaml.Node, dst *Node, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -731,22 +2041,22 @@ func yamlvalidatorDecode_28ba702d13(node *yaml.Node, dst *Node, ctx *genruntime.
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "name":
+		case genruntime.FieldName("Name", "name", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Name, ctx); err != nil {
 				return fmt.Errorf("field Name: %w", err)
 			}
-		case "children":
-			if err := yamlvalidatorDecode_28ba702d14(pair.Value, &dst.Children, ctx); err != nil {
+		case genruntime.FieldName("Children", "children", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d23(pair.Value, &dst.Children, ctx); err != nil {
 				return fmt.Errorf("field Children: %w", err)
 			}
 		}
 	}
 	return nil
 }
-func yamlvalidatorEncode_28ba702d14(value []Node) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d23(value []Node, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	for _, item := range value {
-		child, err := yamlvalidatorEncode_28ba702d13(item)
+		child, err := yamlvalidatorEncode_28ba702d22(item, naming)
 		if err != nil {
 			return nil, err
 		}
@@ -754,7 +2064,7 @@ func yamlvalidatorEncode_28ba702d14(value []Node) (*yaml.Node, error) {
 	}
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d14(node *yaml.Node, dst *[]Node, ctx *genruntime.DecodeContext) error {
+func yamlvalidatorDecode_28ba702d23(node *yaml.Node, dst *[]Node, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -772,28 +2082,42 @@ func yamlvalidatorDecode_28ba702d14(node *yaml.Node, dst *[]Node, ctx *genruntim
 		return fmt.Errorf("expected YAML sequence")
 	}
 	result := make([]Node, len(node.Content))
+	written := 0
 	for i, item := range node.Content {
-		if err := yamlvalidatorDecode_28ba702d13(item, &result[i], ctx); err != nil {
+		resolved, err := ctx.Resolve(item)
+		if err != nil {
 			return fmt.Errorf("item %d: %w", i, err)
 		}
+		if resolved.Tag == "!!null" {
+			if err := ctx.Enter(); err != nil {
+				return fmt.Errorf("item %d: %w", i, err)
+			}
+			ctx.Leave()
+			continue
+		}
+		if err := yamlvalidatorDecode_28ba702d22(item, &result[written], ctx); err != nil {
+			return fmt.Errorf("item %d: %w", i, err)
+		}
+		written++
 	}
+	result = result[:written]
 	*dst = result
 	return nil
 }
 
 // yamlvalidator source fingerprint: 4d65ec4464164e7ba69771d8
-func yamlvalidatorEncode_28ba702d15(value Registered) (*yaml.Node, error) {
+func yamlvalidatorEncode_28ba702d24(value Registered, naming genruntime.FieldNaming) (*yaml.Node, error) {
 	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	var child *yaml.Node
 	var err error
-	child, err = yamlvalidatorEncode_28ba702d1(value.Value)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Value, naming)
 	if err != nil {
 		return nil, fmt.Errorf("field Value: %w", err)
 	}
-	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "value"}, child)
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Value", "value", naming)}, child)
 	return node, nil
 }
-func yamlvalidatorDecode_28ba702d15(node *yaml.Node, dst *Registered, ctx *genruntime.DecodeContext) error {
+func yamlvalidatorDecode_28ba702d24(node *yaml.Node, dst *Registered, ctx *genruntime.DecodeContext) error {
 	if err := ctx.Enter(); err != nil {
 		return err
 	}
@@ -804,9 +2128,50 @@ func yamlvalidatorDecode_28ba702d15(node *yaml.Node, dst *Registered, ctx *genru
 	}
 	for _, pair := range pairs {
 		switch pair.Key {
-		case "value":
+		case genruntime.FieldName("Value", "value", ctx.FieldNaming):
 			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Value, ctx); err != nil {
 				return fmt.Errorf("field Value: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// yamlvalidator source fingerprint: 362771b9040f8b47b28c0247
+func yamlvalidatorEncode_28ba702d25(value YAMLCollision, naming genruntime.FieldNaming) (*yaml.Node, error) {
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	var child *yaml.Node
+	var err error
+	child, err = yamlvalidatorEncode_28ba702d1(value.ID, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field ID: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("ID", "", naming)}, child)
+	child, err = yamlvalidatorEncode_28ba702d1(value.Id, naming)
+	if err != nil {
+		return nil, fmt.Errorf("field Id: %w", err)
+	}
+	node.Content = append(node.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: genruntime.FieldName("Id", "", naming)}, child)
+	return node, nil
+}
+func yamlvalidatorDecode_28ba702d25(node *yaml.Node, dst *YAMLCollision, ctx *genruntime.DecodeContext) error {
+	if err := ctx.Enter(); err != nil {
+		return err
+	}
+	defer ctx.Leave()
+	pairs, err := ctx.MappingPairs(node)
+	if err != nil {
+		return err
+	}
+	for _, pair := range pairs {
+		switch pair.Key {
+		case genruntime.FieldName("ID", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.ID, ctx); err != nil {
+				return fmt.Errorf("field ID: %w", err)
+			}
+		case genruntime.FieldName("Id", "", ctx.FieldNaming):
+			if err := yamlvalidatorDecode_28ba702d1(pair.Value, &dst.Id, ctx); err != nil {
+				return fmt.Errorf("field Id: %w", err)
 			}
 		}
 	}
@@ -1026,35 +2391,83 @@ func yamlvalidatorCycle_28ba702d10(value any, ctx *genruntime.CycleContext, dept
 	defer done()
 	return ctx.CheckDynamic(value, depth)
 }
-func yamlvalidatorEmpty_28ba702d11(value Link) bool {
+func yamlvalidatorEmpty_28ba702d11(value FieldNames) bool {
 	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
 		return zero.IsZero()
 	}
-	if !yamlvalidatorEmpty_28ba702d1(value.Value) {
+	if !yamlvalidatorEmpty_28ba702d1(value.ImageName) {
 		return false
 	}
-	if !yamlvalidatorEmpty_28ba702d12(value.Next) {
+	if !yamlvalidatorEmpty_28ba702d1(value.OptionalName) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.LiteralName) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.JSONName) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d12(value.Child) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d14(value.Children) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d15(value.Array) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d16(value.Workers) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d17(value.NamingInline) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d8(value.Extra) {
 		return false
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d11(value Link, ctx *genruntime.CycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d11(value FieldNames, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
 	}
 	defer done()
-	if err := yamlvalidatorCycle_28ba702d1(value.Value, ctx, depth+1); err != nil {
+	if err := yamlvalidatorCycle_28ba702d1(value.ImageName, ctx, depth+1); err != nil {
 		return err
 	}
-	if !yamlvalidatorEmpty_28ba702d12(value.Next) {
-		if err := yamlvalidatorCycle_28ba702d12(value.Next, ctx, depth+1); err != nil {
+	if !yamlvalidatorEmpty_28ba702d1(value.OptionalName) {
+		if err := yamlvalidatorCycle_28ba702d1(value.OptionalName, ctx, depth+1); err != nil {
 			return err
 		}
 	}
+	if err := yamlvalidatorCycle_28ba702d1(value.LiteralName, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d1(value.JSONName, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d12(value.Child, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d14(value.Children, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d15(value.Array, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d16(value.Workers, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d17(value.NamingInline, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d8(value.Extra, ctx, depth+1); err != nil {
+		return err
+	}
 	return nil
 }
-func yamlvalidatorEmpty_28ba702d12(value *Link) bool {
+func yamlvalidatorEmpty_28ba702d12(value *NamingChild) bool {
 	if value == nil {
 		return true
 	}
@@ -1063,7 +2476,7 @@ func yamlvalidatorEmpty_28ba702d12(value *Link) bool {
 	}
 	return value == nil
 }
-func yamlvalidatorCycle_28ba702d12(value *Link, ctx *genruntime.CycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d12(value *NamingChild, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1072,43 +2485,35 @@ func yamlvalidatorCycle_28ba702d12(value *Link, ctx *genruntime.CycleContext, de
 	if value == nil {
 		return nil
 	}
-	return yamlvalidatorCycle_28ba702d11(*value, ctx, depth+1)
+	return yamlvalidatorCycle_28ba702d13(*value, ctx, depth+1)
 }
-func yamlvalidatorEmpty_28ba702d13(value Node) bool {
+func yamlvalidatorEmpty_28ba702d13(value NamingChild) bool {
 	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
 		return zero.IsZero()
 	}
-	if !yamlvalidatorEmpty_28ba702d1(value.Name) {
-		return false
-	}
-	if !yamlvalidatorEmpty_28ba702d14(value.Children) {
+	if !yamlvalidatorEmpty_28ba702d1(value.ImageName) {
 		return false
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d13(value Node, ctx *genruntime.CycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d13(value NamingChild, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
 	}
 	defer done()
-	if err := yamlvalidatorCycle_28ba702d1(value.Name, ctx, depth+1); err != nil {
+	if err := yamlvalidatorCycle_28ba702d1(value.ImageName, ctx, depth+1); err != nil {
 		return err
-	}
-	if !yamlvalidatorEmpty_28ba702d14(value.Children) {
-		if err := yamlvalidatorCycle_28ba702d14(value.Children, ctx, depth+1); err != nil {
-			return err
-		}
 	}
 	return nil
 }
-func yamlvalidatorEmpty_28ba702d14(value []Node) bool {
+func yamlvalidatorEmpty_28ba702d14(value []NamingChild) bool {
 	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
 		return zero.IsZero()
 	}
 	return len(value) == 0
 }
-func yamlvalidatorCycle_28ba702d14(value []Node, ctx *genruntime.CycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d14(value []NamingChild, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
@@ -1121,7 +2526,212 @@ func yamlvalidatorCycle_28ba702d14(value []Node, ctx *genruntime.CycleContext, d
 	}
 	return nil
 }
-func yamlvalidatorEmpty_28ba702d15(value Registered) bool {
+func yamlvalidatorEmpty_28ba702d15(value [1]NamingChild) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	return false
+}
+func yamlvalidatorCycle_28ba702d15(value [1]NamingChild, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	for _, item := range value {
+		if err := yamlvalidatorCycle_28ba702d13(item, ctx, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d16(value map[string]*NamingChild) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	return len(value) == 0
+}
+func yamlvalidatorCycle_28ba702d16(value map[string]*NamingChild, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	for _, item := range value {
+		if err := yamlvalidatorCycle_28ba702d12(item, ctx, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d17(value NamingInline) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.InlineName) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d17(value NamingInline, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.InlineName, ctx, depth+1); err != nil {
+		return err
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d18(value GoNamingCollision) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Field) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Explicit) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d18(value GoNamingCollision, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.Field, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d1(value.Explicit, ctx, depth+1); err != nil {
+		return err
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d19(value GoRuleNames) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Mode) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Token) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d19(value GoRuleNames, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.Mode, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d1(value.Token, ctx, depth+1); err != nil {
+		return err
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d20(value Link) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Value) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d21(value.Next) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d20(value Link, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.Value, ctx, depth+1); err != nil {
+		return err
+	}
+	if !yamlvalidatorEmpty_28ba702d21(value.Next) {
+		if err := yamlvalidatorCycle_28ba702d21(value.Next, ctx, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d21(value *Link) bool {
+	if value == nil {
+		return true
+	}
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	return value == nil
+}
+func yamlvalidatorCycle_28ba702d21(value *Link, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if value == nil {
+		return nil
+	}
+	return yamlvalidatorCycle_28ba702d20(*value, ctx, depth+1)
+}
+func yamlvalidatorEmpty_28ba702d22(value Node) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Name) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d23(value.Children) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d22(value Node, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.Name, ctx, depth+1); err != nil {
+		return err
+	}
+	if !yamlvalidatorEmpty_28ba702d23(value.Children) {
+		if err := yamlvalidatorCycle_28ba702d23(value.Children, ctx, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d23(value []Node) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	return len(value) == 0
+}
+func yamlvalidatorCycle_28ba702d23(value []Node, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	for _, item := range value {
+		if err := yamlvalidatorCycle_28ba702d22(item, ctx, depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d24(value Registered) bool {
 	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
 		return zero.IsZero()
 	}
@@ -1130,13 +2740,39 @@ func yamlvalidatorEmpty_28ba702d15(value Registered) bool {
 	}
 	return true
 }
-func yamlvalidatorCycle_28ba702d15(value Registered, ctx *genruntime.CycleContext, depth int) error {
+func yamlvalidatorCycle_28ba702d24(value Registered, ctx *genruntime.CycleContext, depth int) error {
 	done, err := ctx.Enter(value, depth)
 	if err != nil {
 		return err
 	}
 	defer done()
 	if err := yamlvalidatorCycle_28ba702d1(value.Value, ctx, depth+1); err != nil {
+		return err
+	}
+	return nil
+}
+func yamlvalidatorEmpty_28ba702d25(value YAMLCollision) bool {
+	if zero, ok := any(value).(interface{ IsZero() bool }); ok {
+		return zero.IsZero()
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.ID) {
+		return false
+	}
+	if !yamlvalidatorEmpty_28ba702d1(value.Id) {
+		return false
+	}
+	return true
+}
+func yamlvalidatorCycle_28ba702d25(value YAMLCollision, ctx *genruntime.CycleContext, depth int) error {
+	done, err := ctx.Enter(value, depth)
+	if err != nil {
+		return err
+	}
+	defer done()
+	if err := yamlvalidatorCycle_28ba702d1(value.ID, ctx, depth+1); err != nil {
+		return err
+	}
+	if err := yamlvalidatorCycle_28ba702d1(value.Id, ctx, depth+1); err != nil {
 		return err
 	}
 	return nil

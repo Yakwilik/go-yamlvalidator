@@ -67,7 +67,7 @@ bash skills/go-yamlvalidator/scripts/check-examples.sh --local .
 ~~~
 
 The last command checks the current release candidate without altering its
-go.mod. After v1.1.0 is published, run the checker without <code>--local</code>
+go.mod. After v1.2.0 is published, run the checker without <code>--local</code>
 to verify the bundled examples against the tagged module in a temporary
 workspace. That mode may download modules. Normal repository tests include the
 packaging checks and recipes.
@@ -101,8 +101,8 @@ already contains the plugin.
 
 ## Version and maintenance
 
-The plugin/skill version for the v1.1.0 library documentation is
-<code>0.2.0</code>; its documented library version is <code>v1.1.0</code>.
+The plugin/skill version for the v1.2.0 library documentation is
+<code>0.3.0</code>; its documented library version is <code>v1.2.0</code>.
 Plugin and library versions are independent.
 Change the plugin version when its instructions or resources change, and keep
 it synchronized with the SKILL frontmatter. No new Go-library tag is required

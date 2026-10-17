@@ -1,14 +1,15 @@
 # Installation and integration choice
 
-This skill targets <code>github.com/Yakwilik/go-yamlvalidator v1.1.0</code>, whose
+This skill targets <code>github.com/Yakwilik/go-yamlvalidator v1.2.0</code>, whose
 minimum Go directive is <code>1.24.0</code>. The plugin version is independent.
+Test a working tree with <code>check-examples.sh --local /path/to/checkout</code>.
 Inspect the caller's go.mod before changing dependencies; do not upgrade Go to
 satisfy an example without asking. For older library versions, read their API.
 
 ~~~bash
 go version
 go list -m github.com/Yakwilik/go-yamlvalidator
-go get github.com/Yakwilik/go-yamlvalidator@v1.1.0
+go get github.com/Yakwilik/go-yamlvalidator@v1.2.0
 ~~~
 
 The last command changes the current Go module and may download dependencies.
@@ -49,6 +50,10 @@ This validates the YAML tree before mutating cfg. See
 Use FieldSchema when the contract is built programmatically or independently of
 one struct. Use JSON Schema when the schema is portable/external or needs the
 JSON Schema vocabulary.
+
+For existing YAML keys that match exported Go names exactly, v1.2.0 supports
+<code>FieldNamingGo</code> on both Options. Preserve the model and input keys;
+see [field naming](high-level-and-codegen.md#field-naming).
 
 ## Native versus JSON Schema
 
@@ -104,7 +109,7 @@ go test ./skills/go-yamlvalidator/examples/...
 ~~~
 
 An installed skill may be outside any Go module. Its check-examples.sh script
-copies only the bundled examples into a temporary module, pins v1.1.0, and runs
+copies only the bundled examples into a temporary module, pins v1.2.0, and runs
 the tests. Pass <code>--local /path/to/go-yamlvalidator</code> to test a checkout
 without editing the application's go.mod. Both commands and source files are
 examples for explicit execution, not automatic hooks.

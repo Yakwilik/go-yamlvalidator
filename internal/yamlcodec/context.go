@@ -22,15 +22,18 @@ func normalizeLimits(limits Limits) Limits {
 }
 
 type Pair struct {
-	Key   string
-	Value *yaml.Node
+	Key     string
+	KeyNode *yaml.Node
+	Value   *yaml.Node
 }
 
 type DecodeContext struct {
-	limits  Limits
-	enforce bool
-	visits  int
-	depth   int
+	FieldNaming FieldNaming
+	limits      Limits
+	enforce     bool
+	visits      int
+	depth       int
+	activeMixed map[*yaml.Node]bool
 }
 
 func NewDecodeContext(limits Limits, enforce bool) *DecodeContext {
@@ -57,6 +60,23 @@ func (c *DecodeContext) Leave() {
 	}
 }
 
+// EnterMixedNode rejects cycles on the active reflective composite path. A
+// later use of the same alias is allowed after the returned function runs.
+// This guard is independent of depth accounting and pointer dereferences.
+func (c *DecodeContext) EnterMixedNode(node *yaml.Node) (func(), error) {
+	if c == nil || node == nil {
+		return nil, fmt.Errorf("nil YAML mixed decode context or node")
+	}
+	if c.activeMixed[node] {
+		return nil, fmt.Errorf("cyclic YAML value")
+	}
+	if c.activeMixed == nil {
+		c.activeMixed = make(map[*yaml.Node]bool)
+	}
+	c.activeMixed[node] = true
+	return func() { delete(c.activeMixed, node) }, nil
+}
+
 func (c *DecodeContext) Resolve(node *yaml.Node) (*yaml.Node, error) {
 	return ResolveNode(node)
 }
@@ -72,18 +92,19 @@ func (c *DecodeContext) MappingPairs(node *yaml.Node) ([]Pair, error) {
 	if node.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("expected YAML mapping")
 	}
-	seen := make(map[string]bool)
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		key := node.Content[i]
-		if key.Tag == "!!merge" {
-			continue
-		}
-		if seen[key.Value] {
-			return nil, fmt.Errorf("duplicate YAML key %q", key.Value)
-		}
-		seen[key.Value] = true
+	return c.expandMapping(node, nil)
+}
+
+// MappingPairsWithKeyDecoder preserves custom map-key codecs during merge expansion.
+func (c *DecodeContext) MappingPairsWithKeyDecoder(node *yaml.Node, decodeKey func(*yaml.Node) (string, error)) ([]Pair, error) {
+	if c == nil {
+		return nil, fmt.Errorf("nil generated decode context")
 	}
-	return c.expandMapping(node)
+	resolved, err := c.Resolve(node)
+	if err != nil {
+		return nil, err
+	}
+	return c.expandMapping(resolved, decodeKey)
 }
 
 func (c *DecodeContext) bump() error {
@@ -97,7 +118,7 @@ func (c *DecodeContext) bump() error {
 	return nil
 }
 
-func (c *DecodeContext) expandMapping(root *yaml.Node) ([]Pair, error) {
+func (c *DecodeContext) expandMapping(root *yaml.Node, decodeKey func(*yaml.Node) (string, error)) ([]Pair, error) {
 	active := make(map[*yaml.Node]bool)
 	var expandValue func(*yaml.Node) ([]Pair, error)
 	var expandMap func(*yaml.Node) ([]Pair, error)
@@ -109,15 +130,20 @@ func (c *DecodeContext) expandMapping(root *yaml.Node) ([]Pair, error) {
 		if err := c.bump(); err != nil {
 			return nil, err
 		}
+		var err error
+		value, err = c.Resolve(value)
+		if err != nil {
+			return nil, err
+		}
 		switch value.Kind {
-		case yaml.AliasNode:
-			if value.Alias == nil {
-				return nil, fmt.Errorf("invalid YAML alias")
-			}
-			return expandValue(value.Alias)
 		case yaml.MappingNode:
 			return expandMap(value)
 		case yaml.SequenceNode:
+			if active[value] {
+				return nil, fmt.Errorf("cyclic YAML merge")
+			}
+			active[value] = true
+			defer delete(active, value)
 			var out []Pair
 			seen := map[string]bool{}
 			for _, item := range value.Content {
@@ -153,11 +179,27 @@ func (c *DecodeContext) expandMapping(root *yaml.Node) ([]Pair, error) {
 
 		var merged, explicit []Pair
 		mergedSeen := map[string]bool{}
+		// yaml.v3 compares the original node kind and spelling for duplicate
+		// keys. Run this for every source mapping before merge precedence can
+		// hide a malformed entry, including aliased and overridden sources.
+		type keyIdentity struct {
+			kind  yaml.Kind
+			value string
+		}
+		explicitSeen := map[keyIdentity]bool{}
 		for i := 0; i+1 < len(mapping.Content); i += 2 {
 			key, value := mapping.Content[i], mapping.Content[i+1]
 			if err := c.bump(); err != nil {
 				return nil, err
 			}
+			if key == nil {
+				return nil, fmt.Errorf("nil YAML mapping key")
+			}
+			identity := keyIdentity{kind: key.Kind, value: key.Value}
+			if explicitSeen[identity] {
+				return nil, fmt.Errorf("duplicate YAML key %q", key.Value)
+			}
+			explicitSeen[identity] = true
 			if key.Tag == "!!merge" {
 				pairs, err := expandValue(value)
 				if err != nil {
@@ -174,7 +216,26 @@ func (c *DecodeContext) expandMapping(root *yaml.Node) ([]Pair, error) {
 				}
 				continue
 			}
-			explicit = append(explicit, Pair{Key: key.Value, Value: value})
+			var name string
+			if decodeKey != nil {
+				decoded, err := decodeKey(key)
+				if err != nil {
+					return nil, fmt.Errorf("decode YAML mapping key: %w", err)
+				}
+				name = decoded
+			} else {
+				resolvedKey, err := c.Resolve(key)
+				if err != nil {
+					return nil, err
+				}
+				if resolvedKey.Kind != yaml.ScalarNode {
+					return nil, fmt.Errorf("YAML mapping key must be a scalar")
+				}
+				if err := resolvedKey.Decode(&name); err != nil {
+					return nil, fmt.Errorf("decode YAML mapping key: %w", err)
+				}
+			}
+			explicit = append(explicit, Pair{Key: name, KeyNode: key, Value: value})
 		}
 		explicit = dedupePairsKeepLast(explicit)
 		explicitKeys := make(map[string]bool, len(explicit))

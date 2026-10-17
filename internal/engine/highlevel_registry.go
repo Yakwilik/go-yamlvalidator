@@ -137,6 +137,7 @@ func NewRegistry(config RegistryConfig) (*Registry, error) {
 }
 
 type planKey struct {
+	naming FieldNaming
 	typ    reflect.Type
 	encode bool
 }

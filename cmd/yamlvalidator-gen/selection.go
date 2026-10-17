@@ -14,15 +14,20 @@ import (
 )
 
 var generatedRootMethods = map[string]bool{
-	"MarshalYAML":                    true,
-	"UnmarshalYAML":                  true,
-	"YAMLValidatorEncode":            true,
-	"YAMLValidatorDecode":            true,
-	"YAMLValidatorDecodeWithContext": true,
-	"YAMLValidatorGeneratedType":     true,
-	"YAMLValidatorSchemaSpec":        true,
-	"YAMLValidatorSchema":            true,
-	"YAMLValidatorCheckCycles":       true,
+	"YAMLValidatorValidateFieldNamingWithContext": true,
+	"YAMLValidatorFieldNamesWithNaming":           true,
+	"YAMLValidatorEncodeWithNaming":               true,
+	"YAMLValidatorSchemaSpecWithNaming":           true,
+	"YAMLValidatorValidateFieldNaming":            true,
+	"MarshalYAML":                                 true,
+	"UnmarshalYAML":                               true,
+	"YAMLValidatorEncode":                         true,
+	"YAMLValidatorDecode":                         true,
+	"YAMLValidatorDecodeWithContext":              true,
+	"YAMLValidatorGeneratedType":                  true,
+	"YAMLValidatorSchemaSpec":                     true,
+	"YAMLValidatorSchema":                         true,
+	"YAMLValidatorCheckCycles":                    true,
 }
 
 func selectRootNames(namesText string, all bool, outputPath string) ([]string, error) {

@@ -55,3 +55,22 @@ go test -count=1 ./examples/tagrules
 ~~~
 
 The example generation directive uses -all, so new eligible struct types added to the package are picked up automatically. For a freshness-only check in that package, run the generator with -all and -check.
+
+## Per-call field naming
+
+`UnmarshalOptions` and `MarshalOptions` accept `FieldNamingGo` to preserve Go
+field names without adding YAML tags or selecting a generation flag. Explicit
+`yaml` names still win. The generator emits typed name selection, separate
+normalized schema variants, and name-conflict metadata. Validation rules keep
+their literal key references; a declaration can be valid in one naming mode and
+return a schema error in the other.
+
+The high-level call carries naming through generated children and ordinary
+fallback values. Standard `yaml.v3` hooks continue to use the default lowercase
+names. `SkipValidation` retains naming and conflict checks. Schema/codec caches
+include the mode, so calls can alternate modes or run concurrently.
+
+Older generated files retain their default behavior. In Go mode, the library
+uses the reflection traversal for those types so hard-coded lowercase keys are
+never used silently. Regenerate with the existing command to use the typed path;
+no regeneration is required for correctness.

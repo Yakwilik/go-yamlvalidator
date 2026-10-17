@@ -1,15 +1,19 @@
 # API coverage and source map
 
-This package documents <code>github.com/Yakwilik/go-yamlvalidator v1.1.0</code>.
-The skill/plugin has its own version, <code>0.2.0</code>. It neither upgrades the
-Go module nor changes library behavior. These references describe the v1.1.0
-surface, including high-level struct tags and optional typed code generation.
+This package documents <code>github.com/Yakwilik/go-yamlvalidator v1.2.0</code>.
+The skill/plugin has its own version, <code>0.3.0</code>. It neither upgrades the
+Go module nor changes library behavior. These references describe the v1.2.0
+surface, including high-level struct tags, per-call field naming and optional typed code generation.
+The source revision in SKILL.md and the source links below identify the
+immutable v1.2.0 release tag. Use <code>--local</code> when checking changes
+that have not yet been included in that release.
 
 ## Coverage map
 
 | Public surface | Reference | Executable coverage |
 | --- | --- | --- |
 | High-level Marshal/Unmarshal, Options, yamlvalidate tags, Registry bindings | [High-level tags and codegen](high-level-and-codegen.md) | highlevel_test.go, library high-level acceptance tests |
+| FieldNaming, FieldNamingYAML/Go, recursive per-call naming, explicit tags and legacy generated fallback | [Field naming](high-level-and-codegen.md#field-naming) | field_naming_test.go, library naming/generated acceptance tests |
 | yamlvalidator-gen -all/-type/-check, generated yaml.v3 hooks, recursive generated models | [High-level tags and codegen](high-level-and-codegen.md) | generator integration tests, checked-in generated examples |
 | Module installation, NewValidator, optional CompileFieldSchema and ValidateFieldSchema | [Installation](installation.md), [native schemas](native-schema.md) | [Native program](../examples/native/main.go), native_test.go |
 | All FieldSchema fields, NodeType constants, UnknownKeyPolicy values, ConditionalRule | [Native schemas](native-schema.md) | native_test.go |
@@ -39,13 +43,13 @@ reference does not answer a version-specific question:
 
 | Source | Owns |
 | --- | --- |
-| [api.go](https://github.com/Yakwilik/go-yamlvalidator/blob/v1.1.0/api.go) | Application-facing root facade and stable exported names |
-| [internal/engine](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/internal/engine) | High-level tag compiler, native validation, JSON Schema bridge, diagnostics, registry and plan cache |
-| [genruntime](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/genruntime) | ABI used by generated YAML hooks and typed codec helpers |
-| [cmd/yamlvalidator-gen](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/cmd/yamlvalidator-gen) | Go source/type frontend, -all selection and code generation |
-| [pkg/valuevalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/pkg/valuevalidator) | Native value checks, exact bounds, cloning |
-| [pkg/keyvalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/pkg/keyvalidator) | Native key checks |
-| [CLI](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.1.0/cmd/yamlvalidator) | CLI loading, options, serialization support |
+| [api.go](https://github.com/Yakwilik/go-yamlvalidator/blob/v1.2.0/api.go) | Application-facing root facade and stable exported names |
+| [internal/engine](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/internal/engine) | High-level tag compiler, native validation, JSON Schema bridge, diagnostics, registry and plan cache |
+| [genruntime](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/genruntime) | ABI used by generated YAML hooks and typed codec helpers |
+| [cmd/yamlvalidator-gen](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/cmd/yamlvalidator-gen) | Go source/type frontend, -all selection and code generation |
+| [pkg/valuevalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/pkg/valuevalidator) | Native value checks, exact bounds, cloning |
+| [pkg/keyvalidator](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/pkg/keyvalidator) | Native key checks |
+| [CLI](https://github.com/Yakwilik/go-yamlvalidator/tree/v1.2.0/cmd/yamlvalidator) | CLI loading, options, serialization support |
 
 Implementation takes precedence over README shortcuts. For example, native
 unknown keys are warnings by default, native schema compilation is optional,
@@ -56,7 +60,8 @@ field. Do not silently substitute desired behavior for current behavior.
 
 For a new library release, inspect changed exports and semantics, update the
 relevant reference and tests, run the recipe suite against both the checkout and
-the published version, and update the source revision only after verification.
+the published version, and update the source revision to the verified release
+tag or commit.
 Check that the plugin version, frontmatter version, package documentation, and
 marketplace candidate metadata agree. Do not rewrite published library tags as
 part of skill maintenance.

@@ -70,6 +70,9 @@ type Node struct {
 type Graph struct {
 	Root  int
 	Nodes []Node
+	// Error records a definition that is invalid for the selected field naming.
+	// Another naming mode may still provide a valid graph for the same Go type.
+	Error string
 }
 
 type RuleValue struct {

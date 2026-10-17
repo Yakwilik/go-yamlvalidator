@@ -24,7 +24,7 @@ Generation-time declarations and lowering are internal. The public <code>genrunt
 
 ## Generated schema and hooks
 
-A generated type supplies <code>YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type)</code>. It does not create a native <code>FieldSchema</code> and does not receive a Registry. The engine materializes that data privately on a plan-cache miss; the cache remains separated by type, direction and immutable Registry.
+A generated type supplies <code>YAMLValidatorSchemaSpec() (spec.Graph, []reflect.Type)</code>. It does not create a native <code>FieldSchema</code> and does not receive a Registry. The engine materializes that data privately on a plan-cache miss; the cache remains separated by type, direction, field naming and immutable Registry.
 
 <code>reflect.Type</code> values in this contract identify types for bindings. Generated schema preparation never inspects struct fields or parses validation tags at runtime.
 
@@ -43,6 +43,13 @@ func (value *Config) UnmarshalYAML(node *yaml.Node) error {
 The root package does not export <code>MarshalGenerated</code>, <code>UnmarshalGenerated</code>, <code>LowerGeneratedSchema</code> or <code>BuildGeneratedSchema</code>. The obsolete <code>SourceTypePlan</code> route is also removed.
 
 The root and standard-hook paths share one plan cache and preserve their existing semantic distinction: high-level Options carry explicit configuration and source bytes; standard hooks use defaults and the node positions they receive. No input source is fabricated.
+
+New generators additionally emit naming-aware schema and encoder methods, static
+field-name metadata, and direction-aware conflict preflight. The decode context
+carries per-call naming. Both schemas are normalized during generation, so mode
+selection does not reflect over typed structs or parse tag rules at runtime.
+Older generated files use reflection fallback when Go field names are selected;
+their standard YAML behavior remains available.
 
 ## Regeneration
 
