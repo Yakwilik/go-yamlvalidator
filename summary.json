@@ -2,8 +2,8 @@
   "coverage": "82.4",
   "covered_statements": 4661,
   "total_statements": 5657,
-  "source_commit": "481b504294f3cf4d1401b7b71abe087f78d23c1c",
-  "workflow_run": "https://github.com/Yakwilik/go-yamlvalidator/actions/runs/39076020032",
+  "source_commit": "619740686b6a12b6e6d67735a0cd5bce9f4825f0",
+  "workflow_run": "https://github.com/Yakwilik/go-yamlvalidator/actions/runs/42103255811",
   "packages": {
     "github.com/Yakwilik/go-yamlvalidator": {
       "covered": 26,
