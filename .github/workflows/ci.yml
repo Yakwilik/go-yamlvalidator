@@ -52,6 +52,8 @@ jobs:
         with:
           name: coverage-${{ github.run_id }}-${{ github.run_attempt }}
           path: coverage.out
+          retention-days: 1
+          compression-level: 9
           if-no-files-found: error
       # The measured 80% gate above remains mandatory. A reporting-service
       # outage must not discard the artifact or masquerade as a test failure.
